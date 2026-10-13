@@ -161,3 +161,8 @@ def test_first_step_does_not_depend_on_limit(client):
     one = client.get(f"/api/learners/{learner}/next?limit=1").json()["steps"]
     three = client.get(f"/api/learners/{learner}/next?limit=3").json()["steps"]
     assert len(one) == 1 and one[0] == three[0]
+
+
+def test_estimate_reasons_are_readable(client):
+    reasons = [e["reason"] for e in onboard(client, "Ada")["initialEstimates"]]
+    assert reasons and not any("--" in r for r in reasons), reasons

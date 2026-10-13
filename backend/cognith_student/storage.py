@@ -12,6 +12,7 @@ which made a Firestore backend a refactor of the engine rather than a new class.
 Selected by COGNITH_STORAGE:
 
     file        (default) JSON files under data/ — what every CLI has always used.
+                COGNITH_DATA_DIR points it elsewhere, e.g. a scratch copy for a demo run.
     firestore   not built here; see FirestoreStorage below for the contract.
 
 The shapes are unchanged from the file format, so a Firestore backend stores the same
@@ -96,7 +97,8 @@ def get_storage() -> Storage:
     global _storage
     if _storage is None:
         kind = os.environ.get("COGNITH_STORAGE", "file")
-        _storage = FirestoreStorage() if kind == "firestore" else FileStorage()
+        root = Path(os.environ.get("COGNITH_DATA_DIR", DATA_DIR))
+        _storage = FirestoreStorage() if kind == "firestore" else FileStorage(root)
     return _storage
 
 

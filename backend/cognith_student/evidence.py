@@ -414,12 +414,15 @@ def explain(outcomes: list[CapabilityOutcome], graph: CapabilityGraph,
             )
             line = (f"{cap.name} {direction} from {o.mastery_before:.0%} "
                     f"to {o.mastery_after:.0%}.")
+        # Criteria are written as what a good answer does ("Says retrying is not
+        # safe…"), so they are quoted as-is. Splicing them into a sentence produced
+        # "You showed says retrying…".
         if o.met:
-            line += " You showed " + "; ".join(
-                text[m][0].lower() + text[m][1:] for m in o.met[:2]) + "."
+            line += " What you got right: " + "; ".join(
+                f'"{text[m]}"' for m in o.met[:2]) + "."
         if o.unmet:
             line += " Still to develop: " + "; ".join(
-                text[u][0].lower() + text[u][1:] for u in o.unmet[:2]) + "."
+                f'"{text[u]}"' for u in o.unmet[:2]) + "."
         parts.append(line)
     return "\n\n".join(parts)
 

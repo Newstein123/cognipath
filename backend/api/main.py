@@ -203,6 +203,18 @@ def criterion_text() -> dict[str, tuple[str, str]]:
             for e in library().experiences.values() for c in e.rubric}
 
 
+def estimate_reason(signal) -> str:
+    """Onboarding's provenance in learner language. Derived sources read
+    "Caching --supports--> Scalability" or "Caching <--prerequisite_for-- HTTP";
+    either way the first name is the capability the estimate came from."""
+    if signal.kind == "technology":
+        return f"You've used {signal.source}"
+    if signal.kind == "phrase":
+        return f"You mentioned {signal.source}"
+    origin = re.split(r" <?--", signal.source, maxsplit=1)[0]
+    return f"Inferred from your {origin} experience"
+
+
 def match_goal(text: str) -> str:
     lowered = f" {text.lower()} "
     for key, words in GOAL_KEYWORDS:
@@ -256,7 +268,7 @@ def create_learner(req: s.OnboardingRequest):
             s.InitialEstimate(capability_id=e.capability_id,
                               name=graph().get(e.capability_id).name,
                               self_rated=e.confidence,
-                              reason=f"{e.chosen.kind}: {e.chosen.source}")
+                              reason=estimate_reason(e.chosen))
             for e in result.estimates
         ],
         unrecognised_technologies=result.unrecognised_technologies,

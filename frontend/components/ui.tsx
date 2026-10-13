@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
+import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
 import { pct, stepHref, type Skill, type SkillState, type Source, type Step } from "@/lib/api";
@@ -39,7 +40,7 @@ const MATH = [remarkMath, { singleDollarTextMath: process.env.NEXT_PUBLIC_INLINE
 export function Markdown({ text }: { text: string }) {
   return (
     <div className="md">
-      <ReactMarkdown remarkPlugins={[MATH as never]} rehypePlugins={[rehypeKatex]}>{text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm, MATH as never]} rehypePlugins={[rehypeKatex]}>{text}</ReactMarkdown>
     </div>
   );
 }

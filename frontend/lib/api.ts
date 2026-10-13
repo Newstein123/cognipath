@@ -71,13 +71,20 @@ export interface Lesson {
   capabilityId: string; name: string; question: string; answered: boolean;
   explanation: string; sources: Source[]; prerequisitesFirst: string[]; gate: string;
   missed: string[]; targeted: boolean; retryActivityId: string | null;
-  /** Micro-lesson cards; null when the material couldn't support them (use `explanation`). */
-  hook: string | null; cards: LessonCard[] | null;
+  /** Structured lesson; null when the material couldn't support one (use `explanation`). */
+  hook: string | null; sections: LessonSection[] | null; quiz: QuizQuestion[] | null;
 }
-export interface LessonCard {
-  title: string; idea: string; example: string; sources: string[];
-  check: { question: string; options: string[]; answerIndex: number; explanation: string };
+export interface Diagram {
+  type: "none" | "venn" | "mapping" | "table" | "flow"; caption: string;
+  sets: string[]; onlyFirst: string[]; onlySecond: string[]; both: string[]; outside: string[];
+  shade: "none" | "union" | "intersection" | "first_minus_second" | "second_minus_first" | "complement_first";
+  fromLabel: string; toLabel: string; domain: string[]; codomain: string[]; arrows: string[][];
+  headers: string[]; rows: string[][]; steps: string[];
 }
+export interface LessonSection {
+  title: string; explanation: string; example: string; diagram: Diagram; sources: string[];
+}
+export interface QuizQuestion { question: string; options: string[]; answerIndex: number; explanation: string }
 export interface TutorAnswer { question: string; answered: boolean; answer: string; sources: Source[]; gate: string }
 export interface EvidenceEntry {
   activityId: string; attempt: number; createdAt: string; response: string;

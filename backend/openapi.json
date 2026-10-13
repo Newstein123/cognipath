@@ -781,6 +781,134 @@
         ],
         "title": "DiagnosticTarget"
       },
+      "Diagram": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "caption": {
+            "type": "string",
+            "title": "Caption",
+            "default": ""
+          },
+          "sets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sets",
+            "default": []
+          },
+          "onlyFirst": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Onlyfirst",
+            "default": []
+          },
+          "onlySecond": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Onlysecond",
+            "default": []
+          },
+          "both": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Both",
+            "default": []
+          },
+          "outside": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Outside",
+            "default": []
+          },
+          "shade": {
+            "type": "string",
+            "title": "Shade",
+            "default": "none"
+          },
+          "fromLabel": {
+            "type": "string",
+            "title": "Fromlabel",
+            "default": ""
+          },
+          "toLabel": {
+            "type": "string",
+            "title": "Tolabel",
+            "default": ""
+          },
+          "domain": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Domain",
+            "default": []
+          },
+          "codomain": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Codomain",
+            "default": []
+          },
+          "arrows": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Arrows",
+            "default": []
+          },
+          "headers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Headers",
+            "default": []
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Rows",
+            "default": []
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "Diagram",
+        "description": "Drawn by the frontend from data. `type` says which fields are filled."
+      },
       "EvidenceEntry": {
         "properties": {
           "activityId": {
@@ -1061,11 +1189,11 @@
             ],
             "title": "Hook"
           },
-          "cards": {
+          "sections": {
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/LessonCard"
+                  "$ref": "#/components/schemas/LessonSection"
                 },
                 "type": "array"
               },
@@ -1073,7 +1201,21 @@
                 "type": "null"
               }
             ],
-            "title": "Cards"
+            "title": "Sections"
+          },
+          "quiz": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/QuizQuestion"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiz"
           },
           "gate": {
             "type": "string",
@@ -1096,41 +1238,6 @@
         ],
         "title": "Lesson"
       },
-      "LessonCard": {
-        "properties": {
-          "title": {
-            "type": "string",
-            "title": "Title"
-          },
-          "idea": {
-            "type": "string",
-            "title": "Idea"
-          },
-          "example": {
-            "type": "string",
-            "title": "Example"
-          },
-          "check": {
-            "$ref": "#/components/schemas/QuickCheck"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Sources"
-          }
-        },
-        "type": "object",
-        "required": [
-          "title",
-          "idea",
-          "example",
-          "check",
-          "sources"
-        ],
-        "title": "LessonCard"
-      },
       "LessonRequest": {
         "properties": {
           "capabilityId": {
@@ -1143,6 +1250,41 @@
           "capabilityId"
         ],
         "title": "LessonRequest"
+      },
+      "LessonSection": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "example": {
+            "type": "string",
+            "title": "Example"
+          },
+          "diagram": {
+            "$ref": "#/components/schemas/Diagram"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "explanation",
+          "example",
+          "diagram",
+          "sources"
+        ],
+        "title": "LessonSection"
       },
       "NextActivities": {
         "properties": {
@@ -1283,7 +1425,7 @@
         ],
         "title": "Option"
       },
-      "QuickCheck": {
+      "QuizQuestion": {
         "properties": {
           "question": {
             "type": "string",
@@ -1312,7 +1454,7 @@
           "answerIndex",
           "explanation"
         ],
-        "title": "QuickCheck"
+        "title": "QuizQuestion"
       },
       "Skill": {
         "properties": {

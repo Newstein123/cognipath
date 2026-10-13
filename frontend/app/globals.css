@@ -189,3 +189,36 @@ details summary { cursor: pointer; }
 .verdict.miss { background: var(--amber-soft); }
 .verdict .md { display: inline; }
 .verdict .md > p { display: inline; margin: 0; }
+
+/* --- structured lesson ------------------------------------------------------------- */
+.section-n { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: 13px; margin-right: 8px; }
+.example-label { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--primary); margin-bottom: 4px; }
+.diagram { margin: 14px 0; padding: 12px; background: var(--surface-2); border-radius: 10px; text-align: center; }
+.diagram figcaption { margin-top: 6px; }
+.svg { width: 100%; max-width: 420px; height: auto; }
+.svg .universe { fill: none; stroke: var(--border); stroke-width: 1.5; }
+.svg .set { fill-opacity: .16; stroke-width: 2; }
+.svg .s0 { fill: #6366f1; stroke: #6366f1; }
+.svg .s1 { fill: #0ea5e9; stroke: #0ea5e9; }
+.svg .s2 { fill: #16a34a; stroke: #16a34a; }
+.svg .label { fill: var(--text); font-weight: 700; font-size: 15px; }
+.svg .elems { fill: var(--text); font-size: 13px; }
+.svg .edge { stroke: var(--muted); stroke-width: 1.6; }
+.svg .arrowhead { fill: var(--muted); }
+.dtable { border-collapse: collapse; margin: 0 auto; font-size: 14px; }
+.dtable th, .dtable td { border: 1px solid var(--border); padding: 5px 12px; text-align: center; }
+.dtable th { background: var(--surface); }
+.dtable td.t { color: var(--green); font-weight: 600; }
+.dtable td.f { color: var(--red); font-weight: 600; }
+.flow { list-style: none; padding: 0; margin: 0 auto; max-width: 460px; text-align: left; }
+.flow li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; position: relative; }
+.flow li + li { margin-top: 18px; }
+.flow li + li::before { content: "↓"; position: absolute; top: -18px; left: 18px; color: var(--muted); }
+.flow .n { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; }
+.md table { border-collapse: collapse; margin: 8px 0; }
+.md th, .md td { border: 1px solid var(--border); padding: 4px 10px; }
+.svg .shade { fill: #6366f1; fill-opacity: .35; stroke: none; }
+.svg .set-line { fill: none; stroke: var(--primary); stroke-width: 2; }

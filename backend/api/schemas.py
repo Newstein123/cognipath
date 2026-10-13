@@ -258,20 +258,41 @@ class Source(Model):
     cited: bool
 
 
-class QuickCheck(Model):
+class Diagram(Model):
+    """Drawn by the frontend from data. `type` says which fields are filled."""
+    type: str  # none | venn | mapping | table | flow
+    caption: str = ""
+    sets: list[str] = []
+    only_first: list[str] = []
+    only_second: list[str] = []
+    both: list[str] = []
+    outside: list[str] = []
+    #: none | union | intersection | first_minus_second | second_minus_first | complement_first
+    shade: str = "none"
+    from_label: str = ""
+    to_label: str = ""
+    domain: list[str] = []
+    codomain: list[str] = []
+    arrows: list[list[str]] = []
+    headers: list[str] = []
+    rows: list[list[str]] = []
+    steps: list[str] = []
+
+
+class LessonSection(Model):
+    title: str
+    explanation: str
+    example: str
+    diagram: Diagram
+    #: Course sections this part of the lesson is built from.
+    sources: list[str]
+
+
+class QuizQuestion(Model):
     question: str
     options: list[str]
     answer_index: int
     explanation: str
-
-
-class LessonCard(Model):
-    title: str
-    idea: str
-    example: str
-    check: QuickCheck
-    #: Course sections the card is built from.
-    sources: list[str]
 
 
 class LessonRequest(Model):
@@ -294,11 +315,12 @@ class Lesson(Model):
     targeted: bool
     #: An activity where the learner missed this — "try it again" after the lesson.
     retry_activity_id: str | None
-    #: The micro-lesson: 3–5 cards, each one idea + worked example + quick check. Null when
-    #: the material could not support one; `explanation` is always there as the fallback
-    #: and the "read it all" view. Quick checks are practice — they never change mastery.
+    #: The structured lesson: sections (explanation, worked example, diagram) then a quiz.
+    #: Null when the material could not support one; `explanation` is always there as the
+    #: fallback. Quiz answers are practice — they never change mastery.
     hook: str | None = None
-    cards: list[LessonCard] | None = None
+    sections: list[LessonSection] | None = None
+    quiz: list[QuizQuestion] | None = None
     #: Why it was or was not answered: score_floor | model | citation_check | api_error | no_corpus
     gate: str
 

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { activityHref, api, param, type Lesson, type Step } from "@/lib/api";
-import { MicroLesson } from "@/components/MicroLesson";
+import { Diagram } from "@/components/Diagram";
+import { Quiz } from "@/components/Quiz";
 import { TutorBox } from "@/components/TutorBox";
 import { ErrorBox, Loading, Markdown, Sources, StepCard } from "@/components/ui";
 
@@ -12,6 +13,8 @@ export default function LessonPage() {
   return <Suspense><LessonView /></Suspense>;
 }
 
+/** A lesson in three parts: 1 Learn (sections with examples and diagrams), 2 Quiz
+ *  (practice, instant feedback), 3 Challenge (the written answer that counts). */
 function LessonView() {
   const params = useParams();
   const id = param(params.id);
@@ -21,7 +24,7 @@ function LessonView() {
   const [practice, setPractice] = useState<Step | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  // Score on the quick checks once the cards are done; null while still on the cards.
+  const [stage, setStage] = useState<"learn" | "quiz" | "done">("learn");
   const [score, setScore] = useState<number | null>(null);
   const router = useRouter();
 
@@ -33,9 +36,11 @@ function LessonView() {
     }).catch(() => {});
   }, [id, cap]);
 
-  // The question the learner just got wrong comes first; the engine's record second.
   const retry = retryParam ?? lesson?.retryActivityId ?? null;
   const name = lesson?.name ?? cap;
+  const structured = !!lesson?.sections?.length;
+  const hasQuiz = !!lesson?.quiz?.length;
+  const showChallenge = lesson && (!structured || !hasQuiz || stage === "done");
 
   async function newChallenge() {
     setGenerating(true);
@@ -48,31 +53,39 @@ function LessonView() {
       setGenerating(false);
     }
   }
+
   const presets = [
     { label: "Explain it more simply", question: `Explain the most important idea of ${name} in plain words for a beginner.` },
-    { label: "Show me an example", question: `Give a concrete example from the material that shows ${name} in practice.` },
+    { label: "Show me another example", question: `Give a concrete example from the material that shows ${name} in practice.` },
     { label: "Common mistakes", question: `What mistakes do people commonly make with ${name}, and how do you avoid them?` },
   ];
+
+  const steps = [
+    { key: "learn", label: "1 · Learn" },
+    { key: "quiz", label: "2 · Quiz" },
+    { key: "done", label: "3 · Challenge" },
+  ] as const;
 
   return (
     <>
       <p className="small muted" style={{ marginBottom: 4 }}>Lesson</p>
       <h1>{name}</h1>
+      {structured && hasQuiz && (
+        <div className="row" style={{ gap: 6, marginBottom: 14 }}>
+          {steps.map((s) => (
+            <span key={s.key} className={`badge ${stage === s.key ? "kind" : "unknown"}`}>{s.label}</span>
+          ))}
+        </div>
+      )}
       <ErrorBox error={error} />
 
-      {lesson && lesson.missed.length > 0 && (
+      {lesson && lesson.missed.length > 0 && stage === "learn" && (
         <div className="card primary">
           <h3>{lesson.targeted ? "What this lesson fixes" : "What you missed"}</h3>
           <p className="small muted">From your last answer, you didn&apos;t yet show that you:</p>
           <ul style={{ paddingLeft: 20, marginBottom: 0 }}>
             {lesson.missed.map((m) => <li key={m}>{m}</li>)}
           </ul>
-          {!lesson.targeted && (
-            <p className="small muted" style={{ marginTop: 8, marginBottom: 0 }}>
-              The course material doesn&apos;t cover your exact scenario, so this lesson teaches the
-              underlying ideas. Keep these points in mind as you read.
-            </p>
-          )}
         </div>
       )}
 
@@ -80,44 +93,76 @@ function LessonView() {
         <div className="card">
           <Loading stages={[
             "Finding the parts of the course material you need…",
-            "Checking the sources cover what you missed…",
-            "Writing your lesson…",
+            "Planning the lesson and its examples…",
+            "Drawing the diagrams…",
+            "Writing your quiz…",
           ]} />
         </div>
       )}
 
-      {lesson?.cards && score === null && (
+      {/* ---- 1 · Learn ---------------------------------------------------------- */}
+      {lesson && structured && stage === "learn" && (
         <>
-          <MicroLesson hook={lesson.hook} cards={lesson.cards} onFinish={setScore} />
-          <p className="small muted">
-            Prefer one page? <a href="#full" onClick={() => setScore(-1)}>Read it all as one page</a>
-          </p>
+          {lesson.hook && <p className="hook" style={{ fontSize: 16 }}>{lesson.hook}</p>}
+          {lesson.prerequisitesFirst.length > 0 && (
+            <div className="notice small">
+              This builds on {lesson.prerequisitesFirst.join(", ")}, which you haven&apos;t covered yet.
+            </div>
+          )}
+          {lesson.sections!.map((sec, i) => (
+            <section className="card" key={i}>
+              <h2><span className="section-n">{i + 1}</span>{sec.title}</h2>
+              <Markdown text={sec.explanation} />
+              <Diagram d={sec.diagram} />
+              <div className="example">
+                <div className="example-label">WORKED EXAMPLE</div>
+                <Markdown text={sec.example} />
+              </div>
+              {sec.sources.length > 0 && (
+                <p className="small muted" style={{ margin: "8px 0 0" }}>From: {sec.sources.join("; ")}</p>
+              )}
+            </section>
+          ))}
+          <TutorBox learnerId={id} capabilityId={cap} presets={presets}
+            title="Still unclear?" placeholder={`Ask anything about ${name}…`} />
+          {hasQuiz && (
+            <div className="card highlight">
+              <h2>Ready? Test yourself</h2>
+              <p className="muted">{lesson.quiz!.length} quick questions with instant feedback. Practice only — they don&apos;t change your profile.</p>
+              <button className="btn" onClick={() => { setStage("quiz"); window.scrollTo(0, 0); }}>Start the quiz →</button>
+            </div>
+          )}
         </>
       )}
 
-      {lesson?.cards && score !== null && score >= 0 && (
-        <div className={score === lesson.cards.length ? "card highlight" : "card"}>
-          <h2>Lesson done — {score} of {lesson.cards.length} quick checks right</h2>
-          <p className="muted" style={{ marginBottom: 6 }}>
-            {score === lesson.cards.length
-              ? "Nice. Now prove it on a question you haven't seen."
-              : "Quick checks are just practice — they don't change your profile. Revisit the cards you missed, or test yourself on a new question below."}
+      {/* ---- 2 · Quiz ----------------------------------------------------------- */}
+      {lesson && structured && stage === "quiz" && (
+        <>
+          <Quiz questions={lesson.quiz!} onFinish={(c) => { setScore(c); setStage("done"); window.scrollTo(0, 0); }} />
+          <button className="btn secondary" onClick={() => setStage("learn")}>← Back to the lesson</button>
+        </>
+      )}
+
+      {lesson && structured && stage === "done" && score !== null && (
+        <div className={score === lesson.quiz!.length ? "card highlight" : "card"}>
+          <h2>Quiz: {score} of {lesson.quiz!.length} right</h2>
+          <p className="muted" style={{ marginBottom: 8 }}>
+            {score === lesson.quiz!.length
+              ? "Great. Now prove it on a question you haven't seen — that's what counts."
+              : "Worth a second look at the lesson before the challenge."}
           </p>
-          <button className="btn secondary" onClick={() => setScore(null)}>Review the cards</button>
+          <div className="row">
+            <button className="btn secondary" onClick={() => setStage("learn")}>Review the lesson</button>
+            <button className="btn secondary" onClick={() => setStage("quiz")}>Retake the quiz</button>
+          </div>
         </div>
       )}
 
-      {lesson && (!lesson.cards || score !== null) && (
-        <details className="card" id="full" open={!lesson.cards || score === -1}>
-          <summary><strong>{lesson.cards ? "The whole lesson on one page" : "Explanation"}</strong></summary>
-          {lesson.prerequisitesFirst.length > 0 && (
-            <div className="notice small">
-              This builds on {lesson.prerequisitesFirst.join(", ")}, which you haven&apos;t demonstrated yet.
-            </div>
-          )}
-          {lesson.answered ? (
-            <Markdown text={lesson.explanation} />
-          ) : (
+      {/* ---- fallback: plain explanation ---------------------------------------- */}
+      {lesson && !structured && (
+        <div className="card">
+          <h2>Explanation</h2>
+          {lesson.answered ? <Markdown text={lesson.explanation} /> : (
             <div className="notice">
               {lesson.explanation}
               <div className="small muted" style={{ marginTop: 6 }}>
@@ -126,39 +171,34 @@ function LessonView() {
             </div>
           )}
           <Sources sources={lesson.sources} />
-        </details>
+        </div>
+      )}
+      {lesson && !structured && (
+        <TutorBox learnerId={id} capabilityId={cap} presets={presets}
+          title="Still unclear?" placeholder={`Ask anything about ${name}…`} />
       )}
 
-      {lesson && (!lesson.cards || score !== null) && (
-        <TutorBox
-          learnerId={id} capabilityId={cap} presets={presets}
-          title="Still unclear?" placeholder={`Ask anything about ${name}…`}
-        />
-      )}
-
-      {lesson && (!lesson.cards || score !== null) && (
+      {/* ---- 3 · Challenge ------------------------------------------------------ */}
+      {showChallenge && (
         <div className="card highlight">
-          <h2>Check your understanding</h2>
+          <h2>Challenge</h2>
           <p>
-            Cognith will write a <strong>new</strong> challenge from the same course material — a
-            different situation, so it tests understanding rather than memory. Your skill
-            profile updates from your answer.
+            A <strong>new</strong> question written from the same course material — a situation you
+            haven&apos;t seen. Work it on paper, then type your answer. This one updates your skill profile.
           </p>
           <ErrorBox error={generating ? null : error} />
           {generating ? (
-            <Loading stages={["Picking the course sections you just read…", "Writing a new situation…", "Checking every criterion is backed by the material…"]} />
+            <Loading stages={["Picking the course sections you just learned…", "Writing a new question…", "Checking every mark is backed by the material…"]} />
           ) : (
             <div className="row">
-              <button className="btn" onClick={newChallenge}>Give me a new challenge →</button>
-              {retry && (
-                <Link className="btn secondary" href={activityHref(id, retry)}>Retry the original question</Link>
-              )}
+              <button className="btn" onClick={newChallenge}>Give me a challenge →</button>
+              {retry && <Link className="btn secondary" href={activityHref(id, retry)}>Retry the original question</Link>}
             </div>
           )}
         </div>
       )}
 
-      {lesson && (!lesson.cards || score !== null) && practice && practice.activityId !== retry && (
+      {showChallenge && practice && practice.activityId !== retry && (
         <>
           <h3 className="muted">Or practise with a prepared exercise</h3>
           <StepCard learnerId={id} step={practice} />

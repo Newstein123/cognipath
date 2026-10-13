@@ -429,13 +429,12 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         prerequisites_first=[c.name for c in k.prerequisites_first],
         missed=list(gap.unmet[:3]), targeted=k.targeted, retry_activity_id=retry,
         hook=micro.hook if micro else None,
-        cards=[s.LessonCard(
-            title=c.title, idea=c.idea, example=c.example,
-            check=s.QuickCheck(question=c.check.question, options=c.check.options,
-                               answer_index=c.check.answer_index,
-                               explanation=c.check.explanation),
-            sources=[citation[e] for e in c.excerpt_ids if e in citation])
-            for c in micro.cards] if micro else None,
+        sections=[s.LessonSection(
+            title=x.title, explanation=x.explanation, example=x.example,
+            diagram=s.Diagram(**x.diagram.model_dump()),
+            sources=[citation[e] for e in x.excerpt_ids if e in citation])
+            for x in micro.sections] if micro else None,
+        quiz=[s.QuizQuestion(**q.model_dump()) for q in micro.quiz] if micro else None,
         gate=res.gate if res else "no_corpus",
     )
 

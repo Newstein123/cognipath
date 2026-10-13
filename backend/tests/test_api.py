@@ -239,3 +239,11 @@ def test_new_learner_is_taught_not_tested(client):
     assert nxt["stage"] == "starting from scratch"
     assert all(s["kind"] == "learn" for s in nxt["steps"])
     assert "new to this" in nxt["steps"][0]["reason"]
+
+
+def test_goal_with_no_topics_is_taught_too(client):
+    body = client.post("/api/learners", json={**ONBOARDING, "name": "Blank", "technologies": [],
+                                              "knows": "", "built": "", "level": "none"}).json()
+    assert body["initialEstimates"] == []
+    nxt = client.get(f"/api/learners/{body['learner']['id']}/next").json()
+    assert nxt["stage"] == "starting from scratch" and nxt["steps"][0]["kind"] == "learn"

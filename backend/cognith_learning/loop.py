@@ -215,6 +215,9 @@ class AdaptiveLoop:
         student = self.profile.student.id
 
         # --- stage 0: no self-report at all -----------------------------------------
+        # With a goal, "nothing claimed" means "nothing known yet": teach, don't ask.
+        if not assessed and not claimed and self.profile.student.goal:
+            return self._start_from_foundations(summary, limit)
         if not assessed and not claimed:
             return LoopState(
                 stage="not started",

@@ -83,7 +83,7 @@ export default function Start() {
               ))}
             </ul>
           ) : (
-            <p className="muted">Nothing to go on yet — the diagnosis will start from the basics.</p>
+            <p className="muted">Nothing to go on yet — we&apos;ll start from the basics.</p>
           )}
           {created.unrecognisedTechnologies.length > 0 && (
             <p className="small muted">Not recognised: {created.unrecognisedTechnologies.join(", ")}</p>

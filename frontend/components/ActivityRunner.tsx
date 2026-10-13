@@ -46,10 +46,12 @@ export function ActivityRunner({
         </div>
         <div className="prompt md" style={{ marginTop: 14, whiteSpace: "normal" }}><Markdown text={activity.prompt} /></div>
 
-        <h3 style={{ marginTop: 18 }}>Assessment criteria</h3>
-        <ul className="small" style={{ paddingLeft: 20, marginTop: 0 }}>
-          {activity.criteria.map((c) => <li key={c.id}>{c.criterion}</li>)}
-        </ul>
+        {/* Criteria often state the expected answer, so they are revealed only in the
+            feedback, each with its verdict. */}
+        <p className="small muted" style={{ marginTop: 14 }}>
+          Marked on {activity.criteria.length} points, shown with your feedback after you submit.
+          Show your working: method counts, not just the final answer.
+        </p>
 
         {!result && (
           <>

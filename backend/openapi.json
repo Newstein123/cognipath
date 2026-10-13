@@ -1050,6 +1050,31 @@
             ],
             "title": "Retryactivityid"
           },
+          "hook": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hook"
+          },
+          "cards": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LessonCard"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cards"
+          },
           "gate": {
             "type": "string",
             "title": "Gate"
@@ -1070,6 +1095,41 @@
           "gate"
         ],
         "title": "Lesson"
+      },
+      "LessonCard": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "idea": {
+            "type": "string",
+            "title": "Idea"
+          },
+          "example": {
+            "type": "string",
+            "title": "Example"
+          },
+          "check": {
+            "$ref": "#/components/schemas/QuickCheck"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "idea",
+          "example",
+          "check",
+          "sources"
+        ],
+        "title": "LessonCard"
       },
       "LessonRequest": {
         "properties": {
@@ -1222,6 +1282,37 @@
           "label"
         ],
         "title": "Option"
+      },
+      "QuickCheck": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "answerIndex": {
+            "type": "integer",
+            "title": "Answerindex"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "options",
+          "answerIndex",
+          "explanation"
+        ],
+        "title": "QuickCheck"
       },
       "Skill": {
         "properties": {

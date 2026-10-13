@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { activityHref, api, param, type Lesson, type Step } from "@/lib/api";
+import { MicroLesson } from "@/components/MicroLesson";
 import { TutorBox } from "@/components/TutorBox";
 import { ErrorBox, Loading, Markdown, Sources, StepCard } from "@/components/ui";
 
@@ -20,6 +21,8 @@ function LessonView() {
   const [practice, setPractice] = useState<Step | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  // Score on the quick checks once the cards are done; null while still on the cards.
+  const [score, setScore] = useState<number | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -83,9 +86,30 @@ function LessonView() {
         </div>
       )}
 
-      {lesson && (
-        <div className="card">
-          <h2>Explanation</h2>
+      {lesson?.cards && score === null && (
+        <>
+          <MicroLesson hook={lesson.hook} cards={lesson.cards} onFinish={setScore} />
+          <p className="small muted">
+            Prefer one page? <a href="#full" onClick={() => setScore(-1)}>Read it all as one page</a>
+          </p>
+        </>
+      )}
+
+      {lesson?.cards && score !== null && score >= 0 && (
+        <div className={score === lesson.cards.length ? "card highlight" : "card"}>
+          <h2>Lesson done — {score} of {lesson.cards.length} quick checks right</h2>
+          <p className="muted" style={{ marginBottom: 6 }}>
+            {score === lesson.cards.length
+              ? "Nice. Now prove it on a question you haven't seen."
+              : "Quick checks are just practice — they don't change your profile. Revisit the cards you missed, or test yourself on a new question below."}
+          </p>
+          <button className="btn secondary" onClick={() => setScore(null)}>Review the cards</button>
+        </div>
+      )}
+
+      {lesson && (!lesson.cards || score !== null) && (
+        <details className="card" id="full" open={!lesson.cards || score === -1}>
+          <summary><strong>{lesson.cards ? "The whole lesson on one page" : "Explanation"}</strong></summary>
           {lesson.prerequisitesFirst.length > 0 && (
             <div className="notice small">
               This builds on {lesson.prerequisitesFirst.join(", ")}, which you haven&apos;t demonstrated yet.
@@ -102,17 +126,17 @@ function LessonView() {
             </div>
           )}
           <Sources sources={lesson.sources} />
-        </div>
+        </details>
       )}
 
-      {lesson && (
+      {lesson && (!lesson.cards || score !== null) && (
         <TutorBox
           learnerId={id} capabilityId={cap} presets={presets}
           title="Still unclear?" placeholder={`Ask anything about ${name}…`}
         />
       )}
 
-      {lesson && (
+      {lesson && (!lesson.cards || score !== null) && (
         <div className="card highlight">
           <h2>Check your understanding</h2>
           <p>
@@ -134,7 +158,7 @@ function LessonView() {
         </div>
       )}
 
-      {lesson && practice && practice.activityId !== retry && (
+      {lesson && (!lesson.cards || score !== null) && practice && practice.activityId !== retry && (
         <>
           <h3 className="muted">Or practise with a prepared exercise</h3>
           <StepCard learnerId={id} step={practice} />

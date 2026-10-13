@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -44,6 +45,24 @@ class Result:
     @property
     def cited_hits(self) -> list[Hit]:
         return [h for h in self.hits if h.chunk.id in self.citations]
+
+
+_CONTROL = {"\x0c": "\\f", "\x08": "\\b", "\t": "\\t", "\r": "\\r"}
+_NEWLINE_COMMAND = re.compile(r"\n(?=(?:eq|eg|otin|ot|abla|subseteq|exists|e)\b)")
+
+
+def repair_latex_escapes(text: str) -> str:
+    """Undo JSON escapes that ate LaTeX backslashes.
+
+    The model writes `\\forall` inside a JSON string; if it emits `\forall`, JSON decodes
+    `\f` as a form feed and the student sees "orall". Same for \\to/\\times (tab),
+    \\beta (backspace), \\rightarrow (carriage return) and \\neq/\\neg/\\notin
+    (newline). Those control characters never belong in an answer, so put the backslash
+    back.
+    """
+    for ch, fixed in _CONTROL.items():
+        text = text.replace(ch, fixed)
+    return _NEWLINE_COMMAND.sub(r"\\n", text)
 
 
 def _abstain(question, hits, gate, reasoning, prompt=None) -> Result:
@@ -126,7 +145,7 @@ def answer(question: str, hits: list[Hit], min_score: float = MIN_SCORE) -> Resu
     return Result(
         question=question,
         answered=True,
-        answer=parsed.answer,
+        answer=repair_latex_escapes(parsed.answer),
         hits=hits,
         citations=parsed.citations,
         reasoning=parsed.reasoning,

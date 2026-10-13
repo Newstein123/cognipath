@@ -71,6 +71,12 @@ export interface Lesson {
   capabilityId: string; name: string; question: string; answered: boolean;
   explanation: string; sources: Source[]; prerequisitesFirst: string[]; gate: string;
   missed: string[]; targeted: boolean; retryActivityId: string | null;
+  /** Micro-lesson cards; null when the material couldn't support them (use `explanation`). */
+  hook: string | null; cards: LessonCard[] | null;
+}
+export interface LessonCard {
+  title: string; idea: string; example: string; sources: string[];
+  check: { question: string; options: string[]; answerIndex: number; explanation: string };
 }
 export interface TutorAnswer { question: string; answered: boolean; answer: string; sources: Source[]; gate: string }
 export interface EvidenceEntry {

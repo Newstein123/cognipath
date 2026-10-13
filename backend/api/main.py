@@ -396,7 +396,26 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
     gap = next((g for g in resolver.gaps(include_unverified=True)
                 if g.capability_id == cap.id),
                Gap(capability_id=cap.id, mastery=row.mastery, confidence=row.confidence))
-    k = resolver.knowledge_for(gap)
+    from concurrent.futures import ThreadPoolExecutor
+
+    from cognith_learning import microlesson
+
+    def cards():
+        kk = GapResolver(graph(), profile)
+        kk._store = store()
+        retrieved = kk.knowledge_for(gap, explain=False)
+        try:
+            return microlesson.generate(cap, retrieved.question, retrieved.hits,
+                                        missed=list(gap.unmet)), retrieved.hits
+        except Exception:  # noqa: BLE001 — the plain explanation is the fallback
+            return None, retrieved.hits
+
+    # Cards and the full explanation at the same time: one wait, not two.
+    with ThreadPoolExecutor(2) as pool:
+        card_job = pool.submit(cards)
+        k = resolver.knowledge_for(gap)
+        micro, card_hits = card_job.result()
+    citation = {h.chunk.id: h.chunk.citation for h in card_hits}
     res: Result | None = k.result
     # Most recent assessable activity where this capability was missed.
     retry = next((e for e in reversed(gap.from_evidence)
@@ -409,6 +428,14 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         sources=sources(k.hits, res.citations if res else []),
         prerequisites_first=[c.name for c in k.prerequisites_first],
         missed=list(gap.unmet[:3]), targeted=k.targeted, retry_activity_id=retry,
+        hook=micro.hook if micro else None,
+        cards=[s.LessonCard(
+            title=c.title, idea=c.idea, example=c.example,
+            check=s.QuickCheck(question=c.check.question, options=c.check.options,
+                               answer_index=c.check.answer_index,
+                               explanation=c.check.explanation),
+            sources=[citation[e] for e in c.excerpt_ids if e in citation])
+            for c in micro.cards] if micro else None,
         gate=res.gate if res else "no_corpus",
     )
 

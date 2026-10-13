@@ -258,6 +258,22 @@ class Source(Model):
     cited: bool
 
 
+class QuickCheck(Model):
+    question: str
+    options: list[str]
+    answer_index: int
+    explanation: str
+
+
+class LessonCard(Model):
+    title: str
+    idea: str
+    example: str
+    check: QuickCheck
+    #: Course sections the card is built from.
+    sources: list[str]
+
+
 class LessonRequest(Model):
     capability_id: str
 
@@ -278,6 +294,11 @@ class Lesson(Model):
     targeted: bool
     #: An activity where the learner missed this — "try it again" after the lesson.
     retry_activity_id: str | None
+    #: The micro-lesson: 3–5 cards, each one idea + worked example + quick check. Null when
+    #: the material could not support one; `explanation` is always there as the fallback
+    #: and the "read it all" view. Quick checks are practice — they never change mastery.
+    hook: str | None = None
+    cards: list[LessonCard] | None = None
     #: Why it was or was not answered: score_floor | model | citation_check | api_error | no_corpus
     gate: str
 

@@ -222,3 +222,13 @@ details summary { cursor: pointer; }
 .md th, .md td { border: 1px solid var(--border); padding: 4px 10px; }
 .svg .shade { fill: #6366f1; fill-opacity: .35; stroke: none; }
 .svg .set-line { fill: none; stroke: var(--primary); stroke-width: 2; }
+
+/* --- guided lesson ------------------------------------------------------------------ */
+.tutor-line { display: flex; gap: 10px; align-items: center; margin: 12px 0; padding: 10px 12px;
+  background: var(--primary-soft); border-radius: 10px; }
+.tutor-avatar { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--primary); color: #fff; font-weight: 700; font-size: 13px; }
+.teach { margin-top: 12px; }
+.teach.again { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--primary); }
+.concept-done { display: flex; gap: 8px; align-items: center; padding: 8px 12px; margin-bottom: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }

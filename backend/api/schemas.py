@@ -279,20 +279,62 @@ class Diagram(Model):
     steps: list[str] = []
 
 
-class LessonSection(Model):
-    title: str
-    explanation: str
-    example: str
-    diagram: Diagram
-    #: Course sections this part of the lesson is built from.
-    sources: list[str]
-
-
 class QuizQuestion(Model):
     question: str
     options: list[str]
     answer_index: int
     explanation: str
+
+
+class LessonSection(Model):
+    """One concept: probe (already known?) → explanation, example, diagram → check."""
+    title: str
+    probe: QuizQuestion
+    explanation: str
+    example: str
+    diagram: Diagram
+    check: QuizQuestion
+    #: Course sections this part of the lesson is built from.
+    sources: list[str]
+
+
+class ReexplainRequest(Model):
+    capability_id: str
+    concept: str
+    explanation: str
+    question: str
+    chosen: str
+    correct: str
+
+
+class Reexplanation(Model):
+    answered: bool
+    explanation: str
+    check: QuizQuestion | None
+    sources: list[str]
+
+
+class ConceptVerdict(Model):
+    title: str
+    #: met = knew it or got it after teaching; partial = got it after re-explaining;
+    #: unmet = still wrong after re-explaining.
+    verdict: Verdict
+    note: str = ""
+
+
+class LessonResultRequest(Model):
+    capability_id: str
+    concepts: list[ConceptVerdict] = Field(min_length=1)
+
+
+class HintRequest(Model):
+    activity_id: str
+
+
+class Hint(Model):
+    answered: bool
+    hint: str
+    sources: list[str]
 
 
 class LessonRequest(Model):
@@ -315,12 +357,11 @@ class Lesson(Model):
     targeted: bool
     #: An activity where the learner missed this — "try it again" after the lesson.
     retry_activity_id: str | None
-    #: The structured lesson: sections (explanation, worked example, diagram) then a quiz.
-    #: Null when the material could not support one; `explanation` is always there as the
-    #: fallback. Quiz answers are practice — they never change mastery.
+    #: The guided lesson, one concept at a time. Null when the material could not support
+    #: one; `explanation` is always there as the fallback. Concept-check results are
+    #: posted to /lessons/result as light evidence (capped below mastery).
     hook: str | None = None
     sections: list[LessonSection] | None = None
-    quiz: list[QuizQuestion] | None = None
     #: Why it was or was not answered: score_floor | model | citation_check | api_error | no_corpus
     gate: str
 

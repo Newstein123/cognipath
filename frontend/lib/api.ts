@@ -72,7 +72,7 @@ export interface Lesson {
   explanation: string; sources: Source[]; prerequisitesFirst: string[]; gate: string;
   missed: string[]; targeted: boolean; retryActivityId: string | null;
   /** Structured lesson; null when the material couldn't support one (use `explanation`). */
-  hook: string | null; sections: LessonSection[] | null; quiz: QuizQuestion[] | null;
+  hook: string | null; sections: LessonSection[] | null;
 }
 export interface Diagram {
   type: "none" | "venn" | "mapping" | "table" | "flow"; caption: string;
@@ -82,7 +82,8 @@ export interface Diagram {
   headers: string[]; rows: string[][]; steps: string[];
 }
 export interface LessonSection {
-  title: string; explanation: string; example: string; diagram: Diagram; sources: string[];
+  title: string; probe: QuizQuestion; explanation: string; example: string;
+  diagram: Diagram; check: QuizQuestion; sources: string[];
 }
 export interface QuizQuestion { question: string; options: string[]; answerIndex: number; explanation: string }
 export interface TutorAnswer { question: string; answered: boolean; answer: string; sources: Source[]; gate: string }
@@ -126,6 +127,15 @@ export const api = {
     post<AttemptResult>(`/api/learners/${enc(id)}/attempts`, { activityId, response }),
   challenge: (id: string, capabilityId: string, avoidActivityId?: string | null) =>
     post<Activity>(`/api/learners/${enc(id)}/challenges`, { capabilityId, avoidActivityId }),
+  reexplain: (id: string, body: { capabilityId: string; concept: string; explanation: string;
+                                  question: string; chosen: string; correct: string }) =>
+    post<{ answered: boolean; explanation: string; check: QuizQuestion | null; sources: string[] }>(
+      `/api/learners/${enc(id)}/lessons/reexplain`, body),
+  lessonResult: (id: string, body: { capabilityId: string;
+                                     concepts: { title: string; verdict: Verdict; note: string }[] }) =>
+    post<AttemptResult>(`/api/learners/${enc(id)}/lessons/result`, body),
+  hint: (id: string, activityId: string) =>
+    post<{ answered: boolean; hint: string; sources: string[] }>(`/api/learners/${enc(id)}/hint`, { activityId }),
   lesson: (id: string, capabilityId: string) =>
     post<Lesson>(`/api/learners/${enc(id)}/lessons`, { capabilityId }),
   tutor: (id: string, question: string, capabilityId?: string) =>

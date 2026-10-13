@@ -1594,3 +1594,27 @@ each, including reliability and scalability whose lessons abstain.
 
 **Revisit when:** evidence from generated challenges should weigh less than authored
 ones — today they count the same.
+
+---
+
+## D53 — Lessons are guided exchanges, not pages
+
+**Phase 15.**
+
+**Decision:** a lesson is 2–5 concepts, each run as: a gentle **probe** first (with "I'm
+not sure yet"); if right, a **confirm** question in a different situation and the
+explanation is skipped; otherwise **teach** (explanation, worked example, drawn diagram)
+then **check**; a wrong check calls `/lessons/reexplain`, which explains the idea
+differently and addresses the misconception the chosen answer reveals, then gives a new
+check. Per-concept outcomes (met / partial / unmet) are posted to `/lessons/result` as
+**light evidence**: `assess(..., max_observed=0.6)` so multiple-choice checks can move a
+skill to developing but never to mastered. The written challenge (with a grounded hint)
+remains what proves a skill.
+
+**Why:** the product vision's learning style — diagnose gently even for beginners, teach
+only what is needed, check immediately, respond to the misconception rather than the
+wrong answer, verify on a new situation. Earlier versions were a wall of text, then
+cards, then a page plus an end quiz; none responded to what the learner got wrong.
+
+**Where:** `cognith_learning/microlesson.py`, `api/main.py` (`/lessons/reexplain`,
+`/lessons/result`, `/hint`), `frontend/components/GuidedLesson.tsx`.

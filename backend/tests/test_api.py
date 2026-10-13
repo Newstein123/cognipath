@@ -247,3 +247,17 @@ def test_goal_with_no_topics_is_taught_too(client):
     assert body["initialEstimates"] == []
     nxt = client.get(f"/api/learners/{body['learner']['id']}/next").json()
     assert nxt["stage"] == "starting from scratch" and nxt["steps"][0]["kind"] == "learn"
+
+
+def test_lesson_result_is_light_evidence(client):
+    learner = onboard(client, "Ada")["learner"]["id"]
+    body = {"capabilityId": "http", "concepts": [
+        {"title": "Request and response", "verdict": "met"},
+        {"title": "Status codes", "verdict": "met"}]}
+    res = client.post(f"/api/learners/{learner}/lessons/result", json=body)
+    assert res.status_code == 200, res.text
+    change = res.json()["changes"][0]
+    assert change["capabilityId"] == "http"
+    assert change["masteryAfter"] <= 0.6 and change["stateAfter"] == "developing"
+    history = client.get(f"/api/learners/{learner}/evidence").json()
+    assert history[-1]["criteria"][0]["criterion"] == "Understands: Request and response"

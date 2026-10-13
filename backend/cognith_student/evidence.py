@@ -434,6 +434,7 @@ def assess(
     evaluator: Evaluator,
     *,
     apply: bool = True,
+    max_observed: float | None = None,
 ) -> Assessment:
     """Response -> Evidence -> Assessment -> capability update.
 
@@ -452,6 +453,10 @@ def assess(
     )
 
     scores = score_criteria(item.rubric, results)
+    if max_observed is not None:
+        # Light evidence (e.g. multiple-choice concept checks) may show progress but must
+        # not claim mastery on its own — a written challenge has to do that.
+        scores = {cid: min(v, max_observed) for cid, v in scores.items()}
     by_id = {r.criterion_id: r for r in results}
     outcomes: list[CapabilityOutcome] = []
 

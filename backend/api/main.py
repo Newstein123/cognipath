@@ -352,7 +352,10 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
                                  f"{type(exc).__name__}: {exc}") from None
     profile.save()
     save_evidence(result)
+    return attempt_result(profile, item, result)
 
+
+def attempt_result(profile: CapabilityProfile, item: LearningExperience, result) -> s.AttemptResult:
     texts = {c.id: c.criterion for c in item.rubric}
     caps = {c.id: c.capability_id for c in item.rubric}
     loop = AdaptiveLoop(graph(), profile)
@@ -430,11 +433,12 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         missed=list(gap.unmet[:3]), targeted=k.targeted, retry_activity_id=retry,
         hook=micro.hook if micro else None,
         sections=[s.LessonSection(
-            title=x.title, explanation=x.explanation, example=x.example,
+            title=x.title, probe=s.QuizQuestion(**x.probe.model_dump()),
+            explanation=x.explanation, example=x.example,
             diagram=s.Diagram(**x.diagram.model_dump()),
+            check=s.QuizQuestion(**x.check.model_dump()),
             sources=[citation[e] for e in x.excerpt_ids if e in citation])
             for x in micro.sections] if micro else None,
-        quiz=[s.QuizQuestion(**q.model_dump()) for q in micro.quiz] if micro else None,
         gate=res.gate if res else "no_corpus",
     )
 
@@ -473,6 +477,101 @@ def create_challenge(learner_id: str, req: s.ChallengeRequest,
     get_storage().save_activity(to_record(experience, gen.model))
     library.cache_clear()
     return activity(experience)
+
+
+def capability_or_404(capability_id: str):
+    try:
+        return graph().get(capability_id)
+    except KeyError:
+        raise HTTPException(404, f"No capability {capability_id!r}") from None
+
+
+def retrieve_for(profile: CapabilityProfile, cap, query: str | None = None):
+    """Course excerpts for one capability — by its gap, or by a free query."""
+    docs = [f"{d}.md" for d in cap.knowledge_docs]
+    if query and docs:
+        from cognith_rag.embeddings import embed_query
+
+        return store().search(embed_query(query), k=TOP_K, docs=docs)
+    resolver = GapResolver(graph(), profile)
+    resolver._store = store()
+    row = profile.row_for(cap.id)
+    return resolver.knowledge_for(
+        Gap(capability_id=cap.id, mastery=row.mastery, confidence=row.confidence),
+        explain=False).hits
+
+
+@app.post("/api/learners/{learner_id}/lessons/reexplain", response_model=s.Reexplanation)
+def reexplain_concept(learner_id: str, req: s.ReexplainRequest):
+    """Wrong answer after teaching → the same idea explained differently, aimed at the
+    misconception the chosen answer reveals, plus a new check."""
+    from cognith_learning import microlesson
+
+    profile = load_profile(learner_id)
+    cap = capability_or_404(req.capability_id)
+    hits = retrieve_for(profile, cap, f"{req.concept} {req.question}")
+    try:
+        r = microlesson.reexplain(cap, req.concept, req.explanation, req.question,
+                                  req.chosen, req.correct, hits)
+    except Exception:  # noqa: BLE001
+        r = None
+    cite = {h.chunk.id: h.chunk.citation for h in hits}
+    if r is None:
+        return s.Reexplanation(answered=False, check=None, sources=[],
+                               explanation="I couldn't find a different way to explain this "
+                                           "in the course material. Try the tutor below.")
+    return s.Reexplanation(answered=True, explanation=r.explanation,
+                           check=s.QuizQuestion(**r.check.model_dump()),
+                           sources=[cite[e] for e in r.excerpt_ids if e in cite])
+
+
+@app.post("/api/learners/{learner_id}/lessons/result", response_model=s.AttemptResult)
+def lesson_result(learner_id: str, req: s.LessonResultRequest):
+    """Concept-check outcomes as LIGHT evidence: they can move a skill to developing, never
+    to mastered (observed score capped at 0.6). Persisted as an activity so the evidence
+    stays traceable to what was asked."""
+    import uuid
+
+    from cognith_learning.experience import ExperienceType
+    from cognith_learning.generator import to_record
+    from cognith_student.diagnostic import RubricCriterion
+    from cognith_student.evidence import ManualEvaluator
+
+    profile = load_profile(learner_id)
+    cap = capability_or_404(req.capability_id)
+    eid = f"checks-{cap.id}-{uuid.uuid4().hex[:8]}"
+    rubric = tuple(RubricCriterion(id=f"{eid}-c{i}", criterion=f"Understands: {c.title}",
+                                   capability_id=cap.id)
+                   for i, c in enumerate(req.concepts, 1))
+    item = LearningExperience(
+        id=eid, type=ExperienceType.GENERATED, title=f"Guided lesson checks — {cap.name}",
+        capability_id=cap.id, rubric=rubric, level=cap.level, minutes=5,
+        prompt="Concept checks inside a guided lesson: " + "; ".join(c.title for c in req.concepts),
+        source="guided lesson (multiple-choice checks)")
+    get_storage().save_activity(to_record(item, "guided-lesson"))
+    library.cache_clear()
+    judge = ManualEvaluator({r.id: c.verdict.value for r, c in zip(rubric, req.concepts)},
+                            justification="guided-lesson check")
+    response = "\n".join(f"{c.title}: {c.verdict.value}" + (f" — {c.note}" if c.note else "")
+                          for c in req.concepts)
+    result = assess(profile, item, response, judge, max_observed=0.6)
+    profile.save()
+    save_evidence(result)
+    return attempt_result(profile, item, result)
+
+
+@app.post("/api/learners/{learner_id}/hint", response_model=s.Hint)
+def hint(learner_id: str, req: s.HintRequest):
+    """A nudge for a challenge — grounded in the course material, never the answer."""
+    profile = load_profile(learner_id)
+    item = get_activity(req.activity_id)
+    cap = capability_or_404(item.capability_id)
+    hits = retrieve_for(profile, cap, item.prompt[:500])
+    q = ("Give ONE short hint for the question below: point to the idea or first step "
+         "that helps. Do NOT give the answer or do the steps.\n\nQUESTION:\n" + item.prompt)
+    res = answer(q, hits)
+    return s.Hint(answered=res.answered, hint=res.answer,
+                  sources=[h.chunk.citation for h in res.cited_hits])
 
 
 @app.post("/api/learners/{learner_id}/tutor", response_model=s.TutorAnswer)

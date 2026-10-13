@@ -35,7 +35,6 @@ from cognith_rag.prompts import build_context
 from cognith_rag.store import Hit
 
 MIN_SECTIONS, MAX_SECTIONS = 2, 5
-MIN_QUIZ, MAX_QUIZ = 4, 6
 MAX_OUTPUT_TOKENS = 9000
 
 
@@ -64,14 +63,6 @@ class Diagram(BaseModel):
     steps: list[str] = Field(default=[], description="flow: 2–6 short steps in order.")
 
 
-class Section(BaseModel):
-    title: str = Field(description="3–7 words.")
-    explanation: str = Field(description="Markdown, at most ~110 words. Bold key terms.")
-    example: str = Field(description="A worked example with numbered steps, at most ~100 words.")
-    diagram: Diagram
-    excerpt_ids: list[str]
-
-
 class QuizQuestion(BaseModel):
     question: str
     options: list[str] = Field(description="Exactly 4 options.")
@@ -79,16 +70,30 @@ class QuizQuestion(BaseModel):
     explanation: str = Field(description="Why the right option is right, 1–2 sentences.")
 
 
+class Section(BaseModel):
+    """One concept, taught as a short guided exchange (see the module docstring)."""
+    title: str = Field(description="3–7 words.")
+    probe: QuizQuestion = Field(description="Asked BEFORE teaching: does the learner already "
+                                "know this? Plain, everyday wording, no jargon.")
+    explanation: str = Field(description="Markdown, at most ~110 words. Bold key terms.")
+    example: str = Field(description="A worked example with numbered steps, at most ~100 words.")
+    diagram: Diagram
+    check: QuizQuestion = Field(description="Asked AFTER teaching: apply the idea in a "
+                                "situation different from the probe and the example.")
+    excerpt_ids: list[str]
+
+
 class StructuredLesson(BaseModel):
     answerable: bool = Field(description="False if the excerpts cannot support a lesson.")
     hook: str = Field(description="One sentence on why this matters to the learner.")
     sections: list[Section]
-    quiz: list[QuizQuestion]
 
 
 SYSTEM_INSTRUCTION = f"""\
-You write a LESSON for a student from course excerpts: {MIN_SECTIONS}-{MAX_SECTIONS} \
-sections taught simplest first, then a {MIN_QUIZ}-{MAX_QUIZ} question quiz.
+You write a GUIDED LESSON from course excerpts: {MIN_SECTIONS}-{MAX_SECTIONS} concepts, \
+simplest first. Each concept is taught as an exchange: a gentle `probe` question first \
+(does the learner already know it?), then a short explanation, worked example and \
+optional diagram, then a `check` that applies the idea in a new situation.
 
 Rules, in priority order:
 
@@ -111,8 +116,10 @@ a procedure.
    Diagrams must be consistent with the example and the excerpts.
 4. `excerpt_ids` lists the excerpts each section is built from. Never cite an id that \
 was not supplied.
-5. Quiz: each question has exactly 4 options, one correct; wrong options are realistic \
-mistakes; `explanation` says why. Cover every section.
+5. `probe` and `check`: exactly 4 options each, one correct; wrong options are \
+realistic MISCONCEPTIONS a learner might hold; `explanation` says why the right one is \
+right. The probe is friendly and answerable from everyday intuition where possible; the \
+check must use a different situation from both the probe and the example.
 6. If the learner's missed points are given, the lesson must address them.
 7. Maths in Unicode (∈ ∉ ⊆ ⊂ ∪ ∩ ∅ ∀ ∃ ¬ ∧ ∨ → ↔ ≡ ≠ ≤ ≥ ² ⁿ), never LaTeX or backslashes.
 8. Friendly and direct, like a good tutor. No filler."""
@@ -143,11 +150,10 @@ def validate(lesson: StructuredLesson, sent_ids: set[str]) -> list[str]:
     for i, s in enumerate(lesson.sections, 1):
         if not s.excerpt_ids or any(e not in sent_ids for e in s.excerpt_ids):
             problems.append(f"section {i} cites excerpts that were not supplied: {s.excerpt_ids}")
-    if not MIN_QUIZ - 1 <= len(lesson.quiz) <= MAX_QUIZ:
-        problems.append(f"{len(lesson.quiz)} quiz questions, need {MIN_QUIZ}-{MAX_QUIZ}")
-    for i, q in enumerate(lesson.quiz, 1):
-        if len(q.options) != 4 or not 0 <= q.answer_index < 4:
-            problems.append(f"quiz {i} needs 4 options and a valid answer_index")
+    for i, sec in enumerate(lesson.sections, 1):
+        for name, q in (("probe", sec.probe), ("check", sec.check)):
+            if len(q.options) != 4 or not 0 <= q.answer_index < 4:
+                problems.append(f"section {i} {name} needs 4 options and a valid answer_index")
     return problems
 
 
@@ -193,3 +199,48 @@ def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] 
                 sec.diagram = clean_diagram(sec.diagram) or Diagram(type="none")
             return lesson
     return None
+
+
+# --- explain it differently --------------------------------------------------------
+class Reexplanation(BaseModel):
+    answerable: bool
+    explanation: str = Field(description="A NEW explanation, at most ~100 words.")
+    check: QuizQuestion = Field(description="A new question on the same idea.")
+    excerpt_ids: list[str]
+
+
+REEXPLAIN_INSTRUCTION = """A learner just answered a question wrongly after being taught a concept. Explain the \
+concept AGAIN, differently: simpler words, a different angle or analogy, and address the \
+specific misconception their wrong answer reveals — say what that answer gets wrong and \
+why. Then write one new 4-option question on the same idea, in a new situation.
+
+Use ONLY the supplied excerpts for facts. Never cite an id that was not supplied. Maths in \
+Unicode, never LaTeX. If the excerpts cannot support it, set answerable=false."""
+
+
+def reexplain(cap: Capability, concept: str, explanation: str, question: str,
+              chosen: str, correct: str, hits: list[Hit],
+              model: str | None = None) -> Reexplanation | None:
+    if not hits:
+        return None
+    prompt = (
+        f"{len(hits)} excerpts follow. They are the only information you may use.\n\n"
+        f"{build_context(hits)}\n\n--- END OF EXCERPTS ---\n\n"
+        f"TOPIC: {cap.name}\nCONCEPT: {concept}\n\nHOW IT WAS EXPLAINED:\n{explanation}\n\n"
+        f"QUESTION: {question}\nTHE LEARNER CHOSE: {chosen}\nTHE RIGHT ANSWER: {correct}"
+    )
+    interaction = get_client().interactions.create(
+        model=model or GENERATION_MODEL,
+        system_instruction=REEXPLAIN_INSTRUCTION,
+        input=prompt,
+        response_format={"type": "text", "mime_type": "application/json",
+                         "schema": Reexplanation.model_json_schema()},
+        generation_config={"temperature": 0.4, "thinking_level": "low",
+                           "max_output_tokens": 3000},
+    )
+    r = Reexplanation.model_validate_json(interaction.output_text)
+    sent = {h.chunk.id for h in hits}
+    if (not r.answerable or len(r.check.options) != 4 or not 0 <= r.check.answer_index < 4
+            or any(e not in sent for e in r.excerpt_ids)):
+        return None
+    return r

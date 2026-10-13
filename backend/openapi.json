@@ -415,6 +415,156 @@
         }
       }
     },
+    "/api/learners/{learner_id}/lessons/reexplain": {
+      "post": {
+        "summary": "Reexplain Concept",
+        "description": "Wrong answer after teaching \u2192 the same idea explained differently, aimed at the\nmisconception the chosen answer reveals, plus a new check.",
+        "operationId": "reexplain_concept_api_learners__learner_id__lessons_reexplain_post",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReexplainRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reexplanation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners/{learner_id}/lessons/result": {
+      "post": {
+        "summary": "Lesson Result",
+        "description": "Concept-check outcomes as LIGHT evidence: they can move a skill to developing, never\nto mastered (observed score capped at 0.6). Persisted as an activity so the evidence\nstays traceable to what was asked.",
+        "operationId": "lesson_result_api_learners__learner_id__lessons_result_post",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LessonResultRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners/{learner_id}/hint": {
+      "post": {
+        "summary": "Hint",
+        "description": "A nudge for a challenge \u2014 grounded in the course material, never the answer.",
+        "operationId": "hint_api_learners__learner_id__hint_post",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HintRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hint"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/learners/{learner_id}/tutor": {
       "post": {
         "summary": "Ask Tutor",
@@ -670,6 +820,28 @@
           "capabilityId"
         ],
         "title": "ChallengeRequest"
+      },
+      "ConceptVerdict": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "verdict"
+        ],
+        "title": "ConceptVerdict"
       },
       "Criterion": {
         "properties": {
@@ -1022,6 +1194,45 @@
         ],
         "title": "HeldBack"
       },
+      "Hint": {
+        "properties": {
+          "answered": {
+            "type": "boolean",
+            "title": "Answered"
+          },
+          "hint": {
+            "type": "string",
+            "title": "Hint"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answered",
+          "hint",
+          "sources"
+        ],
+        "title": "Hint"
+      },
+      "HintRequest": {
+        "properties": {
+          "activityId": {
+            "type": "string",
+            "title": "Activityid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "activityId"
+        ],
+        "title": "HintRequest"
+      },
       "InitialEstimate": {
         "properties": {
           "capabilityId": {
@@ -1203,20 +1414,6 @@
             ],
             "title": "Sections"
           },
-          "quiz": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/QuizQuestion"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Quiz"
-          },
           "gate": {
             "type": "string",
             "title": "Gate"
@@ -1251,11 +1448,36 @@
         ],
         "title": "LessonRequest"
       },
+      "LessonResultRequest": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "concepts": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptVerdict"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Concepts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "concepts"
+        ],
+        "title": "LessonResultRequest"
+      },
       "LessonSection": {
         "properties": {
           "title": {
             "type": "string",
             "title": "Title"
+          },
+          "probe": {
+            "$ref": "#/components/schemas/QuizQuestion"
           },
           "explanation": {
             "type": "string",
@@ -1268,6 +1490,9 @@
           "diagram": {
             "$ref": "#/components/schemas/Diagram"
           },
+          "check": {
+            "$ref": "#/components/schemas/QuizQuestion"
+          },
           "sources": {
             "items": {
               "type": "string"
@@ -1279,12 +1504,15 @@
         "type": "object",
         "required": [
           "title",
+          "probe",
           "explanation",
           "example",
           "diagram",
+          "check",
           "sources"
         ],
-        "title": "LessonSection"
+        "title": "LessonSection",
+        "description": "One concept: probe (already known?) \u2192 explanation, example, diagram \u2192 check."
       },
       "NextActivities": {
         "properties": {
@@ -1455,6 +1683,81 @@
           "explanation"
         ],
         "title": "QuizQuestion"
+      },
+      "ReexplainRequest": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "concept": {
+            "type": "string",
+            "title": "Concept"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "chosen": {
+            "type": "string",
+            "title": "Chosen"
+          },
+          "correct": {
+            "type": "string",
+            "title": "Correct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "concept",
+          "explanation",
+          "question",
+          "chosen",
+          "correct"
+        ],
+        "title": "ReexplainRequest"
+      },
+      "Reexplanation": {
+        "properties": {
+          "answered": {
+            "type": "boolean",
+            "title": "Answered"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuizQuestion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answered",
+          "explanation",
+          "check",
+          "sources"
+        ],
+        "title": "Reexplanation"
       },
       "Skill": {
         "properties": {

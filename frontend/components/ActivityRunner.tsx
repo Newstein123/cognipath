@@ -24,6 +24,20 @@ export function ActivityRunner({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AttemptResult | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const [hinting, setHinting] = useState(false);
+
+  async function getHint() {
+    setHinting(true);
+    try {
+      const h = await api.hint(learnerId, activity.id);
+      setHint(h.answered ? h.hint : "No hint in the course material for this one — try the tutor.");
+    } catch (e) {
+      setHint((e as Error).message);
+    } finally {
+      setHinting(false);
+    }
+  }
 
   async function submit() {
     setBusy(true);
@@ -55,6 +69,10 @@ export function ActivityRunner({
 
         {!result && (
           <>
+            {hint && (
+              <div className="tutor-line"><span className="tutor-avatar">C</span>
+                <span className="md-inline"><Markdown text={`**Hint:** ${hint}`} /></span></div>
+            )}
             <label htmlFor="answer">Your answer</label>
             <textarea
               id="answer" value={response} disabled={busy}
@@ -67,6 +85,11 @@ export function ActivityRunner({
             ) : (
               <div className="row" style={{ marginTop: 12 }}>
                 <button className="btn" disabled={!response.trim()} onClick={submit}>Submit answer</button>
+                {activity.type !== "diagnostic" && !hint && (
+                  <button className="btn secondary" disabled={hinting} onClick={getHint}>
+                    {hinting ? "Finding a hint…" : "Get a hint"}
+                  </button>
+                )}
               </div>
             )}
           </>

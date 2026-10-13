@@ -52,6 +52,10 @@ class OnboardingOptions(Model):
     goals: list[Option]
     levels: list[Option]
     technologies: list[str]
+    #: Example goals for the start page.
+    examples: list[str] = []
+    #: Label for the technologies picker — "Technologies you have used", or a course's own.
+    topics_label: str = "Technologies you have used"
 
 
 class OnboardingRequest(Model):

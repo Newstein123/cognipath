@@ -9,7 +9,10 @@ export type StepKind =
 export type Verdict = "met" | "partial" | "unmet";
 
 export interface Option { id: string; label: string }
-export interface OnboardingOptions { goals: Option[]; levels: Option[]; technologies: string[] }
+export interface OnboardingOptions {
+  goals: Option[]; levels: Option[]; technologies: string[];
+  examples: string[]; topicsLabel: string;
+}
 export interface OnboardingRequest {
   name: string; goal: string; technologies: string[];
   knows: string; built: string; level: string;

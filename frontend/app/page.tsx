@@ -6,12 +6,6 @@ import { useEffect, useState } from "react";
 import { api, pct, type LearnerCreated, type LearnerSummary, type OnboardingOptions } from "@/lib/api";
 import { ErrorBox, Loading } from "@/components/ui";
 
-const EXAMPLES = [
-  "I want to build a production-ready REST API with authentication and a database",
-  "I want to become a backend software engineer",
-  "I want my API to handle much more traffic",
-];
-
 export default function Start() {
   const router = useRouter();
   const [options, setOptions] = useState<OnboardingOptions | null>(null);
@@ -109,10 +103,10 @@ export default function Start() {
 
         <label htmlFor="goal">Your goal</label>
         <textarea id="goal" value={goal} maxLength={500} style={{ minHeight: 80 }}
-          placeholder="I want to build a production-ready REST API…"
+          placeholder={options?.examples[0] ? `${options.examples[0]}…` : "What do you want to achieve?"}
           onChange={(e) => setGoal(e.target.value)} />
         <div style={{ marginTop: 8 }}>
-          {EXAMPLES.map((x) => (
+          {options?.examples.map((x) => (
             <button key={x} className="chip" onClick={() => setGoal(x)}>{x}</button>
           ))}
         </div>
@@ -120,7 +114,7 @@ export default function Start() {
         <label htmlFor="name">Your name</label>
         <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
 
-        <label>Technologies you have used</label>
+        <label>{options?.topicsLabel ?? "Technologies you have used"}</label>
         <div>
           {options?.technologies.map((t) => (
             <button key={t} className={`chip ${techs.includes(t) ? "on" : ""}`} onClick={() => toggle(t)}>

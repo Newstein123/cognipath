@@ -1135,6 +1135,19 @@
             },
             "type": "array",
             "title": "Technologies"
+          },
+          "examples": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Examples",
+            "default": []
+          },
+          "topicsLabel": {
+            "type": "string",
+            "title": "Topicslabel",
+            "default": "Technologies you have used"
           }
         },
         "type": "object",

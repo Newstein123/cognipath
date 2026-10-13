@@ -31,19 +31,26 @@ levels:
 goals:
   backend-engineer:
     name: Backend Software Engineer
+    keywords: [backend, back-end, back end, api, server, rest, database, microservice,
+               software engineer]
     focus: [programming-fundamentals, http, api-design, authentication, databases,
             database-performance, system-design, scalability, caching, load-balancing,
             reliability,
             trade-off-analysis, testing, debugging, git]
   frontend-developer:
     name: Frontend Developer
+    supported: false
+    keywords: [frontend, front-end, front end, react, css, "ui "]
     focus: [http, api-design, programming-fundamentals, testing, debugging, git]
   ai-engineer:
     name: AI Engineer
+    supported: false
+    keywords: [ai engineer, machine learning, " ml ", llm, data scien]
     focus: [programming-fundamentals, data-structures, algorithms, databases,
             api-design, system-design, scalability]
   other:
     name: Other / not sure yet
+    supported: false
     focus: [programming-fundamentals, http, databases, git, debugging, testing]
 
 # --- Technologies -> capability signals -------------------------------------------
@@ -146,3 +153,11 @@ rules:
     contributes_to:   {forward: 0.70, backward: 0.60}
     supports:         {forward: 0.50, backward: 0.55}
     applies_to:       {forward: 0.50, backward: 0.80}
+
+# --- Start page ---------------------------------------------------------------------
+ui:
+  topics_label: Technologies you have used
+  examples:
+    - I want to build a production-ready REST API with authentication and a database
+    - I want to become a backend software engineer
+    - I want my API to handle much more traffic

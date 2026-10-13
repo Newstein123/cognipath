@@ -41,17 +41,15 @@ from . import schemas as s
 
 load_dotenv()
 
-#: The goal the demo fully supports. Other goals still onboard, flagged unsupported.
-DEMO_GOAL = "backend-engineer"
-
-#: Free-text goal -> onboarding goal key. First match wins; no match falls to DEMO_GOAL
-#: only when nothing points elsewhere, because the demo domain is the useful default.
-GOAL_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
-    ("frontend-developer", ("frontend", "front-end", "front end", "react", "css", "ui ")),
-    ("ai-engineer", ("ai engineer", "machine learning", " ml ", "llm", "data scien")),
-    ("backend-engineer", ("backend", "back-end", "back end", "api", "server", "rest",
-                          "database", "microservice", "software engineer")),
-]
+#: Goal matching, examples and labels come from data/onboarding.yaml, so a course pack
+#: (e.g. a university module) brings its own without code changes:
+#:
+#:   goals.<key>.keywords   free-text words that select this goal; first match wins
+#:   goals.<key>.supported  false for goals onboarding accepts but content does not cover
+#:   ui.examples            example goals shown on the start page
+#:   ui.topics_label        label for the technologies/topics picker
+#:
+#: With no keyword match, the FIRST goal is used — the one the content is built for.
 
 app = FastAPI(title="Cognith API", version="0.1.0")
 app.add_middleware(
@@ -225,11 +223,20 @@ def estimate_reason(signal) -> str:
 
 
 def match_goal(text: str) -> str:
+    goals = onboarding().goals
     lowered = f" {text.lower()} "
-    for key, words in GOAL_KEYWORDS:
-        if any(w in lowered for w in words):
+    for key, spec in goals.items():
+        if any(w.lower() in lowered for w in spec.get("keywords", [])):
             return key
-    return DEMO_GOAL
+    return next(iter(goals))
+
+
+def onboarding_ui() -> dict:
+    import yaml
+
+    from cognith_student.onboarding import DEFAULT_PATH
+
+    return yaml.safe_load(DEFAULT_PATH.read_text(encoding="utf-8")).get("ui", {}) or {}
 
 
 def new_learner_id(name: str) -> str:
@@ -251,6 +258,8 @@ def onboarding_options():
         goals=[s.Option(id=k, label=v["name"]) for k, v in eng.goals.items()],
         levels=[s.Option(id=k, label=v["label"]) for k, v in eng.levels.items()],
         technologies=sorted(eng.technologies),
+        examples=onboarding_ui().get("examples", []),
+        topics_label=onboarding_ui().get("topics_label", "Technologies you have used"),
     )
 
 
@@ -272,7 +281,7 @@ def create_learner(req: s.OnboardingRequest):
         learner=summary(profile),
         goal=s.GoalMatch(text=req.goal, goal_id=goal_key,
                          goal_name=eng.goals[goal_key]["name"],
-                         supported=goal_key == DEMO_GOAL),
+                         supported=eng.goals[goal_key].get("supported", True)),
         initial_estimates=[
             s.InitialEstimate(capability_id=e.capability_id,
                               name=graph().get(e.capability_id).name,

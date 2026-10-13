@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from cognith_capability.graph import CapabilityGraph
 from cognith_learning.experience import ExperienceLibrary, LearningExperience
+from cognith_learning.generator import ChallengeGenerator, GenerationError, to_record
 from cognith_learning.knowledge import Gap, GapResolver
 from cognith_learning.loop import AdaptiveLoop, LoopState
 from cognith_rag.config import GENERATION_MODEL, TOP_K
@@ -95,6 +96,12 @@ def load_profile(learner_id: str) -> CapabilityProfile:
 
 
 def get_activity(activity_id: str) -> LearningExperience:
+    try:
+        return library().get(activity_id)
+    except KeyError:
+        pass
+    # Generated after the cached library was built, possibly by another instance.
+    library.cache_clear()
     try:
         return library().get(activity_id)
     except KeyError:
@@ -186,6 +193,7 @@ def activity(e: LearningExperience) -> s.Activity:
         prompt=e.prompt,
         criteria=[s.Criterion(id=c.id, criterion=c.criterion, capability_id=c.capability_id)
                   for c in e.rubric],
+        source=e.source,
     )
 
 
@@ -199,6 +207,7 @@ def sources(hits: list[Hit], cited: list[str]) -> list[s.Source]:
 
 
 def criterion_text() -> dict[str, tuple[str, str]]:
+    library.cache_clear()  # include generated challenges' criteria
     return {c.id: (c.criterion, c.capability_id)
             for e in library().experiences.values() for c in e.rubric}
 
@@ -393,6 +402,42 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         missed=list(gap.unmet[:3]), targeted=k.targeted, retry_activity_id=retry,
         gate=res.gate if res else "no_corpus",
     )
+
+
+def generator() -> ChallengeGenerator:
+    """Overridden in tests, so they need no API key."""
+    return ChallengeGenerator(graph())
+
+
+@app.post("/api/learners/{learner_id}/challenges", response_model=s.Activity, status_code=201)
+def create_challenge(learner_id: str, req: s.ChallengeRequest,
+                     gen: ChallengeGenerator = Depends(generator)):
+    """A NEW challenge for one capability, written from its course material and aimed
+    at what the learner missed. Persisted so its evidence stays traceable."""
+    profile = load_profile(learner_id)
+    try:
+        cap = graph().get(req.capability_id)
+    except KeyError:
+        raise HTTPException(404, f"No capability {req.capability_id!r}") from None
+    if not cap.knowledge_docs:
+        raise HTTPException(400, f"No course material for {cap.name} to write a challenge from")
+    avoid = get_activity(req.avoid_activity_id).prompt if req.avoid_activity_id else None
+
+    resolver = GapResolver(graph(), profile)
+    resolver._store = store()
+    row = profile.row_for(cap.id)
+    gap = next((g for g in resolver.gaps(include_unverified=True) if g.capability_id == cap.id),
+               Gap(capability_id=cap.id, mastery=row.mastery, confidence=row.confidence))
+    k = resolver.knowledge_for(gap, explain=False)  # the same excerpts the lesson used
+    try:
+        experience = gen.generate(cap.id, k.hits, missed=list(gap.unmet), avoid_prompt=avoid)
+    except GenerationError as exc:
+        raise HTTPException(502, str(exc)) from None
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, f"Challenge generation failed: {type(exc).__name__}: {exc}") from None
+    get_storage().save_activity(to_record(experience, gen.model))
+    library.cache_clear()
+    return activity(experience)
 
 
 @app.post("/api/learners/{learner_id}/tutor", response_model=s.TutorAnswer)

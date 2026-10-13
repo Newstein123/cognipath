@@ -164,7 +164,7 @@ class Criterion(Model):
 
 class Activity(Model):
     id: str
-    #: diagnostic | exercise | apply | mission
+    #: diagnostic | exercise | apply | mission | generated
     type: str
     title: str
     capability_id: str
@@ -174,6 +174,14 @@ class Activity(Model):
     prompt: str
     #: The explicit rubric the answer is judged against.
     criteria: list[Criterion]
+    #: Where it came from — an authored data file, or "generated from <citations>".
+    source: str
+
+
+class ChallengeRequest(Model):
+    capability_id: str
+    #: The activity the learner just missed — the new one must be a different situation.
+    avoid_activity_id: str | None = None
 
 
 class DiagnosticTarget(Model):

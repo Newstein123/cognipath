@@ -176,3 +176,58 @@ def test_weak_attempt_says_what_to_learn(client):
     judge.verdict = "met"
     strong = onboard(client, "Bo")["learner"]["id"]
     assert answer_diagnostic(client, strong, "met")["teach"] is None
+
+
+class FakeGenerator:
+    model = "fake"
+
+    def generate(self, capability_id, hits, missed=(), avoid_prompt=None):
+        from cognith_learning.generator import _Challenge, to_experience
+        from api.main import graph
+
+        assert hits, "challenge must be written from retrieved material"
+        raw = _Challenge(title="A new situation", prompt="x" * 80, minutes=6, criteria=[
+            {"criterion": f"Criterion {i}", "excerpt_id": hits[0].chunk.id} for i in range(3)])
+        return to_experience(raw, graph().get(capability_id), hits)
+
+
+def test_generated_challenge_is_persisted_and_assessable(client, monkeypatch):
+    from api.main import generator
+    import numpy as np
+
+    monkeypatch.setattr("cognith_rag.embeddings.embed_query",
+                        lambda text: np.ones(768, dtype=np.float32) / np.sqrt(768))
+    app.dependency_overrides[generator] = lambda: FakeGenerator()
+    learner = onboard(client, "Ada")["learner"]["id"]
+    r = client.post(f"/api/learners/{learner}/challenges", json={"capabilityId": "http"})
+    assert r.status_code == 201, r.text
+    challenge = r.json()
+    assert challenge["type"] == "generated" and challenge["source"].startswith("generated from")
+
+    from urllib.parse import quote
+    assert client.get(f"/api/activities/{quote(challenge['id'], safe='')}").status_code == 200
+    judge.verdict = "met"
+    res = client.post(f"/api/learners/{learner}/attempts",
+                      json={"activityId": challenge["id"], "response": "an answer"}).json()
+    assert [c["capabilityId"] for c in res["changes"]] == ["http"]
+    history = client.get(f"/api/learners/{learner}/evidence").json()
+    assert history[-1]["criteria"][0]["criterion"] == "Criterion 0"
+
+
+def test_challenge_needs_course_material(client):
+    learner = onboard(client, "Ada")["learner"]["id"]
+    r = client.post(f"/api/learners/{learner}/challenges", json={"capabilityId": "git"})
+    assert r.status_code == 400
+
+
+def test_validation_rejects_ungrounded_challenges():
+    from cognith_learning.generator import _Challenge, validate
+
+    def make(ids, prompt="p" * 80):
+        return _Challenge(title="t", prompt=prompt, minutes=5,
+                          criteria=[{"criterion": "c", "excerpt_id": i} for i in ids])
+
+    assert validate(make(["a", "b", "a"]), {"a", "b"}, None) == []
+    assert validate(make(["a", "zzz", "a"]), {"a"}, None)          # cites unsent excerpt
+    assert validate(make(["a", "a"]), {"a"}, None)                 # too few criteria
+    assert validate(make(["a"] * 3, "same " * 20), {"a"}, "same " * 20)  # repeats original

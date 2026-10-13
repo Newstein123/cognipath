@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { api, param, type Lesson, type Step } from "@/lib/api";
+import { activityHref, api, param, type Lesson, type Step } from "@/lib/api";
 import { TutorBox } from "@/components/TutorBox";
 import { ErrorBox, Loading, Markdown, Sources, StepCard } from "@/components/ui";
 
@@ -19,6 +19,8 @@ function LessonView() {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [practice, setPractice] = useState<Step | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     api.lesson(id, cap).then(setLesson).catch((e) => setError(e.message));
@@ -31,6 +33,18 @@ function LessonView() {
   // The question the learner just got wrong comes first; the engine's record second.
   const retry = retryParam ?? lesson?.retryActivityId ?? null;
   const name = lesson?.name ?? cap;
+
+  async function newChallenge() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const a = await api.challenge(id, cap, retry);
+      router.push(activityHref(id, a.id));
+    } catch (e) {
+      setError((e as Error).message);
+      setGenerating(false);
+    }
+  }
   const presets = [
     { label: "Explain it more simply", question: `Explain the most important idea of ${name} in plain words for a beginner.` },
     { label: "Show me an example", question: `Give a concrete example from the material that shows ${name} in practice.` },
@@ -98,20 +112,32 @@ function LessonView() {
         />
       )}
 
-      {lesson && retry && (
+      {lesson && (
         <div className="card highlight">
           <h2>Check your understanding</h2>
-          <p>Try the question you missed again, now that you&apos;ve read this. Your skill profile updates from the new answer.</p>
-          <Link className="btn" href={`/learn/${encodeURIComponent(id)}/activity/${encodeURIComponent(retry)}`}>
-            Try the question again →
-          </Link>
+          <p>
+            Cognith will write a <strong>new</strong> challenge from the same course material — a
+            different situation, so it tests understanding rather than memory. Your skill
+            profile updates from your answer.
+          </p>
+          <ErrorBox error={generating ? null : error} />
+          {generating ? (
+            <Loading stages={["Picking the course sections you just read…", "Writing a new situation…", "Checking every criterion is backed by the material…"]} />
+          ) : (
+            <div className="row">
+              <button className="btn" onClick={newChallenge}>Give me a new challenge →</button>
+              {retry && (
+                <Link className="btn secondary" href={activityHref(id, retry)}>Retry the original question</Link>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {lesson && practice && practice.activityId !== retry && (
         <>
-          <h2>{retry ? "Or practise it differently" : "Put it into practice"}</h2>
-          <StepCard learnerId={id} step={practice} primary={!retry} />
+          <h3 className="muted">Or practise with a prepared exercise</h3>
+          <StepCard learnerId={id} step={practice} />
         </>
       )}
     </>

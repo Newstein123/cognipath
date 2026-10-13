@@ -1563,3 +1563,34 @@ no extra wait, only a second request.
 
 **Revisit when:** the corpus grows worked examples for the diagnostic scenarios — then
 the targeted form should win far more often.
+
+---
+
+## D52 — Follow-up challenges are generated; diagnostics stay authored
+
+**Phase 15.**
+
+**Decision:** after a lesson, the learner gets a challenge Gemini writes from the same
+course excerpts the lesson used (`cognith_learning/generator.py`), aimed at what they
+missed and explicitly not the situation they just failed. Diagnostics remain authored.
+
+**Why:** re-asking the missed question tests memory, not transfer — and the plan's own
+acceptance criterion asks for "a different follow-up challenge". Only 9 of 17
+capabilities had a second authored activity. Diagnostics stay authored because the first
+measurement must be the same instrument for every learner, or "two learners, same goal,
+different result" stops being a fair comparison (D22 still holds there).
+
+**Guard rails:** 3–5 criteria; every criterion cites an excerpt that was actually sent,
+or the whole challenge is rejected and regenerated once with the reasons; all criteria
+are tagged with the target capability; persisted write-once with model and timestamp so
+evidence stays traceable to the exact prompt and rubric. Gemini writes questions; it does
+not score — judging and the mastery arithmetic are unchanged.
+
+**Measured 2026-10-14:** 7/7 capabilities produced a valid challenge first time, ~12 s
+each, including reliability and scalability whose lessons abstain.
+
+**Where:** `cognith_learning/generator.py`, `POST /api/learners/{id}/challenges`,
+`ExperienceType.GENERATED`, storage `save_activity`/`list_activities`.
+
+**Revisit when:** evidence from generated challenges should weigh less than authored
+ones — today they count the same.

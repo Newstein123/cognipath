@@ -42,6 +42,8 @@ export interface Criterion { id: string; criterion: string; capabilityId: string
 export interface Activity {
   id: string; type: string; title: string; capabilityId: string; capabilityIds: string[];
   level: string; minutes: number; prompt: string; criteria: Criterion[];
+  /** An authored data file, or "generated from <citations>". */
+  source: string;
 }
 export interface Diagnostic {
   targets: { capabilityId: string; name: string; notes: string[] }[];
@@ -106,6 +108,8 @@ export const api = {
   activity: (activityId: string) => call<Activity>(`/api/activities/${enc(activityId)}`),
   attempt: (id: string, activityId: string, response: string) =>
     post<AttemptResult>(`/api/learners/${enc(id)}/attempts`, { activityId, response }),
+  challenge: (id: string, capabilityId: string, avoidActivityId?: string | null) =>
+    post<Activity>(`/api/learners/${enc(id)}/challenges`, { capabilityId, avoidActivityId }),
   lesson: (id: string, capabilityId: string) =>
     post<Lesson>(`/api/learners/${enc(id)}/lessons`, { capabilityId }),
   tutor: (id: string, question: string, capabilityId?: string) =>
@@ -129,6 +133,9 @@ export function stepHref(learnerId: string, step: Step): string | null {
       return null; // mission: not exposed over HTTP yet
   }
 }
+
+export const activityHref = (learnerId: string, activityId: string) =>
+  `/learn/${enc(learnerId)}/activity/${enc(activityId)}`;
 
 export const lessonHref = (learnerId: string, capabilityId: string, retry?: string | null) =>
   `/learn/${enc(learnerId)}/lesson/${enc(capabilityId)}${retry ? `?retry=${enc(retry)}` : ""}`;

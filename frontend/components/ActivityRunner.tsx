@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api, lessonHref, pct, type Activity, type AttemptResult } from "@/lib/api";
-import { ErrorBox, Loading, StateBadge, StepCard } from "./ui";
+import { ErrorBox, Loading, Markdown, StateBadge, StepCard } from "./ui";
 
 const MARK = { met: "✓", partial: "△", unmet: "✗" } as const;
 
@@ -44,7 +44,7 @@ export function ActivityRunner({
           <h2 style={{ margin: 0 }}>{activity.title}</h2>
           <span className="muted small">{activity.level} · about {activity.minutes} min</span>
         </div>
-        <div className="prompt" style={{ marginTop: 14 }}>{activity.prompt}</div>
+        <div className="prompt md" style={{ marginTop: 14, whiteSpace: "normal" }}><Markdown text={activity.prompt} /></div>
 
         <h3 style={{ marginTop: 18 }}>Assessment criteria</h3>
         <ul className="small" style={{ paddingLeft: 20, marginTop: 0 }}>

@@ -1,9 +1,10 @@
 """Where learner state lives — the one seam between the engine and persistence.
 
-Two documents per learner, and nothing else the engine needs to persist:
+Two documents per learner, plus generated challenges:
 
     profile     {"student": {...}, "student_capabilities": [...]}   rewritten on save
     evidence    [{"evidence": {...}, "assessment": {...}}, ...]       append-only
+    activities  one record per generated challenge (prompt + rubric)  write-once
 
 Every read and write of those goes through `get_storage()`. Before this module existed
 the engine opened `data/students/*.json` and `data/evidence/*.json` from seven places,
@@ -35,12 +36,15 @@ class Storage(Protocol):
     def list_students(self) -> list[str]: ...
     def load_evidence(self, student_id: str) -> list[dict[str, Any]]: ...
     def append_evidence(self, student_id: str, entry: dict[str, Any]) -> None: ...
+    def save_activity(self, record: dict[str, Any]) -> None: ...
+    def list_activities(self) -> list[dict[str, Any]]: ...
 
 
 class FileStorage:
     def __init__(self, root: Path = DATA_DIR):
         self.students = root / "students"
         self.evidence = root / "evidence"
+        self.generated = root / "generated"
 
     def load_profile(self, student_id: str) -> dict[str, Any] | None:
         path = self.students / f"{student_id}.json"
@@ -71,6 +75,17 @@ class FileStorage:
         path = self.evidence / f"{student_id}.json"
         path.write_text(json.dumps(log, indent=2), encoding="utf-8")
 
+    def save_activity(self, record: dict[str, Any]) -> None:
+        self.generated.mkdir(parents=True, exist_ok=True)
+        path = self.generated / f"{record['id']}.json"
+        path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+
+    def list_activities(self) -> list[dict[str, Any]]:
+        if not self.generated.exists():
+            return []
+        return [json.loads(p.read_text(encoding="utf-8"))
+                for p in sorted(self.generated.glob("*.json"))]
+
 
 class FirestoreStorage:
     """NOT BUILT — owned by the backend/data developer.
@@ -81,6 +96,7 @@ class FirestoreStorage:
         student_capabilities/{id}__{capId}     one doc per row in "student_capabilities"
         evidence/{autoId}                      one doc per log entry, with studentId and
                                                evidence.createdAt for ordering
+        learning_experiences/{id}              generated challenges (save/list_activities)
 
     `load_evidence` must return entries oldest first; history and retry detection
     depend on that order.

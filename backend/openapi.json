@@ -365,6 +365,56 @@
         }
       }
     },
+    "/api/learners/{learner_id}/challenges": {
+      "post": {
+        "summary": "Create Challenge",
+        "description": "A NEW challenge for one capability, written from its course material and aimed\nat what the learner missed. Persisted so its evidence stays traceable.",
+        "operationId": "create_challenge_api_learners__learner_id__challenges_post",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChallengeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Activity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/learners/{learner_id}/tutor": {
       "post": {
         "summary": "Ask Tutor",
@@ -503,6 +553,10 @@
             },
             "type": "array",
             "title": "Criteria"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
           }
         },
         "type": "object",
@@ -515,7 +569,8 @@
           "level",
           "minutes",
           "prompt",
-          "criteria"
+          "criteria",
+          "source"
         ],
         "title": "Activity"
       },
@@ -591,6 +646,30 @@
           "next"
         ],
         "title": "AttemptResult"
+      },
+      "ChallengeRequest": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "avoidActivityId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avoidactivityid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId"
+        ],
+        "title": "ChallengeRequest"
       },
       "Criterion": {
         "properties": {

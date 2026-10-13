@@ -76,6 +76,11 @@ class ExperienceType(str, Enum):
     MISSION = "mission"
     """Decide under consequences. Phase 9. Declared here so the type is not retrofitted."""
 
+    GENERATED = "generated"
+    """Verify transfer. Written by Gemini from course excerpts after a lesson — a NEW
+    situation for the capability just taught (generator.py). Never recommended by the
+    loop on its own: it is created on request, for one learner's follow-up."""
+
 
 @dataclass(frozen=True)
 class LearningExperience:
@@ -134,7 +139,18 @@ class ExperienceLibrary:
     @classmethod
     def load(cls, graph: CapabilityGraph, path: Path = EXERCISES_PATH) -> "ExperienceLibrary":
         return cls(graph, cls._diagnostics(graph) + cls._exercises(graph, path)
-                   + cls._applications(graph) + cls._missions(graph))
+                   + cls._applications(graph) + cls._missions(graph)
+                   + cls._generated(graph))
+
+    @staticmethod
+    def _generated(graph: CapabilityGraph) -> list[LearningExperience]:
+        """Persisted generated challenges, so their rubrics resolve like any other's."""
+        from cognith_student.storage import get_storage
+
+        from .generator import from_record
+
+        return [from_record(d) for d in get_storage().list_activities()
+                if d.get("capabilityId") in graph.capabilities]
 
     # --- sources ------------------------------------------------------------------
     @staticmethod

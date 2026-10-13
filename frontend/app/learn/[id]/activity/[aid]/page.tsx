@@ -11,6 +11,7 @@ const TYPE_HEADING: Record<string, string> = {
   exercise: "Practice",
   apply: "Independent challenge",
   mission: "Mission",
+  generated: "New challenge — written for you from the course material",
 };
 
 export default function ActivityPage() {
@@ -30,6 +31,11 @@ export default function ActivityPage() {
   return (
     <>
       <p className="small muted" style={{ marginBottom: 4 }}>{TYPE_HEADING[activity.type] ?? activity.type}</p>
+      {activity.type === "generated" && (
+        <p className="small muted" style={{ marginTop: 0 }}>
+          Based on: {activity.source.replace(/^generated from /, "")}
+        </p>
+      )}
       <ActivityRunner learnerId={id} activity={activity} />
     </>
   );

@@ -46,6 +46,7 @@ claimed at onboarding and is never evidence. Every skill carries a ready-to-show
 | GET | `/api/activities/{activityId}` | | Prompt + explicit rubric criteria |
 | POST | `/api/learners/{id}/attempts` | ✓ | Judge an answer → verdicts, skill changes, why, new profile, new next steps |
 | POST | `/api/learners/{id}/lessons` | ✓ | Grounded explanation for one capability, with sources |
+| POST | `/api/learners/{id}/challenges` | ✓ | NEW challenge for a capability, written from its course material → `Activity` (type `generated`) |
 | POST | `/api/learners/{id}/tutor` | ✓ | Free question → grounded answer with sources, or abstention |
 | GET | `/api/learners/{id}/evidence` | | Evidence log, oldest first |
 
@@ -74,7 +75,10 @@ POST /attempts {activityId, response} -> verdicts, changes, explanation,
 POST /attempts            -> teach: {capabilityId, name, missed[]}  (null if nothing to teach)
 POST /lessons             -> missed[], targeted, retryActivityId, explanation, sources
 POST /tutor {question, capabilityId}   follow-ups kept inside that capability's material
-POST /attempts (retry)    -> changes show masteryBefore -> masteryAfter
+POST /challenges {capabilityId, avoidActivityId}
+                          -> a new situation (not the question just missed), every rubric
+                             criterion grounded in a cited course excerpt
+POST /attempts            -> changes show masteryBefore -> masteryAfter
 ```
 
 A lesson asks two questions in parallel — one aimed at the learner's missed criteria,

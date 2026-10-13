@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, pct, type LearnerCreated, type LearnerSummary, type OnboardingOptions } from "@/lib/api";
+import { api, pct, stepHref, type LearnerCreated, type LearnerSummary, type NextActivities, type OnboardingOptions } from "@/lib/api";
 import { ErrorBox, Loading } from "@/components/ui";
 
 export default function Start() {
@@ -13,6 +13,11 @@ export default function Start() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<LearnerCreated | null>(null);
+  // What the engine wants first: a diagnosis, or — for someone new to all of it — a lesson.
+  const [first, setFirst] = useState<NextActivities | null>(null);
+  useEffect(() => {
+    if (created) api.next(created.learner.id).then(setFirst).catch(() => {});
+  }, [created]);
 
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
@@ -60,8 +65,10 @@ export default function Start() {
         <div className="card">
           <h2>Here&apos;s what we understand so far</h2>
           <div className="notice small">
-            This is an initial estimate based on what you told us — not an assessment.
-            Next, we&apos;ll check the parts that matter most for your goal.
+            This is an initial estimate based on what you told us — not an assessment.{" "}
+            {first?.stage === "starting from scratch"
+              ? "You're new to this, so there's nothing to test yet — we'll start by teaching the foundations."
+              : "Next, we'll check the parts that matter most for your goal."}
           </div>
           {created.initialEstimates.length ? (
             <ul className="list">
@@ -81,10 +88,23 @@ export default function Start() {
           {created.unrecognisedTechnologies.length > 0 && (
             <p className="small muted">Not recognised: {created.unrecognisedTechnologies.join(", ")}</p>
           )}
-          <button className="btn block" style={{ marginTop: 12 }}
-            onClick={() => router.push(`/learn/${encodeURIComponent(id)}/diagnostic`)}>
-            Looks good — start the quick diagnosis →
-          </button>
+          {first?.stage === "starting from scratch" && first.steps[0] ? (
+            <>
+              <h3 style={{ marginTop: 16 }}>Your learning order</h3>
+              <ol className="small" style={{ paddingLeft: 20 }}>
+                {first.steps.map((s) => <li key={s.title}>{s.title}</li>)}
+              </ol>
+              <button className="btn block" style={{ marginTop: 12 }}
+                onClick={() => router.push(stepHref(id, first.steps[0]) ?? `/learn/${encodeURIComponent(id)}`)}>
+                Start my first lesson: {first.steps[0].capabilityName} →
+              </button>
+            </>
+          ) : (
+            <button className="btn block" style={{ marginTop: 12 }} disabled={!first}
+              onClick={() => router.push(`/learn/${encodeURIComponent(id)}/diagnostic`)}>
+              Looks good — start the quick diagnosis →
+            </button>
+          )}
         </div>
       </main>
     );

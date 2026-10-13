@@ -231,3 +231,11 @@ def test_validation_rejects_ungrounded_challenges():
     assert validate(make(["a", "zzz", "a"]), {"a"}, None)          # cites unsent excerpt
     assert validate(make(["a", "a"]), {"a"}, None)                 # too few criteria
     assert validate(make(["a"] * 3, "same " * 20), {"a"}, "same " * 20)  # repeats original
+
+
+def test_new_learner_is_taught_not_tested(client):
+    body = client.post("/api/learners", json={**ONBOARDING, "name": "New", "level": "none"}).json()
+    nxt = client.get(f"/api/learners/{body['learner']['id']}/next").json()
+    assert nxt["stage"] == "starting from scratch"
+    assert all(s["kind"] == "learn" for s in nxt["steps"])
+    assert "new to this" in nxt["steps"][0]["reason"]

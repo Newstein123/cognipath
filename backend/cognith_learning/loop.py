@@ -50,6 +50,11 @@ from cognith_student.progress import (
 from .experience import ExperienceLibrary, ExperienceType, LearningExperience
 from .knowledge import Gap, GapResolver
 
+#: Every claim at or below this means "I'm new to all of it". There is nothing to
+#: verify, so the loop teaches from the foundations instead of diagnosing — testing
+#: someone on material they have told us they have never learned measures nothing.
+NEW_TO_IT_AT = 0.15
+
 
 class StepKind(str, Enum):
     ONBOARD = "onboard"
@@ -222,6 +227,10 @@ class AdaptiveLoop:
                     command=f"python onboard.py --interactive --save --student-id {student}",
                 )],
             )
+
+        # --- stage 0b: claims exist, but every one says "I don't know this yet" --------
+        if not assessed and all((r.confidence or 0.0) <= NEW_TO_IT_AT for r in claimed):
+            return self._start_from_foundations(summary, limit)
 
         # --- stage 1: claims exist, nothing has been verified ------------------------
         # §9: "This is an initial estimate based on what you've told us. Let's verify it."
@@ -416,6 +425,34 @@ class AdaptiveLoop:
         return LoopState(stage=stage, summary=summary, steps=steps[:limit],
                          backlog=backlog, path=self.path,
                          milestone=self.milestone)
+
+    def _start_from_foundations(self, summary: dict[str, Any], limit: int) -> LoopState:
+        """Lessons in prerequisite order: what nothing else rests on comes first.
+
+        Restricted to capabilities with course material — a lesson is the only thing that
+        makes sense for someone starting out, and it needs something to teach from. Within
+        a prerequisite depth, the graph's own order (its authored order) breaks ties.
+        """
+        order = list(self.graph.capabilities)
+        teachable = [c for c in self.graph.capabilities.values()
+                     if self._can_teach(c.id) and self._in_milestone(c.id)]
+        teachable.sort(key=lambda c: (len(self.graph.prerequisite_closure(c.id)),
+                                      order.index(c.id)))
+        steps = []
+        for cap in teachable[:limit]:
+            prereqs = self.graph.prerequisites_of(cap.id)
+            why = ("You said you're new to this, so there's nothing to test yet — we start "
+                   "by teaching. ")
+            why += (f"{cap.name} builds on {', '.join(p.name for p in prereqs)}, so it "
+                    f"comes after those." if prereqs else
+                    f"{cap.name} is a foundation: later topics build on it.")
+            steps.append(NextStep(
+                kind=StepKind.LEARN, title=f"Learn {cap.name}", why=why,
+                command=f"python learn.py --student {self.profile.student.id} --gap {cap.id}",
+                capability_id=cap.id,
+            ))
+        return LoopState(stage="starting from scratch", summary=summary, steps=steps,
+                         path=self.path, milestone=self.milestone)
 
     # --- narrative --------------------------------------------------------------------
     def position(self) -> str:

@@ -68,6 +68,19 @@ POST /attempts {activityId, response} -> verdicts, changes, explanation,
 `AttemptResult` returns the updated profile and next steps, so the UI can show
 "before → after → what next" without a second request.
 
+### The teaching loop
+
+```text
+POST /attempts            -> teach: {capabilityId, name, missed[]}  (null if nothing to teach)
+POST /lessons             -> missed[], targeted, retryActivityId, explanation, sources
+POST /tutor {question, capabilityId}   follow-ups kept inside that capability's material
+POST /attempts (retry)    -> changes show masteryBefore -> masteryAfter
+```
+
+A lesson asks two questions in parallel — one aimed at the learner's missed criteria,
+one general — and returns the targeted answer when the corpus supports it. `targeted:
+false` means the explanation teaches the underlying ideas, not the exact scenario.
+
 ### Example — `POST /api/learners`
 
 ```json

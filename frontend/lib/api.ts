@@ -53,9 +53,10 @@ export interface SkillChange {
   masteryBefore: number | null; masteryAfter: number;
   stateBefore: SkillState; stateAfter: SkillState;
 }
+export interface TeachHint { capabilityId: string; name: string; missed: string[] }
 export interface AttemptResult {
   attempt: number; criteria: CriterionResult[]; changes: SkillChange[];
-  explanation: string; profile: SkillProfile; next: NextActivities;
+  explanation: string; teach: TeachHint | null; profile: SkillProfile; next: NextActivities;
 }
 export interface Source {
   chunkId: string; citation: string; excerpt: string; score: number;
@@ -64,6 +65,7 @@ export interface Source {
 export interface Lesson {
   capabilityId: string; name: string; question: string; answered: boolean;
   explanation: string; sources: Source[]; prerequisitesFirst: string[]; gate: string;
+  missed: string[]; targeted: boolean; retryActivityId: string | null;
 }
 export interface TutorAnswer { question: string; answered: boolean; answer: string; sources: Source[]; gate: string }
 export interface EvidenceEntry {
@@ -106,8 +108,8 @@ export const api = {
     post<AttemptResult>(`/api/learners/${enc(id)}/attempts`, { activityId, response }),
   lesson: (id: string, capabilityId: string) =>
     post<Lesson>(`/api/learners/${enc(id)}/lessons`, { capabilityId }),
-  tutor: (id: string, question: string) =>
-    post<TutorAnswer>(`/api/learners/${enc(id)}/tutor`, { question }),
+  tutor: (id: string, question: string, capabilityId?: string) =>
+    post<TutorAnswer>(`/api/learners/${enc(id)}/tutor`, { question, capabilityId }),
   evidence: (id: string) => call<EvidenceEntry[]>(`/api/learners/${enc(id)}/evidence`),
 };
 
@@ -127,6 +129,9 @@ export function stepHref(learnerId: string, step: Step): string | null {
       return null; // mission: not exposed over HTTP yet
   }
 }
+
+export const lessonHref = (learnerId: string, capabilityId: string, retry?: string | null) =>
+  `/learn/${enc(learnerId)}/lesson/${enc(capabilityId)}${retry ? `?retry=${enc(retry)}` : ""}`;
 
 /** Route params may arrive encoded or decoded depending on the router; ids never contain '%'. */
 export function param(value: string | string[] | undefined): string {

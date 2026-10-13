@@ -1,14 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { api, pct, type Activity, type AttemptResult } from "@/lib/api";
+import { api, lessonHref, pct, type Activity, type AttemptResult } from "@/lib/api";
 import { ErrorBox, Loading, StateBadge, StepCard } from "./ui";
 
 const MARK = { met: "✓", partial: "△", unmet: "✗" } as const;
 
 /** Prompt + rubric + answer box. On submit, shows the judged result in place. */
 export function ActivityRunner({
-  learnerId, activity, onDone, doneLabel, showNext = true,
+  learnerId, activity, onDone, doneLabel, showNext = true, showTeach = true,
 }: {
   learnerId: string;
   activity: Activity;
@@ -16,6 +17,8 @@ export function ActivityRunner({
   onDone?: (result: AttemptResult) => void;
   doneLabel?: string;
   showNext?: boolean;
+  /** Off during the diagnosis: leaving mid-way would lose the learner's place. */
+  showTeach?: boolean;
 }) {
   const [response, setResponse] = useState("");
   const [busy, setBusy] = useState(false);
@@ -70,7 +73,7 @@ export function ActivityRunner({
 
       {result && (
         <AttemptResultView
-          learnerId={learnerId} result={result} showNext={showNext}
+          learnerId={learnerId} activityId={activity.id} result={result} showNext={showNext} showTeach={showTeach}
           onRetry={() => { setResult(null); }}
           onDone={onDone ? () => onDone(result) : undefined} doneLabel={doneLabel}
         />
@@ -80,14 +83,27 @@ export function ActivityRunner({
 }
 
 export function AttemptResultView({
-  learnerId, result, onRetry, onDone, doneLabel, showNext,
+  learnerId, activityId, result, onRetry, onDone, doneLabel, showNext, showTeach,
 }: {
-  learnerId: string; result: AttemptResult; onRetry: () => void;
-  onDone?: () => void; doneLabel?: string; showNext: boolean;
+  learnerId: string; activityId: string; result: AttemptResult; onRetry: () => void;
+  onDone?: () => void; doneLabel?: string; showNext: boolean; showTeach: boolean;
 }) {
   const met = result.criteria.filter((c) => c.verdict === "met").length;
+  const improved = result.changes.filter(
+    (c) => c.masteryBefore != null && c.masteryAfter > c.masteryBefore + 0.005);
   return (
     <>
+      {improved.length > 0 && (
+        <div className="card highlight">
+          <h2 style={{ marginBottom: 4 }}>You improved</h2>
+          {improved.map((c) => (
+            <div key={c.capabilityId}>
+              <strong>{c.name}</strong>: {pct(c.masteryBefore)} → <strong>{pct(c.masteryAfter)}</strong>
+              {c.stateAfter !== c.stateBefore && <> · now <StateBadge state={c.stateAfter} /></>}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="card">
         <div className="spread">
           <h2 style={{ margin: 0 }}>Feedback</h2>
@@ -133,6 +149,23 @@ export function AttemptResultView({
           <button className="btn secondary" onClick={onRetry}>Try again</button>
         </div>
       </div>
+
+      {showTeach && result.teach && (
+        <div className="card primary">
+          <h2>Learn what you missed</h2>
+          <p className="muted small">Before moving on, here&apos;s the part of {result.teach.name} this answer didn&apos;t cover:</p>
+          <ul style={{ paddingLeft: 20 }}>
+            {result.teach.missed.slice(0, 3).map((m) => <li key={m}>{m}</li>)}
+          </ul>
+          <Link className="btn"
+            href={lessonHref(learnerId, result.teach.capabilityId, activityId)}>
+            Teach me {result.teach.name} →
+          </Link>
+          <p className="small muted" style={{ marginTop: 8, marginBottom: 0 }}>
+            You&apos;ll get a short lesson from the course material, then try this question again.
+          </p>
+        </div>
+      )}
 
       {showNext && result.next.steps[0] && (
         <>

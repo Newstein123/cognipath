@@ -5,21 +5,31 @@ import { api, type TutorAnswer } from "@/lib/api";
 import { ErrorBox, Loading, Markdown, Sources } from "./ui";
 
 /** Free questions, answered only from the curated course material. */
-export function TutorBox({ learnerId, placeholder }: { learnerId: string; placeholder?: string }) {
+export function TutorBox({
+  learnerId, capabilityId, presets = [], placeholder, title = "Ask the tutor",
+}: {
+  learnerId: string;
+  /** Keeps answers inside one capability's material, e.g. during its lesson. */
+  capabilityId?: string;
+  /** One-click follow-ups, e.g. "Show me an example". */
+  presets?: { label: string; question: string }[];
+  placeholder?: string;
+  title?: string;
+}) {
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<TutorAnswer[]>([]);
+  const [answers, setAnswers] = useState<(TutorAnswer & { label?: string })[]>([]);
 
-  async function ask() {
-    const q = question.trim();
-    if (!q) return;
+  async function ask(q: string, label?: string) {
+    q = q.trim();
+    if (!q || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const a = await api.tutor(learnerId, q);
-      setAnswers((cur) => [a, ...cur]);
-      setQuestion("");
+      const a = await api.tutor(learnerId, q, capabilityId);
+      setAnswers((cur) => [{ ...a, label }, ...cur]);
+      if (!label) setQuestion("");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -29,20 +39,29 @@ export function TutorBox({ learnerId, placeholder }: { learnerId: string; placeh
 
   return (
     <div className="card">
-      <h2>Ask the tutor</h2>
+      <h2>{title}</h2>
       <p className="small muted">Answers come only from the course material, with sources. If it isn&apos;t covered, the tutor says so.</p>
+      {presets.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          {presets.map((p) => (
+            <button key={p.label} className="chip" disabled={busy} onClick={() => ask(p.question, p.label)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="row" style={{ flexWrap: "nowrap" }}>
         <input type="text" value={question} disabled={busy}
           placeholder={placeholder ?? "e.g. Why does adding an index make a query faster?"}
           onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") ask(); }} />
-        <button className="btn" disabled={busy || !question.trim()} onClick={ask}>Ask</button>
+          onKeyDown={(e) => { if (e.key === "Enter") ask(question); }} />
+        <button className="btn" disabled={busy || !question.trim()} onClick={() => ask(question)}>Ask</button>
       </div>
       <ErrorBox error={error} />
       {busy && <Loading stages={["Searching the course material…", "Checking it covers your question…", "Writing a grounded answer…"]} />}
       {answers.map((a, i) => (
         <div key={i} style={{ borderTop: "1px solid var(--border)", marginTop: 16, paddingTop: 14 }}>
-          <p><strong>Q: {a.question}</strong></p>
+          <p><strong>{a.label ?? `Q: ${a.question}`}</strong></p>
           {a.answered ? <Markdown text={a.answer} /> : <div className="notice">{a.answer}</div>}
           {a.answered && <Sources sources={a.sources} />}
         </div>

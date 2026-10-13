@@ -166,3 +166,13 @@ def test_first_step_does_not_depend_on_limit(client):
 def test_estimate_reasons_are_readable(client):
     reasons = [e["reason"] for e in onboard(client, "Ada")["initialEstimates"]]
     assert reasons and not any("--" in r for r in reasons), reasons
+
+
+def test_weak_attempt_says_what_to_learn(client):
+    learner = onboard(client, "Ada")["learner"]["id"]
+    result = answer_diagnostic(client, learner, "unmet")
+    teach = result["teach"]
+    assert teach and teach["missed"] and teach["name"]
+    judge.verdict = "met"
+    strong = onboard(client, "Bo")["learner"]["id"]
+    assert answer_diagnostic(client, strong, "met")["teach"] is None

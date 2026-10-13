@@ -338,6 +338,9 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
     texts = {c.id: c.criterion for c in item.rubric}
     caps = {c.id: c.capability_id for c in item.rubric}
     loop = AdaptiveLoop(graph(), profile)
+    teachable = [o for o in result.outcomes
+                 if (o.unmet or o.partial) and graph().get(o.capability_id).knowledge_docs]
+    weakest = min(teachable, key=lambda o: o.score, default=None)
     return s.AttemptResult(
         attempt=result.evidence.attempt,
         criteria=[s.CriterionResult(id=r.criterion_id, criterion=texts[r.criterion_id],
@@ -353,6 +356,10 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
                                state_after=state_of_mastery(o.mastery_after))
                  for o in result.outcomes],
         explanation=result.explanation,
+        teach=s.TeachHint(capability_id=weakest.capability_id,
+                          name=graph().get(weakest.capability_id).name,
+                          missed=[texts[c] for c in (*weakest.unmet, *weakest.partial)])
+        if weakest else None,
         profile=skill_profile(profile, loop),
         next=next_activities(loop.recommend()),
     )
@@ -373,6 +380,9 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
                Gap(capability_id=cap.id, mastery=row.mastery, confidence=row.confidence))
     k = resolver.knowledge_for(gap)
     res: Result | None = k.result
+    # Most recent assessable activity where this capability was missed.
+    retry = next((e for e in reversed(gap.from_evidence)
+                  if e in library().experiences and library().get(e).assessable), None)
     return s.Lesson(
         capability_id=cap.id, name=cap.name, question=k.question,
         answered=k.answered,
@@ -380,6 +390,7 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         "There is no learning material for this capability yet.",
         sources=sources(k.hits, res.citations if res else []),
         prerequisites_first=[c.name for c in k.prerequisites_first],
+        missed=list(gap.unmet[:3]), targeted=k.targeted, retry_activity_id=retry,
         gate=res.gate if res else "no_corpus",
     )
 
@@ -389,7 +400,13 @@ def ask_tutor(learner_id: str, req: s.TutorRequest):
     load_profile(learner_id)
     from cognith_rag.embeddings import embed_query
 
-    hits = store().search(embed_query(req.question), k=TOP_K)
+    docs = None
+    if req.capability_id:
+        try:
+            docs = [f"{d}.md" for d in graph().get(req.capability_id).knowledge_docs] or None
+        except KeyError:
+            raise HTTPException(404, f"No capability {req.capability_id!r}") from None
+    hits = store().search(embed_query(req.question), k=TOP_K, docs=docs)
     res = answer(req.question, hits)
     return s.TutorAnswer(question=req.question, answered=res.answered, answer=res.answer,
                          sources=sources(res.hits, res.citations), gate=res.gate)

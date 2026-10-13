@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, param, type Diagnostic } from "@/lib/api";
+import { api, param, type Diagnostic, type NextActivities } from "@/lib/api";
 import { ActivityRunner } from "@/components/ActivityRunner";
-import { ErrorBox, Loading } from "@/components/ui";
+import { ErrorBox, Loading, StepCard } from "@/components/ui";
 
 export default function DiagnosticPage() {
   const id = param(useParams().id);
@@ -14,10 +14,16 @@ export default function DiagnosticPage() {
   const [diag, setDiag] = useState<Diagnostic | null>(null);
   const [index, setIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [plan, setPlan] = useState<NextActivities | null>(null);
 
   useEffect(() => {
     api.diagnostic(id).then(setDiag).catch((e) => setError(e.message));
   }, [id]);
+
+  const finished = diag != null && diag.activities.length > 0 && index >= diag.activities.length;
+  useEffect(() => {
+    if (finished) api.next(id).then(setPlan).catch((e) => setError(e.message));
+  }, [finished, id]);
 
   if (error) return <ErrorBox error={error} />;
   if (!diag) return <Loading stages={["Choosing what to check…"]} />;
@@ -61,14 +67,23 @@ export default function DiagnosticPage() {
       )}
 
       {done ? (
-        <div className="card highlight">
-          <h2>Diagnosis complete</h2>
-          <p>Your skill profile now reflects what you demonstrated, not just what you told us.</p>
-          <div className="row">
-            <Link className="btn" href={`/learn/${encodeURIComponent(id)}`}>See your next activity →</Link>
-            <Link className="btn secondary" href={`/learn/${encodeURIComponent(id)}/profile`}>Skill profile</Link>
+        <>
+          <div className="card">
+            <h2>Diagnosis complete — now the learning starts</h2>
+            <p>
+              Your profile now reflects what you showed, not just what you told us. Instead of a
+              full course, Cognith will teach you only the gaps it found, in this order:
+            </p>
+            <Link href={`/learn/${encodeURIComponent(id)}/profile`} className="small">See your full skill profile →</Link>
           </div>
-        </div>
+          {!plan ? <Loading stages={["Planning your first lesson…"]} /> : (
+            <>
+              {plan.steps.map((s, i) => (
+                <StepCard key={i} learnerId={id} step={s} primary={i === 0} />
+              ))}
+            </>
+          )}
+        </>
       ) : (
         <>
           {target && <p className="small muted">Checking <strong>{target.name}</strong></p>}
@@ -77,6 +92,7 @@ export default function DiagnosticPage() {
             learnerId={id}
             activity={activity}
             showNext={false}
+            showTeach={false}
             doneLabel={index + 1 < total ? "Next question" : "Finish diagnosis"}
             onDone={() => setIndex((i) => i + 1)}
           />

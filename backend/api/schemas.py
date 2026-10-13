@@ -213,12 +213,22 @@ class SkillChange(Model):
     state_after: SkillState
 
 
+class TeachHint(Model):
+    """What to learn right after this attempt: the weakest teachable capability."""
+    capability_id: str
+    name: str
+    #: Criterion texts not (fully) met on this attempt, for that capability.
+    missed: list[str]
+
+
 class AttemptResult(Model):
     attempt: int
     criteria: list[CriterionResult]
     changes: list[SkillChange]
     #: Assembled from the criterion verdicts, not a second model call.
     explanation: str
+    #: Null when everything was met or nothing missed has course material.
+    teach: TeachHint | None
     profile: SkillProfile
     next: NextActivities
 
@@ -250,12 +260,20 @@ class Lesson(Model):
     sources: list[Source]
     #: Capabilities to demonstrate first — shown as a hint, never a block.
     prerequisites_first: list[str]
+    #: What the learner's evidence says they missed. Empty if never assessed.
+    missed: list[str]
+    #: True when the explanation addresses `missed` directly.
+    targeted: bool
+    #: An activity where the learner missed this — "try it again" after the lesson.
+    retry_activity_id: str | None
     #: Why it was or was not answered: score_floor | model | citation_check | api_error | no_corpus
     gate: str
 
 
 class TutorRequest(Model):
     question: str = Field(min_length=1, max_length=2000)
+    #: Restrict retrieval to this capability's documents (e.g. inside a lesson).
+    capability_id: str | None = None
 
 
 class TutorAnswer(Model):

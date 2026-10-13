@@ -563,6 +563,16 @@
             "type": "string",
             "title": "Explanation"
           },
+          "teach": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeachHint"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "profile": {
             "$ref": "#/components/schemas/SkillProfile"
           },
@@ -576,6 +586,7 @@
           "criteria",
           "changes",
           "explanation",
+          "teach",
           "profile",
           "next"
         ],
@@ -938,6 +949,28 @@
             "type": "array",
             "title": "Prerequisitesfirst"
           },
+          "missed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missed"
+          },
+          "targeted": {
+            "type": "boolean",
+            "title": "Targeted"
+          },
+          "retryActivityId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retryactivityid"
+          },
           "gate": {
             "type": "string",
             "title": "Gate"
@@ -952,6 +985,9 @@
           "explanation",
           "sources",
           "prerequisitesFirst",
+          "missed",
+          "targeted",
+          "retryActivityId",
           "gate"
         ],
         "title": "Lesson"
@@ -1404,6 +1440,33 @@
         ],
         "title": "StepKind"
       },
+      "TeachHint": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "missed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "name",
+          "missed"
+        ],
+        "title": "TeachHint",
+        "description": "What to learn right after this attempt: the weakest teachable capability."
+      },
       "TutorAnswer": {
         "properties": {
           "question": {
@@ -1447,6 +1510,17 @@
             "maxLength": 2000,
             "minLength": 1,
             "title": "Question"
+          },
+          "capabilityId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capabilityid"
           }
         },
         "type": "object",

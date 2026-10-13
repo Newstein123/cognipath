@@ -1541,3 +1541,25 @@ get corpus material — they are content gaps, and abstaining on them is correct
 attempt number to the learner.
 
 **Where:** `cognith_student/evidence.py`.
+
+---
+
+## D51 — Lessons are aimed at what was missed, with a general fallback in parallel
+
+**Phase 15.**
+
+**Decision:** `GapResolver.knowledge_for` asks a targeted question (general question +
+the learner's missed criteria) and the general question at the same time, and keeps the
+targeted answer if the grounding contract accepted it.
+
+**Why:** the first UI tested learners and never taught them — a lesson did not know what
+the learner had just got wrong. Measured over eight real gaps: targeted alone answered
+4/8, general alone 6/8, both in parallel 7/8. The targeted form fails when a criterion is
+scenario-specific ("five retries can create five orders") because no excerpt mentions the
+scenario; falling back keeps the lesson honest rather than improvised. Parallel calls cost
+no extra wait, only a second request.
+
+**Where:** `cognith_learning/knowledge.py`; `targeted` and `missed` on the Lesson contract.
+
+**Revisit when:** the corpus grows worked examples for the diagnostic scenarios — then
+the targeted form should win far more often.

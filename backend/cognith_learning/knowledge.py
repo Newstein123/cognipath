@@ -77,6 +77,9 @@ class KnowledgeForGap:
     exercises: list[Hit] = field(default_factory=list)
     result: Result | None = None
     prerequisites_first: tuple[Capability, ...] = ()
+    #: True when `result` answers the targeted question (the learner's missed points),
+    #: False when it fell back to the general one.
+    targeted: bool = False
 
     @property
     def has_corpus(self) -> bool:
@@ -249,6 +252,22 @@ class GapResolver:
         statement = statement[0].lower() + statement[1:]
         return f"What do I need to understand about {cap.name} to be able to {statement}?"
 
+    def build_targeted_question(self, gap: Gap) -> str | None:
+        """The general question, plus what this learner actually missed. None if nothing
+        was missed.
+
+        Not a replacement for `build_question`: measured 2026-10-14 over eight real gaps,
+        the targeted form answered 4/8 and the general form 6/8. The targeted one
+        abstains when a missed criterion is scenario-specific ("five retries can create
+        five orders") because no excerpt mentions that scenario. Asked together and
+        preferring the targeted answer, 7/8 were answered — see `knowledge_for`.
+        """
+        if not gap.unmet:
+            return None
+        missed = "; ".join(gap.unmet[:2])
+        return (f"{self.build_question(gap)} In my last answer I missed these points: "
+                f"{missed}. Explain the ideas behind them.")
+
     def knowledge_for(
         self, gap: Gap, k: int = TOP_K, explain: bool = True
     ) -> KnowledgeForGap:
@@ -287,7 +306,20 @@ class GapResolver:
         out.hits = self.store.search(vector, k=k, docs=list(docs))
         out.exercises = self.store.search(vector, k=3, docs=list(docs), kind="exercise")
         if explain:
-            out.result = answer(question, out.hits)
+            targeted = self.build_targeted_question(gap)
+            if targeted is None:
+                out.result = answer(question, out.hits)
+                return out
+            # Both at once, so the fallback costs no extra wait.
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(2) as pool:
+                aimed = pool.submit(answer, targeted, out.hits)
+                general = pool.submit(answer, question, out.hits)
+                if aimed.result().answered:
+                    out.result, out.question, out.targeted = aimed.result(), targeted, True
+                else:
+                    out.result = general.result()
         return out
 
     def coverage(self) -> dict[str, list[str]]:

@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
+import "katex/dist/katex.min.css";
 import { pct, stepHref, type Skill, type SkillState, type Source, type Step } from "@/lib/api";
 
 const STATE_LABEL: Record<SkillState, string> = {
@@ -29,8 +32,16 @@ export function KindBadge({ kind }: { kind: string }) {
   return <span className="badge kind">{KIND_LABEL[kind] ?? kind}</span>;
 }
 
+// Gemini writes formulas as $…$ / $$…$$ LaTeX. Inline $…$ is opt-in (NEXT_PUBLIC_INLINE_MATH=1)
+// because prose with prices ("$500 … $2,000/month") would otherwise be read as a formula.
+const MATH = [remarkMath, { singleDollarTextMath: process.env.NEXT_PUBLIC_INLINE_MATH === "1" }] as const;
+
 export function Markdown({ text }: { text: string }) {
-  return <div className="md"><ReactMarkdown>{text}</ReactMarkdown></div>;
+  return (
+    <div className="md">
+      <ReactMarkdown remarkPlugins={[MATH as never]} rehypePlugins={[rehypeKatex]}>{text}</ReactMarkdown>
+    </div>
+  );
 }
 
 export function ErrorBox({ error }: { error: string | null }) {

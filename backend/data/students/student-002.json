@@ -1,0 +1,140 @@
+{
+  "student": {
+    "id": "student-002",
+    "name": "Demo Student",
+    "goal": "Backend Software Engineer",
+    "createdAt": "2026-09-22T16:01:24.016263+00:00"
+  },
+  "student_capabilities": [
+    {
+      "id": "student-002__programming-fundamentals",
+      "studentId": "student-002",
+      "capabilityId": "programming-fundamentals",
+      "confidence": 0.7,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__http",
+      "studentId": "student-002",
+      "capabilityId": "http",
+      "confidence": 0.7,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__api-design",
+      "studentId": "student-002",
+      "capabilityId": "api-design",
+      "confidence": 0.75,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__authentication",
+      "studentId": "student-002",
+      "capabilityId": "authentication",
+      "confidence": 0.7,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__databases",
+      "studentId": "student-002",
+      "capabilityId": "databases",
+      "confidence": 0.8,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__testing",
+      "studentId": "student-002",
+      "capabilityId": "testing",
+      "confidence": 0.21,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__debugging",
+      "studentId": "student-002",
+      "capabilityId": "debugging",
+      "confidence": 0.65,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__system-design",
+      "studentId": "student-002",
+      "capabilityId": "system-design",
+      "confidence": 0.525,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__scalability",
+      "studentId": "student-002",
+      "capabilityId": "scalability",
+      "confidence": 0.35,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__caching",
+      "studentId": "student-002",
+      "capabilityId": "caching",
+      "confidence": 0.7,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__load-balancing",
+      "studentId": "student-002",
+      "capabilityId": "load-balancing",
+      "confidence": 0.4,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__reliability",
+      "studentId": "student-002",
+      "capabilityId": "reliability",
+      "confidence": 0.35,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "student-002__trade-off-analysis",
+      "studentId": "student-002",
+      "capabilityId": "trade-off-analysis",
+      "confidence": 0.4,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    }
+  ]
+}

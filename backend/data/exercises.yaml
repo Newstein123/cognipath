@@ -1,0 +1,196 @@
+# Cognith — rubrics for the practice exercises already in the corpus.
+#
+# Claude.md §21 Phase 8: "Implement the minimum experience types required for the MVP."
+#
+# The corpus has seven sections tagged `kind: exercise`. They are good exercises — real
+# situations demanding a decision and a justification — but they were unusable as learning
+# experiences because nothing could score them. This file supplies what was missing.
+#
+# WHY THE PROMPT IS NOT REPEATED HERE
+# ----------------------------------
+# Each entry is keyed by the CHUNK ID, and the exercise text is read from the corpus at
+# load time. Copying the prose here would create two versions of the same exercise, and
+# editing knowledge/*.md would silently stop matching the rubric. Same reasoning as D25
+# keeping diagnostic rubrics inside their scenario: a question and its rubric are one
+# artefact. Here they live in different files, so the id is the join and the loader
+# verifies it resolves.
+#
+# CAPABILITIES
+# ------------
+# `capabilities` restates which capabilities each exercise exercises, because the corpus's
+# own `capability:` frontmatter tag is too coarse to use (decisions.md D9) — the caching
+# exercise is tagged `system-design`, which is three documents wide.
+#
+# Criteria follow the Phase 6 contract exactly: each names the capability it evidences and
+# carries a weight, so one exercise can produce evidence for several capabilities.
+
+exercises:
+
+  - chunk: caching.md#exercise-choose-a-strategy
+    title: Choose a caching strategy
+    capabilities: [caching, trade-off-analysis]
+    level: intermediate
+    minutes: 8
+    rubric:
+      - id: differentiates-fields
+        criterion: Treats the price and the stock count differently rather than proposing one strategy for both
+        capability: caching
+        weight: 1.5
+      - id: ttl-justified
+        criterion: Chooses a TTL for each field and ties it to how often that field actually changes
+        capability: caching
+        weight: 1.5
+      - id: observable-consequence
+        criterion: Describes what a user would actually SEE if the price strategy were applied to stock — a stale count, overselling
+        capability: caching
+        weight: 1.5
+      - id: names-the-tension
+        criterion: Frames it as freshness against load rather than as a single correct answer
+        capability: trade-off-analysis
+        weight: 1.0
+
+  - chunk: database-indexing.md#exercise-diagnose-the-slow-query
+    title: Diagnose the slow query
+    capabilities: [database-performance, trade-off-analysis]
+    level: intermediate
+    minutes: 10
+    rubric:
+      - id: leading-column
+        criterion: Explains that the index is unusable because the query does not filter on its leading column
+        capability: database-performance
+        weight: 2.0
+      - id: proposes-index
+        criterion: Proposes an index the query could actually use, on created_at
+        capability: database-performance
+        weight: 1.5
+      - id: write-cost
+        criterion: States the write-path cost — every insert and update must also maintain the new index
+        capability: database-performance
+        weight: 1.5
+      - id: when-not-to
+        criterion: Names a concrete situation where they would decline to add it (write-heavy table, rare query, storage)
+        capability: trade-off-analysis
+        weight: 1.5
+
+  - chunk: database-replication.md#exercise-route-the-reads
+    title: Route the reads
+    capabilities: [database-performance, reliability, trade-off-analysis]
+    level: intermediate
+    minutes: 8
+    rubric:
+      - id: cart-to-leader
+        criterion: Sends the cart read to the leader, because the user must see their own write immediately
+        capability: database-performance
+        weight: 2.0
+      - id: stock-to-leader
+        criterion: Sends the checkout stock check to the leader, recognising that 200ms of lag can oversell
+        capability: reliability
+        weight: 1.5
+      - id: tolerant-to-replica
+        criterion: Sends the homepage listing and the monthly report to replicas, as both tolerate staleness
+        capability: database-performance
+        weight: 1.0
+      - id: lag-is-the-axis
+        criterion: Justifies the split by staleness tolerance rather than by load alone
+        capability: trade-off-analysis
+        weight: 1.5
+
+  - chunk: http.md#exercise-read-a-failing-request
+    title: Read a failing request
+    capabilities: [http, reliability]
+    level: foundation
+    minutes: 6
+    rubric:
+      - id: retry-unsafe
+        criterion: Says retrying is not safe here, because a 500 does not tell the client whether the order was created
+        capability: http
+        weight: 2.0
+      - id: four-hundred-differs
+        criterion: Explains that a 400 means the request itself was rejected, so retrying it unchanged is pointless rather than dangerous
+        capability: http
+        weight: 1.5
+      - id: non-idempotent
+        criterion: Names non-idempotency as the property of POST that makes the retry risky
+        capability: http
+        weight: 2.0
+      - id: duplicate-orders
+        criterion: Connects it to the real consequence — five retries can create five orders
+        capability: reliability
+        weight: 1.0
+
+  - chunk: load-balancing.md#exercise-diagnose-uneven-load
+    title: Diagnose uneven load
+    capabilities: [load-balancing, debugging]
+    level: intermediate
+    minutes: 8
+    rubric:
+      - id: two-distinct
+        criterion: Gives two genuinely different explanations, not one restated (e.g. long-lived connections vs unequal request cost)
+        capability: load-balancing
+        weight: 1.5
+      - id: round-robin-limit
+        criterion: Recognises that round-robin balances REQUESTS, not work, so equal distribution does not mean equal load
+        capability: load-balancing
+        weight: 2.0
+      - id: measurement
+        criterion: Says what they would measure to tell the explanations apart
+        capability: debugging
+        weight: 1.5
+      - id: fix-per-cause
+        criterion: Proposes a change matched to each cause rather than one generic fix
+        capability: debugging
+        weight: 1.0
+
+  - chunk: rest-api.md#exercise-critique-an-endpoint
+    title: Critique an endpoint
+    capabilities: [api-design, http]
+    level: intermediate
+    minutes: 8
+    rubric:
+      - id: verb-in-url
+        criterion: Identifies the verb in the URL and that a read should not be a POST
+        capability: api-design
+        weight: 1.5
+      - id: no-pagination
+        criterion: Identifies that returning 40,000 records unpaginated is a problem
+        capability: api-design
+        weight: 1.5
+      - id: envelope
+        criterion: Identifies the success envelope as redundant when HTTP status already carries it
+        capability: http
+        weight: 1.0
+      - id: gives-corrections
+        criterion: Gives a concrete corrected version for each problem, not just the complaint
+        capability: api-design
+        weight: 1.5
+      - id: prioritises
+        criterion: Chooses one change to make first and justifies the ordering
+        capability: api-design
+        weight: 1.5
+
+  - chunk: system-design.md#exercise-defend-a-decision
+    title: Defend a decision
+    capabilities: [trade-off-analysis, database-performance, scalability]
+    level: advanced
+    minutes: 12
+    rubric:
+      - id: two-real-options
+        criterion: Proposes two approaches that differ in kind, not two variants of one idea
+        capability: trade-off-analysis
+        weight: 1.5
+      - id: respects-constraints
+        criterion: Keeps both options inside the stated limits — two weeks, no new infrastructure
+        capability: trade-off-analysis
+        weight: 1.5
+      - id: targets-the-600ms
+        criterion: Aims at the aggregate query specifically, since that is where 600 of the 800ms is
+        capability: database-performance
+        weight: 1.5
+      - id: growth-matters
+        criterion: Accounts for the table growing daily, so a fix that works today may not hold
+        capability: scalability
+        weight: 1.0
+      - id: falsifying-metric
+        criterion: Names a specific metric that would show their choice was wrong
+        capability: trade-off-analysis
+        weight: 2.0

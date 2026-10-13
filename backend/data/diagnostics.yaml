@@ -1,0 +1,661 @@
+# Cognith — diagnostic selection rules and scenario bank.
+#
+# Claude.md §10: "Do not give every student the same long exam. The diagnostic should
+# identify important or uncertain capabilities and verify them."
+#
+# Two things live here:
+#   selection:  how the engine decides WHAT to verify (weights only; the logic is code)
+#   items:      the scenarios themselves
+#
+# Scenarios are AUTHORED, not generated. §11 requires structured rubrics, Phase 6 authors
+# them, and a scenario generated independently of its rubric cannot be scored against one.
+# `probes` is the bridge: it states what each scenario is trying to observe, and Phase 6's
+# rubric criteria will be written against those same dimensions.
+
+# --- Selection --------------------------------------------------------------------
+selection:
+  # How many capabilities to verify in one diagnostic. §10: "a small number".
+  max_capabilities: 3
+
+  # Below this score a capability is not worth a student's time.
+  min_score: 0.15
+
+  weights:
+    # How little we know. A claim with no evidence is the whole point of diagnosing.
+    uncertainty: 0.30
+
+    # How consequential the claim is. Verifying an 80% claim tells you more than a 20%
+    # one, because more of the student's plan rests on it being true.
+    stake: 0.20
+
+    # Does this capability matter for what they said they are working toward (§8)?
+    goal_relevance: 0.15
+
+    # How many capabilities depend on this one. Verifying a foundation resolves more of
+    # the graph than verifying a leaf.
+    leverage: 0.10
+
+    # Already assessed and the claim sat above the evidence — worth re-checking.
+    calibration: 0.10
+
+    # THE §10 RULE. When a student makes a bold, unverified claim, the informative move
+    # is to test what that claim RESTS ON, not the claim itself — they have already told
+    # you about the claim. §10's worked example is exactly this: "student says they are
+    # intermediate in system design" -> test Scalability, Trade-off Analysis, Database
+    # Performance, which are its contributors and prerequisites.
+    claim_support: 0.15
+
+  # Testing a capability whose own prerequisites are unproven measures the prerequisite,
+  # not the capability. This scales down such candidates rather than excluding them, so a
+  # student with nothing verified still gets a diagnostic.
+  unready_penalty: 0.55
+
+  # A scenario chosen for one capability also exercises its `also_exercises` list. That
+  # is partial coverage, not full coverage, so those capabilities are DISCOUNTED for the
+  # remaining slots rather than excluded. Excluding them let a capability that was merely
+  # a secondary in one scenario lose its own primary slot to something weaker.
+  secondary_coverage_discount: 0.70
+
+# --- Scenario bank ----------------------------------------------------------------
+# Every scenario is a SITUATION requiring a decision and a justification. §10: "Avoid
+# relying only on memorization questions." A scenario answerable by recalling a
+# definition does not belong here.
+#
+# probes: which reasoning dimensions the scenario is meant to expose, from §10 —
+#   decomposition | reasoning | decision | trade-offs | application
+items:
+
+  - id: scale-api-001
+    capability: scalability
+    also_exercises: [trade-off-analysis, database-performance]
+    level: advanced
+    minutes: 10
+    probes: [decomposition, reasoning, decision, trade-offs]
+    prompt: |
+      Your API currently handles 100 requests/sec with 250ms average latency.
+      Database CPU sits at 45%. Traffic is expected to reach 10,000 requests/sec
+      within three months.
+
+      What would you investigate first, and what would you change?
+
+      Explain your reasoning, and say what you would expect to go wrong with the
+      approach you chose.
+    rubric:
+      - id: growth-changes-shape
+        criterion: Recognises that 100x growth changes which component fails first, rather than treating it as 'more of the same'
+        capability: scalability
+        weight: 1.5
+      - id: measure-first
+        criterion: Says they would measure or profile to locate the bottleneck before changing anything
+        capability: scalability
+        weight: 1.5
+      - id: db-constraint
+        criterion: Identifies the database as a likely constraint and gives a reason (connections, CPU, contention)
+        capability: database-performance
+        weight: 1.0
+      - id: horizontal
+        criterion: Proposes horizontal scaling of the stateless tier, and notes it does not help a shared database
+        capability: scalability
+        weight: 1.0
+      - id: cost-or-limit
+        criterion: "Acknowledges a real-world limit \u2014 cost, operational complexity, or time"
+        capability: trade-off-analysis
+        weight: 1.0
+      - id: names-downside
+        criterion: Names a specific way their own chosen approach could fail or fall short
+        capability: trade-off-analysis
+        weight: 1.5
+
+  - id: tradeoff-cache-001
+    capability: trade-off-analysis
+    also_exercises: [caching, reliability]
+    level: advanced
+    minutes: 8
+    probes: [reasoning, trade-offs, decision]
+    prompt: |
+      A teammate proposes caching the product catalogue for 24 hours to cut database
+      load. Prices change a few times a week, and the pricing team edits them directly
+      in an admin panel.
+
+      Would you take this trade-off? What would you need to know first, and what would
+      you propose instead if you would not?
+    rubric:
+      - id: staleness-risk
+        criterion: Identifies that a 24h TTL means customers can see a stale price
+        capability: trade-off-analysis
+        weight: 1.5
+      - id: asks-constraint
+        criterion: Asks for a missing fact that would change the answer (how wrong can a price be, for how long)
+        capability: trade-off-analysis
+        weight: 1.5
+      - id: invalidation
+        criterion: Proposes invalidating on write rather than relying on expiry alone
+        capability: caching
+        weight: 1.5
+      - id: not-absolutist
+        criterion: Treats it as a trade-off to be shaped rather than simply accepting or rejecting it
+        capability: trade-off-analysis
+        weight: 1.0
+      - id: blast-radius
+        criterion: Considers what breaks for the pricing team or the customer when it goes wrong
+        capability: reliability
+        weight: 1.0
+
+  - id: dbperf-slow-001
+    capability: database-performance
+    also_exercises: [debugging, databases]
+    level: intermediate
+    minutes: 8
+    probes: [decomposition, reasoning, application]
+    prompt: |
+      An endpoint that was fast last month now takes 4 seconds. Nothing in its code has
+      changed. The table it reads has grown from 50,000 rows to 4 million.
+
+      How would you find the cause? Describe what you would look at, in order, and what
+      each thing would tell you.
+    rubric:
+      - id: growth-is-clue
+        criterion: Connects the 80x row growth to the slowdown rather than suspecting the code
+        capability: database-performance
+        weight: 1.5
+      - id: explain-plan
+        criterion: Would look at the query plan, or at which index the query uses
+        capability: database-performance
+        weight: 1.5
+      - id: ordered-method
+        criterion: Gives an ordered method where each step narrows the cause, not a list of guesses
+        capability: debugging
+        weight: 1.5
+      - id: says-what-it-tells
+        criterion: States what each check would tell them, i.e. how it discriminates
+        capability: debugging
+        weight: 1.0
+      - id: index-candidate
+        criterion: Identifies a missing or unusable index as the leading hypothesis
+        capability: database-performance
+        weight: 1.0
+
+  - id: api-design-001
+    capability: api-design
+    also_exercises: [http, authentication]
+    level: intermediate
+    minutes: 8
+    probes: [decision, reasoning, trade-offs]
+    prompt: |
+      You are designing an endpoint that cancels a booking. Cancelling sometimes
+      succeeds, sometimes fails because the booking already started, and sometimes
+      partially succeeds — the booking is cancelled but the refund is queued.
+
+      How would you design this endpoint? Cover the method, the URL, the status codes,
+      and what the client is told in each case.
+    rubric:
+      - id: method-and-url
+        criterion: Chooses a defensible method and URL and justifies it
+        capability: api-design
+        weight: 1.0
+      - id: partial-state
+        criterion: Handles the partial-success case explicitly rather than ignoring it
+        capability: api-design
+        weight: 1.5
+      - id: status-codes
+        criterion: Maps outcomes to status codes that a client could act on, including the failure case
+        capability: api-design
+        weight: 1.5
+      - id: idempotency
+        criterion: Considers repeated or concurrent cancellation
+        capability: api-design
+        weight: 1.0
+      - id: client-contract
+        criterion: Says what the client is actually told, not just the code
+        capability: http
+        weight: 1.0
+
+  - id: db-model-001
+    capability: databases
+    also_exercises: [api-design]
+    level: foundation
+    minutes: 7
+    probes: [decomposition, decision, reasoning]
+    prompt: |
+      A booking system needs to record that a customer booked a table at a restaurant
+      for a time, that bookings can be modified, and that the restaurant needs to see
+      today's bookings quickly.
+
+      Sketch the tables and their relationships. Explain one modelling decision you made
+      that a different engineer might have made differently, and why you chose yours.
+    rubric:
+      - id: entities
+        criterion: Identifies the entities and their relationships correctly
+        capability: databases
+        weight: 1.5
+      - id: time-modelling
+        criterion: Models the booking time in a way that supports 'today's bookings'
+        capability: databases
+        weight: 1.0
+      - id: modification
+        criterion: Accounts for bookings being modified (history, or updated in place, chosen deliberately)
+        capability: databases
+        weight: 1.0
+      - id: names-alternative
+        criterion: Names a genuine alternative modelling choice, not a strawman
+        capability: databases
+        weight: 1.5
+      - id: justifies
+        criterion: Justifies their choice against the stated needs rather than by preference
+        capability: api-design
+        weight: 1.0
+
+  - id: http-debug-001
+    capability: http
+    also_exercises: [debugging]
+    level: foundation
+    minutes: 6
+    probes: [reasoning, application]
+    prompt: |
+      A client reports that their POST request "does nothing". Your logs show the
+      request arriving and returning 200. The client insists the data is not saved.
+
+      What do you check, and in what order? What are the three most likely explanations,
+      and how would you tell them apart?
+    rubric:
+      - id: 200-is-the-clue
+        criterion: Treats the 200 as evidence the handler ran and returned, narrowing where the fault is
+        capability: http
+        weight: 1.5
+      - id: three-distinct
+        criterion: Gives three genuinely different explanations, not three phrasings of one
+        capability: debugging
+        weight: 1.5
+      - id: discriminates
+        criterion: Says how they would tell the explanations apart
+        capability: debugging
+        weight: 1.5
+      - id: layers
+        criterion: "Considers more than one layer \u2014 request body, handler logic, transaction, client-side"
+        capability: http
+        weight: 1.0
+      - id: evidence-not-guess
+        criterion: Proposes checking evidence rather than changing code speculatively
+        capability: debugging
+        weight: 1.0
+
+  - id: auth-choice-001
+    capability: authentication
+    also_exercises: [api-design, trade-off-analysis]
+    level: intermediate
+    minutes: 7
+    probes: [decision, trade-offs, reasoning]
+    prompt: |
+      An internal admin tool and a public mobile app both need to call the same API.
+      The admin tool is used by twelve staff on office machines; the mobile app has
+      40,000 users.
+
+      Would you use the same authentication approach for both? Justify your answer, and
+      name what your choice makes harder.
+    rubric:
+      - id: different-risk
+        criterion: Recognises the two clients carry different risk and exposure
+        capability: authentication
+        weight: 1.5
+      - id: takes-position
+        criterion: Takes a clear position rather than listing options
+        capability: trade-off-analysis
+        weight: 1.0
+      - id: mechanism
+        criterion: Names a concrete mechanism appropriate to each case
+        capability: authentication
+        weight: 1.5
+      - id: authz-vs-authn
+        criterion: Distinguishes proving identity from deciding permissions
+        capability: authentication
+        weight: 1.0
+      - id: names-cost
+        criterion: "Names what their choice makes harder \u2014 operationally or for the user"
+        capability: trade-off-analysis
+        weight: 1.5
+
+  - id: caching-invalidate-001
+    capability: caching
+    also_exercises: [reliability, trade-off-analysis]
+    level: intermediate
+    minutes: 7
+    probes: [reasoning, trade-offs, application]
+    prompt: |
+      You add a cache in front of a user profile lookup. Read latency drops from 120ms
+      to 8ms. Two weeks later, support reports that users who change their display name
+      sometimes see the old one for hours, and sometimes see it update instantly.
+
+      What is happening, and how would you fix it? Explain why the behaviour is
+      inconsistent rather than always wrong.
+    rubric:
+      - id: stale-cache
+        criterion: Identifies stale cache entries as the cause
+        capability: caching
+        weight: 1.5
+      - id: explains-variance
+        criterion: "Explains the INCONSISTENCY \u2014 TTL expiry timing, or multiple cache instances"
+        capability: caching
+        weight: 1.5
+      - id: invalidate-on-write
+        criterion: Proposes invalidating or updating on write
+        capability: caching
+        weight: 1.5
+      - id: keeps-benefit
+        criterion: Keeps the latency benefit rather than just removing the cache
+        capability: trade-off-analysis
+        weight: 1.0
+      - id: failure-mode
+        criterion: Notes a remaining failure mode of their fix
+        capability: reliability
+        weight: 1.0
+
+  - id: debug-intermittent-001
+    capability: debugging
+    also_exercises: [reliability]
+    level: intermediate
+    minutes: 7
+    probes: [decomposition, reasoning, application]
+    prompt: |
+      About 1 in 200 requests to one endpoint returns a 500. You cannot reproduce it
+      locally. It happens more often in the evening.
+
+      Describe how you would approach this. What would you do first, and what would you
+      refuse to do?
+    rubric:
+      - id: evening-is-signal
+        criterion: Treats the evening correlation as a signal worth explaining (load, batch job, timeout)
+        capability: debugging
+        weight: 1.5
+      - id: observe-first
+        criterion: "Starts by gathering evidence \u2014 logs, traces, error grouping \u2014 not by changing code"
+        capability: debugging
+        weight: 1.5
+      - id: hypothesis
+        criterion: Forms a hypothesis that the evidence could disprove
+        capability: debugging
+        weight: 1.5
+      - id: refuses-something
+        criterion: Names something they would refuse to do, and why
+        capability: debugging
+        weight: 1.0
+      - id: partial-failure
+        criterion: Considers a dependency being slow or saturated rather than simply broken
+        capability: reliability
+        weight: 1.0
+
+  - id: sysdesign-brief-001
+    capability: system-design
+    also_exercises: [scalability, trade-off-analysis, reliability]
+    level: advanced
+    minutes: 12
+    probes: [decomposition, decision, trade-offs, reasoning]
+    prompt: |
+      A food delivery service needs a backend handling 10,000 requests/sec at peak,
+      under 200ms for order placement, on a budget under $2,000/month. Peak is three
+      hours a day; the rest of the time traffic is a tenth of that.
+
+      Outline the architecture. Say which requirement you found hardest to satisfy, and
+      what you would give up first if the budget were halved.
+    rubric:
+      - id: meets-requirements
+        criterion: "Addresses all three constraints \u2014 throughput, latency, budget"
+        capability: system-design
+        weight: 1.5
+      - id: peak-shape
+        criterion: Uses the 3-hour peak shape in the design rather than sizing for constant peak
+        capability: scalability
+        weight: 1.5
+      - id: component-reasoning
+        criterion: Justifies each component by what it solves, not by convention
+        capability: system-design
+        weight: 1.5
+      - id: hardest-named
+        criterion: Names which requirement was hardest and why, honestly
+        capability: trade-off-analysis
+        weight: 1.0
+      - id: gives-up-first
+        criterion: States what they would sacrifice first under a halved budget, with a reason
+        capability: trade-off-analysis
+        weight: 1.5
+      - id: failure-thinking
+        criterion: Says something about what happens when a part of it fails
+        capability: reliability
+        weight: 1.0
+
+  - id: loadbalance-state-001
+    capability: load-balancing
+    also_exercises: [reliability, http]
+    level: intermediate
+    minutes: 6
+    probes: [reasoning, application, trade-offs]
+    prompt: |
+      You put two application servers behind a load balancer. Immediately, users start
+      being logged out at random.
+
+      What is the cause, and what are two different ways to fix it? Which would you
+      choose and why?
+    rubric:
+      - id: session-state
+        criterion: Identifies server-held session state as the cause
+        capability: load-balancing
+        weight: 1.5
+      - id: two-real-fixes
+        criterion: Gives two genuinely different fixes (sticky sessions vs externalised/stateless session)
+        capability: load-balancing
+        weight: 1.5
+      - id: chooses
+        criterion: Chooses one and justifies it
+        capability: trade-off-analysis
+        weight: 1.0
+      - id: sticky-downside
+        criterion: "Notes the cost of sticky sessions \u2014 uneven load, loss on instance failure"
+        capability: reliability
+        weight: 1.0
+      - id: scales-later
+        criterion: Considers which fix still works as more servers are added
+        capability: load-balancing
+        weight: 1.0
+
+  - id: reliability-degrade-001
+    capability: reliability
+    also_exercises: [trade-off-analysis]
+    level: advanced
+    minutes: 8
+    probes: [decomposition, decision, trade-offs]
+    prompt: |
+      Your checkout calls a third-party tax service on every order. The service is
+      normally fast but goes down for a few minutes roughly once a month, and during
+      those minutes no customer can check out.
+
+      How would you change this? Be specific about what happens to an order placed
+      during an outage.
+    rubric:
+      - id: degrade-not-fail
+        criterion: Proposes degrading rather than failing checkout
+        capability: reliability
+        weight: 1.5
+      - id: specific-order-path
+        criterion: States specifically what happens to an order placed during the outage
+        capability: reliability
+        weight: 1.5
+      - id: timeout
+        criterion: Mentions timeouts, retries or a circuit breaker with a reason
+        capability: reliability
+        weight: 1.0
+      - id: correctness-cost
+        criterion: Acknowledges the correctness cost of proceeding without the tax service
+        capability: trade-off-analysis
+        weight: 1.5
+      - id: reconcile
+        criterion: Says how the system becomes correct again afterwards
+        capability: reliability
+        weight: 1.0
+
+  # --- Added in Phase 11 ----------------------------------------------------------
+  # Five capabilities had no scenario, and every milestone required at least one of
+  # them — so no milestone could ever be completed. That was invisible until milestones
+  # existed to make it visible. Same authoring rules: a situation demanding a decision
+  # and a justification, never a definition to recall.
+
+  - id: prog-fundamentals-001
+    capability: programming-fundamentals
+    also_exercises: [debugging]
+    level: foundation
+    minutes: 7
+    probes: [reasoning, decomposition, application]
+    prompt: |
+      This function is meant to return the average order value for a customer. It works
+      in testing and occasionally crashes in production.
+
+          def average_order_value(orders):
+              total = 0
+              for o in orders:
+                  total += o["amount"]
+              return total / len(orders)
+
+      What can go wrong, and how would you change it? For each problem you find, say what
+      the caller should see instead.
+    rubric:
+      - id: empty-list
+        criterion: Identifies the division by zero when the order list is empty
+        capability: programming-fundamentals
+        weight: 2.0
+      - id: missing-key
+        criterion: Considers data that does not match the expected shape — a missing or non-numeric amount
+        capability: programming-fundamentals
+        weight: 1.5
+      - id: caller-contract
+        criterion: Says what the caller should receive in the failure case rather than only that it should not crash
+        capability: programming-fundamentals
+        weight: 1.5
+      - id: why-tests-passed
+        criterion: Explains why testing did not catch it — the test data was well-formed
+        capability: debugging
+        weight: 1.0
+
+  - id: data-structures-001
+    capability: data-structures
+    also_exercises: [algorithms]
+    level: foundation
+    minutes: 7
+    probes: [decision, reasoning, trade-offs]
+    prompt: |
+      You are holding 50,000 user records in memory. The code needs to do two things
+      often: look up a user by their id, and list all users sorted by signup date.
+
+      A colleague has used a single list of user objects for both. What would you use
+      instead, and why? Say what your choice costs.
+    rubric:
+      - id: lookup-structure
+        criterion: Proposes a hash map or dictionary keyed by id for the lookup, and explains that a list search grows with size
+        capability: data-structures
+        weight: 2.0
+      - id: two-access-patterns
+        criterion: Recognises the two access patterns want different structures rather than forcing one
+        capability: data-structures
+        weight: 1.5
+      - id: ordering
+        criterion: Addresses the sorted listing — a sorted structure, or sorting on demand with a stated cost
+        capability: data-structures
+        weight: 1.5
+      - id: names-cost
+        criterion: Names a cost of their choice — extra memory, keeping two structures consistent
+        capability: algorithms
+        weight: 1.5
+
+  - id: algorithms-001
+    capability: algorithms
+    also_exercises: [database-performance]
+    level: intermediate
+    minutes: 7
+    probes: [reasoning, application, decision]
+    prompt: |
+      A report page loads in 30 seconds. The code fetches 500 orders, then for each order
+      fetches its customer with a separate query.
+
+      Why is it slow, and how would you fix it? Estimate roughly how much faster your fix
+      would be, and say what would still be slow afterwards.
+    rubric:
+      - id: n-plus-one
+        criterion: Identifies that the work grows with the number of orders — one query per order
+        capability: algorithms
+        weight: 2.0
+      - id: batch-or-join
+        criterion: Proposes fetching the customers in one query, by join or by batched lookup
+        capability: database-performance
+        weight: 1.5
+      - id: estimates
+        criterion: Gives a rough estimate of the improvement rather than only claiming it will be faster
+        capability: algorithms
+        weight: 1.5
+      - id: what-remains
+        criterion: Says what would still be slow — the remaining query, rendering, payload size
+        capability: algorithms
+        weight: 1.0
+
+  - id: testing-001
+    capability: testing
+    also_exercises: [reliability]
+    level: intermediate
+    minutes: 7
+    probes: [reasoning, decision, application]
+    prompt: |
+      A discount function gives 10% off orders over $100, and nothing otherwise. A
+      colleague's test is:
+
+          def test_discount():
+              assert apply_discount(150) is not None
+
+      This test passes. It also passes if the function returns the wrong discount, or
+      always returns zero.
+
+      What is wrong with it, and what would you write instead? Name the specific cases
+      your tests would cover.
+    rubric:
+      - id: asserts-nothing
+        criterion: Identifies that the assertion cannot fail for any plausible wrong implementation
+        capability: testing
+        weight: 2.0
+      - id: real-assertion
+        criterion: Writes an assertion on the actual value, not merely on the shape of the result
+        capability: testing
+        weight: 1.5
+      - id: boundary
+        criterion: Covers the boundary — exactly $100, and either side of it
+        capability: testing
+        weight: 1.5
+      - id: both-branches
+        criterion: Covers the no-discount branch as well as the discount branch
+        capability: reliability
+        weight: 1.0
+
+  - id: git-001
+    capability: git
+    also_exercises: [debugging]
+    level: foundation
+    minutes: 6
+    probes: [decision, reasoning, application]
+    prompt: |
+      You have been working on a branch for two days. You just realised that a commit you
+      made yesterday introduced a bug, and you have made four commits since then. Other
+      people have not pulled your branch.
+
+      How would you deal with this? Say what you would do differently if a colleague HAD
+      already pulled it.
+    rubric:
+      - id: finds-the-commit
+        criterion: Describes how they would identify the offending commit rather than assuming they know it
+        capability: git
+        weight: 1.5
+      - id: a-workable-fix
+        criterion: Proposes a workable approach — revert, fixup, interactive rebase — and can say what it does
+        capability: git
+        weight: 2.0
+      - id: shared-history
+        criterion: Recognises that rewriting history is unsafe once others have pulled, and changes approach accordingly
+        capability: git
+        weight: 2.0
+      - id: verifies
+        criterion: Says how they would confirm the bug is actually gone
+        capability: debugging
+        weight: 1.0

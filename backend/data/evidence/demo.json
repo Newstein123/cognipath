@@ -1,0 +1,513 @@
+[
+  {
+    "evidence": {
+      "id": "demo__dbperf-slow-001",
+      "studentId": "demo",
+      "experienceId": "dbperf-slow-001",
+      "capabilityId": "database-performance",
+      "type": "diagnostic_response",
+      "response": "I would put an index on the column in the WHERE clause. Indexes make queries faster\nbecause the database does not have to scan the whole table. I would also consider\nadding more RAM to the server.\n",
+      "results": [
+        {
+          "criterionId": "growth-is-clue",
+          "verdict": "unmet",
+          "justification": "The response does not mention or connect the row growth to the query slowdown."
+        },
+        {
+          "criterionId": "explain-plan",
+          "verdict": "unmet",
+          "justification": "The response makes no mention of checking an execution plan, EXPLAIN output, or current index usage."
+        },
+        {
+          "criterionId": "ordered-method",
+          "verdict": "unmet",
+          "justification": "The response offers a list of potential fixes ('put an index', 'adding more RAM') rather than a step-by-step diagnostic method to narrow the cause."
+        },
+        {
+          "criterionId": "says-what-it-tells",
+          "verdict": "unmet",
+          "justification": "The response does not propose any diagnostic checks or state what specific findings would reveal."
+        },
+        {
+          "criterionId": "index-candidate",
+          "verdict": "met",
+          "justification": "The response identifies a missing index as the primary issue by proposing to 'put an index on the column in the WHERE clause' to avoid scanning the whole table."
+        }
+      ],
+      "createdAt": "2026-09-22T16:44:42.937808+00:00"
+    },
+    "assessment": {
+      "studentId": "demo",
+      "experienceId": "dbperf-slow-001",
+      "createdAt": "2026-09-22T16:44:42.937808+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "database-performance",
+          "score": 0.25,
+          "masteryBefore": null,
+          "masteryAfter": 0.25,
+          "met": [
+            "index-candidate"
+          ],
+          "partial": [],
+          "unmet": [
+            "growth-is-clue",
+            "explain-plan"
+          ]
+        },
+        {
+          "capabilityId": "debugging",
+          "score": 0.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.0,
+          "met": [],
+          "partial": [],
+          "unmet": [
+            "ordered-method",
+            "says-what-it-tells"
+          ]
+        }
+      ],
+      "explanation": "Database Performance measured at 25% for the first time. You showed identifies a missing or unusable index as the leading hypothesis. Still to develop: connects the 80x row growth to the slowdown rather than suspecting the code; would look at the query plan, or at which index the query uses.\n\nDebugging measured at 0% for the first time. Still to develop: gives an ordered method where each step narrows the cause, not a list of guesses; states what each check would tell them, i.e. how it discriminates."
+    }
+  },
+  {
+    "evidence": {
+      "id": "demo__database-indexing.md#exercise-diagnose-the-slow-query",
+      "studentId": "demo",
+      "experienceId": "database-indexing.md#exercise-diagnose-the-slow-query",
+      "capabilityId": "database-performance",
+      "type": "exercise_response",
+      "response": "The index is on (customer_id, created_at), and this query has no customer_id filter at\nall. A composite index can only be used from its leading column onward, so with no\npredicate on customer_id the database can't seek into it \u2014 it falls back to a full scan\nof 12 million rows.\n\nI'd add an index on created_at alone. That makes the WHERE a range seek and the ORDER BY\nfree, since the index is already in that order.\n\nThe cost is on writes: every insert and update to orders now has to maintain a second\nindex too, so write throughput drops and the table takes more storage.\n\nI wouldn't add it if this query runs once a month for a report while orders is taking\nheavy sustained writes \u2014 paying on every insert to speed up a monthly query is a bad\ntrade. I'd run it against a replica instead.\n",
+      "results": [
+        {
+          "criterionId": "leading-column",
+          "verdict": "met",
+          "justification": "The student explains that 'a composite index can only be used from its leading column onward' and the query lacks a predicate on 'customer_id'."
+        },
+        {
+          "criterionId": "proposes-index",
+          "verdict": "met",
+          "justification": "The student explicitly proposes adding 'an index on created_at alone'."
+        },
+        {
+          "criterionId": "write-cost",
+          "verdict": "met",
+          "justification": "The student states that 'every insert and update to orders now has to maintain a second index too, so write throughput drops'."
+        },
+        {
+          "criterionId": "when-not-to",
+          "verdict": "met",
+          "justification": "The student describes a concrete scenario where the query runs 'once a month for a report while orders is taking heavy sustained writes'."
+        }
+      ],
+      "createdAt": "2026-09-22T16:48:41.470451+00:00"
+    },
+    "assessment": {
+      "studentId": "demo",
+      "experienceId": "database-indexing.md#exercise-diagnose-the-slow-query",
+      "createdAt": "2026-09-22T16:48:41.470451+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "database-performance",
+          "score": 1.0,
+          "masteryBefore": 0.25,
+          "masteryAfter": 0.625,
+          "met": [
+            "leading-column",
+            "proposes-index",
+            "write-cost"
+          ],
+          "partial": [],
+          "unmet": []
+        },
+        {
+          "capabilityId": "trade-off-analysis",
+          "score": 1.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.7,
+          "met": [
+            "when-not-to"
+          ],
+          "partial": [],
+          "unmet": []
+        }
+      ],
+      "explanation": "Trade-off Analysis measured at 70% for the first time. You showed names a concrete situation where they would decline to add it (write-heavy table, rare query, storage).\n\nDatabase Performance rose from 25% to 62%. You showed explains that the index is unusable because the query does not filter on its leading column; proposes an index the query could actually use, on created_at."
+    }
+  },
+  {
+    "evidence": {
+      "id": "demo__scale-food-delivery-api",
+      "studentId": "demo",
+      "experienceId": "scale-food-delivery-api",
+      "capabilityId": "scalability",
+      "type": "mission_response",
+      "response": "MISSION: Scale the Food Delivery API\n\n1. INVESTIGATED: What the requests actually do\n   RESULT: About 85% of requests read (menus, restaurant listings, order status) and about\n12% write (placing and updating orders). Reads dominate, and most read the same\nfew hundred restaurants.\n\n2. INVESTIGATED: Where the database time goes\n   RESULT: The database is the slowest component even at current load: 115ms of the 250ms\nis spent there, and it rises sharply as utilisation climbs. Write capacity on\nthe current tier is only slightly below read capacity.\n\n3. DECISION: Add an application server\n   REASONING: more capacity\n   RESULT: Application capacity increases. Database load increases with it \u2014 every new\nserver sends its own traffic to the same database.\n   SYSTEM NOW: 5790ms at 10,000 req/sec, $600/month, serving 222 req/sec\n\n4. DECISION: Put a load balancer in front\n   REASONING: so the extra servers actually receive traffic\n   RESULT: Traffic can now be distributed across application servers. Until this exists,\nextra servers sit idle. Session state held in a server's memory will now break.\n   SYSTEM NOW: 5790ms at 10,000 req/sec, $660/month, serving 222 req/sec\n\n5. DECISION: Add an application server\n   REASONING: 85% reads at 10k means ~8500 req/sec of read load; one server caps at 2500\n   RESULT: Application capacity increases. Database load increases with it \u2014 every new\nserver sends its own traffic to the same database.\n   SYSTEM NOW: 5790ms at 10,000 req/sec, $760/month, serving 222 req/sec\n\n6. DECISION: Add an application server\n   REASONING: need roughly 4 servers to carry 10000 req/sec\n   RESULT: Application capacity increases. Database load increases with it \u2014 every new\nserver sends its own traffic to the same database.\n   SYSTEM NOW: 5790ms at 10,000 req/sec, $860/month, serving 222 req/sec\n\n7. DECISION: Add a cache in front of reads\n   REASONING: reads are 85% of traffic and most hit the same few hundred restaurants, so a cache removes most read load for $120 rather than buying database capacity for it\n   RESULT: Repeated reads stop reaching the database \u2014 about 85% of them. Cache\ninvalidation is now a consideration: something has to decide when the cached\ncopy is wrong.\n   SYSTEM NOW: 5790ms at 10,000 req/sec, $980/month, serving 1417 req/sec\n\n8. DECISION: Upgrade the database to large\n   REASONING: cache took reads from 8500 to 1275/sec but writes are still 1200/sec and replicas would not help those; large tier covers both and at $1100 still leaves room under the $2000 cap\n   RESULT: Database capacity increases substantially, for reads and writes. This is the\nlargest single line on the bill.\n   SYSTEM NOW: 190ms at 10,000 req/sec, $1680/month, serving 10000 req/sec\n\nFINAL ARCHITECTURE: 4 app server(s), load balancer, cache, large database, 0 replica(s)\nOUTCOME: 190ms, $1680/month, 10000 req/sec \u2014 all requirements met",
+      "results": [
+        {
+          "criterionId": "investigated-first",
+          "verdict": "met",
+          "justification": "The student ran two explicit investigations into request profiles and database latency before making any architectural decisions."
+        },
+        {
+          "criterionId": "found-real-bottleneck",
+          "verdict": "partial",
+          "justification": "The student noted the database was the slowest component at 115ms, but still prioritized scaling the application tier across steps 3 to 6 before addressing the database."
+        },
+        {
+          "criterionId": "lb-before-servers",
+          "verdict": "met",
+          "justification": "The student justified adding the load balancer explicitly 'so the extra servers actually receive traffic' before adding further application servers."
+        },
+        {
+          "criterionId": "cache-reasoning",
+          "verdict": "met",
+          "justification": "The student justified the cache by reasoning that 'reads are 85% of traffic and most hit the same few hundred restaurants'."
+        },
+        {
+          "criterionId": "invalidation-named",
+          "verdict": "unmet",
+          "justification": "The student never mentioned cache invalidation or staleness in their reasoning; it only appeared in the system-generated result text."
+        },
+        {
+          "criterionId": "replica-write-limit",
+          "verdict": "met",
+          "justification": "The student explicitly noted that 'writes are still 1200/sec and replicas would not help those' when choosing to upgrade the database tier instead."
+        },
+        {
+          "criterionId": "budget-as-constraint",
+          "verdict": "met",
+          "justification": "The student actively used financial costs to justify caching over database capacity and confirmed the large tier 'still leaves room under the $2000 cap'."
+        },
+        {
+          "criterionId": "explains-tradeoff",
+          "verdict": "unmet",
+          "justification": "The response does not name what the final architecture sacrifices or what conditions would make it the wrong choice."
+        },
+        {
+          "criterionId": "coherent-architecture",
+          "verdict": "met",
+          "justification": "The resulting design cleanly pairs a load balancer and 4 app servers for request volume, a cache for repeated reads, and an upgraded database for write load without redundant replicas."
+        }
+      ],
+      "createdAt": "2026-09-22T16:59:10.564620+00:00"
+    },
+    "assessment": {
+      "studentId": "demo",
+      "experienceId": "scale-food-delivery-api",
+      "createdAt": "2026-09-22T16:59:10.564620+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "database-performance",
+          "score": 0.7143,
+          "masteryBefore": 0.625,
+          "masteryAfter": 0.6562,
+          "met": [
+            "replica-write-limit"
+          ],
+          "partial": [
+            "found-real-bottleneck"
+          ],
+          "unmet": []
+        },
+        {
+          "capabilityId": "trade-off-analysis",
+          "score": 0.4286,
+          "masteryBefore": 0.7,
+          "masteryAfter": 0.5643,
+          "met": [
+            "budget-as-constraint"
+          ],
+          "partial": [],
+          "unmet": [
+            "explains-tradeoff"
+          ]
+        },
+        {
+          "capabilityId": "caching",
+          "score": 0.6,
+          "masteryBefore": null,
+          "masteryAfter": 0.6,
+          "met": [
+            "cache-reasoning"
+          ],
+          "partial": [],
+          "unmet": [
+            "invalidation-named"
+          ]
+        },
+        {
+          "capabilityId": "scalability",
+          "score": 1.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.7,
+          "met": [
+            "investigated-first"
+          ],
+          "partial": [],
+          "unmet": []
+        },
+        {
+          "capabilityId": "load-balancing",
+          "score": 1.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.7,
+          "met": [
+            "lb-before-servers"
+          ],
+          "partial": [],
+          "unmet": []
+        },
+        {
+          "capabilityId": "system-design",
+          "score": 1.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.7,
+          "met": [
+            "coherent-architecture"
+          ],
+          "partial": [],
+          "unmet": []
+        }
+      ],
+      "explanation": "Scalability measured at 70% for the first time. You showed investigated the system before changing it, rather than applying a remedy immediately.\n\nLoad Balancing measured at 70% for the first time. You showed recognised that additional application servers do nothing without a load balancer in front.\n\nSystem Design measured at 70% for the first time. You showed ended with an architecture whose parts address different constraints rather than duplicating each other.\n\nCaching measured at 60% for the first time. You showed justified caching by the read-heavy request mix rather than as a generic speed-up. Still to develop: acknowledged cache invalidation or staleness as a cost of the caching decision.\n\nDatabase Performance rose from 62% to 66%. You showed showed awareness that read replicas do not relieve write pressure.\n\nTrade-off Analysis fell from 70% to 56%. You showed treated the $2,000 cap as a real constraint shaping the design, not as an afterthought. Still to develop: named what their chosen architecture gives up, or what would make it the wrong choice."
+    }
+  },
+  {
+    "evidence": {
+      "id": "demo__apply-slow-checkout",
+      "studentId": "demo",
+      "experienceId": "apply-slow-checkout",
+      "capabilityId": "database-performance",
+      "type": "apply_response",
+      "response": "The numbers do not add up to the symptom. 40% more traffic and 37% more rows should cost\nmaybe 1.5x, not 13x. So I would not start from volume \u2014 something has changed in kind, not\nin degree, and the growth is probably the trigger rather than the cause.\n\nWhat I would rule out first is a missing index, because it is the obvious answer and it\ndoes not fit: an index problem gets worse smoothly as rows grow, and this went from fine to\nterrible in three weeks with only 37% growth. Also nothing was deployed, so no new query\nappeared.\n\nMy leading hypothesis is contention on the stock table. It is written to constantly and\nread in the checkout path, and 40% more orders means 40% more writes hitting the same rows.\nLock waits do behave like this: fine, fine, fine, then a cliff once concurrent writers\noverlap. That also fits the p95 detail \u2014 a 55% average with 95% spikes is exactly what you\nsee when most requests are fine and a tail is queueing behind locks. An average-latency\nproblem would show a higher average.\n\nI would check lock wait time and blocked-query counts at peak before touching anything.\n\nThe catalogue cache I would actually be suspicious of rather than reassured by. If its\nentries expire together it will produce synchronised misses, and a stampede onto the\ndatabase at exactly peak would make the contention worse. I would look at whether misses\ncluster.\n\nAdding more cache would not help the stock check, because stock cannot be served stale\nduring checkout \u2014 you would oversell. That is why the obvious answers are wrong here: the\none thing you cannot cache is the thing that is slow.\n\nIf it is contention, the fix is to shorten the transaction holding the stock row, not to\nadd capacity.\n",
+      "results": [
+        {
+          "criterionId": "rules-out-growth",
+          "verdict": "met",
+          "justification": "The student explicitly calculates and states that \"40% more traffic and 37% more rows should cost maybe 1.5x, not 13x\" and concludes growth is not the direct cause."
+        },
+        {
+          "criterionId": "contention-not-volume",
+          "verdict": "met",
+          "justification": "The student identifies contention on the stock table as the leading hypothesis, noting that \"40% more orders means 40% more writes hitting the same rows\" and causing lock waits."
+        },
+        {
+          "criterionId": "questions-the-cache",
+          "verdict": "met",
+          "justification": "The student states they are \"suspicious of rather than reassured by\" the catalogue cache, reasoning that synchronised expirations could trigger a stampede at peak."
+        },
+        {
+          "criterionId": "rejects-obvious",
+          "verdict": "met",
+          "justification": "The student explains why a missing index does not fit the sudden three-week timeline and why adding more cache cannot fix the stock check because stock cannot be served stale."
+        },
+        {
+          "criterionId": "ordered-investigation",
+          "verdict": "unmet",
+          "justification": "While the student deduces why an index is improbable and mentions metrics to inspect, they do not provide a structured, sequential order of investigation where each step rules something out."
+        },
+        {
+          "criterionId": "p95-vs-average",
+          "verdict": "met",
+          "justification": "The student notes that \"a 55% average with 95% spikes is exactly what you see when most requests are fine and a tail is queueing behind locks,\" tying it directly to the p95 degradation."
+        }
+      ],
+      "createdAt": "2026-09-22T17:26:40.664172+00:00"
+    },
+    "assessment": {
+      "studentId": "demo",
+      "experienceId": "apply-slow-checkout",
+      "createdAt": "2026-09-22T17:26:40.664172+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "debugging",
+          "score": 0.5714,
+          "masteryBefore": 0.0,
+          "masteryAfter": 0.2857,
+          "met": [
+            "rules-out-growth"
+          ],
+          "partial": [],
+          "unmet": [
+            "ordered-investigation"
+          ]
+        },
+        {
+          "capabilityId": "database-performance",
+          "score": 1.0,
+          "masteryBefore": 0.6562,
+          "masteryAfter": 0.7765,
+          "met": [
+            "contention-not-volume",
+            "p95-vs-average"
+          ],
+          "partial": [],
+          "unmet": []
+        },
+        {
+          "capabilityId": "trade-off-analysis",
+          "score": 1.0,
+          "masteryBefore": 0.5643,
+          "masteryAfter": 0.7168,
+          "met": [
+            "rejects-obvious"
+          ],
+          "partial": [],
+          "unmet": []
+        },
+        {
+          "capabilityId": "caching",
+          "score": 1.0,
+          "masteryBefore": 0.6,
+          "masteryAfter": 0.8,
+          "met": [
+            "questions-the-cache"
+          ],
+          "partial": [],
+          "unmet": []
+        }
+      ],
+      "explanation": "Debugging rose from 0% to 29%. You showed recognises that 40% more volume and 37% more rows do not by themselves explain a 13x latency increase. Still to develop: gives an order of investigation where each step rules something out.\n\nCaching rose from 60% to 80%. You showed treats the existing catalogue cache as something to check rather than assume is helping.\n\nTrade-off Analysis rose from 56% to 72%. You showed explicitly says why adding an index or more cache may not be the fix here.\n\nDatabase Performance rose from 66% to 78%. You showed considers lock contention or write pressure on the constantly-written stock table, not only read volume; notices that the 55% average with 95% spikes is consistent with a p95 problem, and says so."
+    }
+  },
+  {
+    "evidence": {
+      "id": "demo__dbperf-slow-001",
+      "studentId": "demo",
+      "experienceId": "dbperf-slow-001",
+      "capabilityId": "database-performance",
+      "type": "diagnostic_response",
+      "attempt": 1,
+      "response": "The table went from 50,000 to 4 million rows and the code did not change, so the query\nitself is the same \u2014 what changed is how the database has to execute it. That is the clue:\nat 50k rows a full scan is cheap enough that a missing index does not show, and at 4m it is\nnot.\n\nMy order would be:\n\n1. Run EXPLAIN ANALYZE on the query. If it shows a sequential scan, that tells me the\n   database is reading every row, and I have my answer. If it shows an index scan, the\n   index exists and something else is wrong, which sends me down a different path.\n\n2. If it is a sequential scan, check which columns the WHERE clause filters on and whether\n   any index covers them, leading column first. That distinguishes \"no index\" from \"an\n   index that cannot be used for this predicate\".\n\n3. Check row estimates against actual rows in the plan. A large mismatch means stale\n   statistics, which can make the planner choose a scan even when an index exists \u2014 that\n   would be a different fix, ANALYZE rather than CREATE INDEX.\n\nSo my leading hypothesis is a missing or unusable index, and the plan is what confirms or\nkills it before I change anything.\n",
+      "results": [
+        {
+          "criterionId": "growth-is-clue",
+          "verdict": "met",
+          "justification": "The student notes that because the code did not change, the 80x table growth is the clue, explaining that 'at 50k rows a full scan is cheap enough that a missing index does not show, and at 4m it is not.'"
+        },
+        {
+          "criterionId": "explain-plan",
+          "verdict": "met",
+          "justification": "The student directly states their first step is to 'Run EXPLAIN ANALYZE on the query' to check for a sequential scan versus an index scan."
+        },
+        {
+          "criterionId": "ordered-method",
+          "verdict": "met",
+          "justification": "The student lays out a sequential 1-2-3 process where each step conditionally narrows down the root cause based on the results of the query plan."
+        },
+        {
+          "criterionId": "says-what-it-tells",
+          "verdict": "met",
+          "justification": "For every step, the student specifies what the observation discriminates, such as how checking columns distinguishes 'no index' from 'an index that cannot be used for this predicate.'"
+        },
+        {
+          "criterionId": "index-candidate",
+          "verdict": "met",
+          "justification": "The student explicitly states, 'So my leading hypothesis is a missing or unusable index.'"
+        }
+      ],
+      "createdAt": "2026-09-22T17:32:26.685726+00:00"
+    },
+    "assessment": {
+      "studentId": "demo",
+      "experienceId": "dbperf-slow-001",
+      "createdAt": "2026-09-22T17:32:26.685726+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "database-performance",
+          "score": 1.0,
+          "masteryBefore": 0.7765,
+          "masteryAfter": 0.8547,
+          "met": [
+            "growth-is-clue",
+            "explain-plan",
+            "index-candidate"
+          ],
+          "partial": [],
+          "unmet": []
+        },
+        {
+          "capabilityId": "debugging",
+          "score": 1.0,
+          "masteryBefore": 0.2857,
+          "masteryAfter": 0.5357,
+          "met": [
+            "ordered-method",
+            "says-what-it-tells"
+          ],
+          "partial": [],
+          "unmet": []
+        }
+      ],
+      "explanation": "Debugging rose from 29% to 54%. You showed gives an ordered method where each step narrows the cause, not a list of guesses; states what each check would tell them, i.e. how it discriminates.\n\nDatabase Performance rose from 78% to 85%. You showed connects the 80x row growth to the slowdown rather than suspecting the code; would look at the query plan, or at which index the query uses."
+    }
+  },
+  {
+    "evidence": {
+      "id": "demo__http.md#exercise-read-a-failing-request",
+      "studentId": "demo",
+      "experienceId": "http.md#exercise-read-a-failing-request",
+      "capabilityId": "http",
+      "type": "exercise_response",
+      "attempt": 1,
+      "response": "A 500 does not tell me whether the order was created, so retrying is unsafe.\n\nPOST is not idempotent, which is exactly why five retries can create five orders.\nA 400 would mean my request was rejected, so retrying it unchanged is pointless.",
+      "results": [
+        {
+          "criterionId": "retry-unsafe",
+          "verdict": "met",
+          "justification": "The student directly states that \"A 500 does not tell me whether the order was created, so retrying is unsafe.\""
+        },
+        {
+          "criterionId": "four-hundred-differs",
+          "verdict": "met",
+          "justification": "The student explains that a 400 indicates the request was rejected, concluding that \"retrying it unchanged is pointless.\""
+        },
+        {
+          "criterionId": "non-idempotent",
+          "verdict": "met",
+          "justification": "The student identifies the core property by stating that \"POST is not idempotent.\""
+        },
+        {
+          "criterionId": "duplicate-orders",
+          "verdict": "met",
+          "justification": "The student highlights the concrete consequence by noting that \"five retries can create five orders.\""
+        }
+      ],
+      "createdAt": "2026-09-22T17:40:36.572897+00:00"
+    },
+    "assessment": {
+      "studentId": "demo",
+      "experienceId": "http.md#exercise-read-a-failing-request",
+      "createdAt": "2026-09-22T17:40:36.572897+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "http",
+          "score": 1.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.7,
+          "met": [
+            "retry-unsafe",
+            "four-hundred-differs",
+            "non-idempotent"
+          ],
+          "partial": [],
+          "unmet": []
+        },
+        {
+          "capabilityId": "reliability",
+          "score": 1.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.7,
+          "met": [
+            "duplicate-orders"
+          ],
+          "partial": [],
+          "unmet": []
+        }
+      ],
+      "explanation": "HTTP measured at 70% for the first time. You showed says retrying is not safe here, because a 500 does not tell the client whether the order was created; explains that a 400 means the request itself was rejected, so retrying it unchanged is pointless rather than dangerous.\n\nReliability measured at 70% for the first time. You showed connects it to the real consequence \u2014 five retries can create five orders."
+    }
+  }
+]

@@ -1,0 +1,204 @@
+{
+  "studentId": "student-001",
+  "createdAt": "2026-09-22T16:30:35.864329+00:00",
+  "status": "pending",
+  "selected": [
+    {
+      "capabilityId": "http",
+      "score": 0.8025,
+      "factors": {
+        "uncertainty": 0.3,
+        "stake": 0.14,
+        "goal_relevance": 0.15,
+        "leverage": 0.1,
+        "claim_support": 0.1125
+      },
+      "notes": [
+        "underpins an unverified claim",
+        "claimed 70%, never checked"
+      ]
+    },
+    {
+      "capabilityId": "databases",
+      "score": 0.7638,
+      "factors": {
+        "uncertainty": 0.3,
+        "stake": 0.16,
+        "goal_relevance": 0.15,
+        "leverage": 0.075,
+        "claim_support": 0.0788
+      },
+      "notes": [
+        "underpins an unverified claim",
+        "claimed 80%, never checked"
+      ]
+    },
+    {
+      "capabilityId": "reliability",
+      "score": 0.6112,
+      "factors": {
+        "uncertainty": 0.3,
+        "stake": 0.07,
+        "goal_relevance": 0.15,
+        "leverage": 0.0125,
+        "claim_support": 0.0788
+      },
+      "notes": [
+        "underpins an unverified claim",
+        "claimed 35%, never checked"
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "http-debug-001",
+      "capabilityId": "http",
+      "alsoExercises": [
+        "debugging"
+      ],
+      "level": "foundation",
+      "minutes": 6,
+      "probes": [
+        "reasoning",
+        "application"
+      ],
+      "prompt": "A client reports that their POST request \"does nothing\". Your logs show the\nrequest arriving and returning 200. The client insists the data is not saved.\n\nWhat do you check, and in what order? What are the three most likely explanations,\nand how would you tell them apart?",
+      "rubric": [
+        {
+          "id": "200-is-the-clue",
+          "criterion": "Treats the 200 as evidence the handler ran and returned, narrowing where the fault is",
+          "capability": "http",
+          "weight": 1.5
+        },
+        {
+          "id": "three-distinct",
+          "criterion": "Gives three genuinely different explanations, not three phrasings of one",
+          "capability": "debugging",
+          "weight": 1.5
+        },
+        {
+          "id": "discriminates",
+          "criterion": "Says how they would tell the explanations apart",
+          "capability": "debugging",
+          "weight": 1.5
+        },
+        {
+          "id": "layers",
+          "criterion": "Considers more than one layer \u2014 request body, handler logic, transaction, client-side",
+          "capability": "http",
+          "weight": 1.0
+        },
+        {
+          "id": "evidence-not-guess",
+          "criterion": "Proposes checking evidence rather than changing code speculatively",
+          "capability": "debugging",
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "id": "db-model-001",
+      "capabilityId": "databases",
+      "alsoExercises": [
+        "api-design"
+      ],
+      "level": "foundation",
+      "minutes": 7,
+      "probes": [
+        "decomposition",
+        "decision",
+        "reasoning"
+      ],
+      "prompt": "A booking system needs to record that a customer booked a table at a restaurant\nfor a time, that bookings can be modified, and that the restaurant needs to see\ntoday's bookings quickly.\n\nSketch the tables and their relationships. Explain one modelling decision you made\nthat a different engineer might have made differently, and why you chose yours.",
+      "rubric": [
+        {
+          "id": "entities",
+          "criterion": "Identifies the entities and their relationships correctly",
+          "capability": "databases",
+          "weight": 1.5
+        },
+        {
+          "id": "time-modelling",
+          "criterion": "Models the booking time in a way that supports 'today's bookings'",
+          "capability": "databases",
+          "weight": 1.0
+        },
+        {
+          "id": "modification",
+          "criterion": "Accounts for bookings being modified (history, or updated in place, chosen deliberately)",
+          "capability": "databases",
+          "weight": 1.0
+        },
+        {
+          "id": "names-alternative",
+          "criterion": "Names a genuine alternative modelling choice, not a strawman",
+          "capability": "databases",
+          "weight": 1.5
+        },
+        {
+          "id": "justifies",
+          "criterion": "Justifies their choice against the stated needs rather than by preference",
+          "capability": "api-design",
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "id": "reliability-degrade-001",
+      "capabilityId": "reliability",
+      "alsoExercises": [
+        "trade-off-analysis"
+      ],
+      "level": "advanced",
+      "minutes": 8,
+      "probes": [
+        "decomposition",
+        "decision",
+        "trade-offs"
+      ],
+      "prompt": "Your checkout calls a third-party tax service on every order. The service is\nnormally fast but goes down for a few minutes roughly once a month, and during\nthose minutes no customer can check out.\n\nHow would you change this? Be specific about what happens to an order placed\nduring an outage.",
+      "rubric": [
+        {
+          "id": "degrade-not-fail",
+          "criterion": "Proposes degrading rather than failing checkout",
+          "capability": "reliability",
+          "weight": 1.5
+        },
+        {
+          "id": "specific-order-path",
+          "criterion": "States specifically what happens to an order placed during the outage",
+          "capability": "reliability",
+          "weight": 1.5
+        },
+        {
+          "id": "timeout",
+          "criterion": "Mentions timeouts, retries or a circuit breaker with a reason",
+          "capability": "reliability",
+          "weight": 1.0
+        },
+        {
+          "id": "correctness-cost",
+          "criterion": "Acknowledges the correctness cost of proceeding without the tax service",
+          "capability": "trade-off-analysis",
+          "weight": 1.5
+        },
+        {
+          "id": "reconcile",
+          "criterion": "Says how the system becomes correct again afterwards",
+          "capability": "reliability",
+          "weight": 1.0
+        }
+      ]
+    }
+  ],
+  "secondaryCoverage": [
+    "api-design",
+    "debugging",
+    "trade-off-analysis"
+  ],
+  "skippedNoScenario": [
+    "programming-fundamentals",
+    "testing",
+    "git"
+  ]
+}

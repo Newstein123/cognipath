@@ -1,0 +1,108 @@
+# Cognith — capability milestones.
+#
+# A milestone answers "where do I want to reach?" — the question the system could not
+# answer before. A goal was only a string plus a list that nudged diagnostic scoring by
+# 0.15; nothing said what reaching that goal actually requires.
+#
+# WHAT A MILESTONE IS
+# -------------------
+# A named target: a set of capabilities, each at a TARGET MASTERY. That target is what
+# makes progress computable, and computable progress is what makes a question worth
+# asking — the most valuable thing to test is a capability the milestone requires, the
+# learner claims, and nothing has checked. That is exactly where the progress estimate is
+# most likely to be wrong.
+#
+# `after` chains milestones, which is what a "level" is: a milestone whose predecessor is
+# complete. No separate level concept is needed.
+#
+# TARGETS ARE NOT ALL 0.70
+# ------------------------
+# DEMONSTRATED_AT (0.70) is the bar for calling a capability demonstrated at all. A
+# milestone may reasonably want more of a central capability and less of a supporting
+# one. Authoring them uniformly would waste the distinction.
+
+milestones:
+
+  # --- Backend Software Engineer -------------------------------------------------
+  - id: backend-foundations
+    goal: backend-engineer
+    level: 1
+    name: Backend Foundations
+    summary: >
+      Can build a working backend service and reason about what it is doing. This is the
+      floor: everything in the next milestone assumes these are real rather than claimed.
+    requires:
+      - {capability: http,                     target: 0.70}
+      - {capability: api-design,               target: 0.70}
+      - {capability: databases,                target: 0.70}
+      - {capability: authentication,           target: 0.60}
+      - {capability: debugging,                target: 0.60}
+      - {capability: programming-fundamentals, target: 0.60}
+
+  - id: backend-at-scale
+    goal: backend-engineer
+    level: 2
+    after: backend-foundations
+    name: Backend at Scale
+    summary: >
+      Can take a working service and make it survive real load within real constraints.
+      The capabilities here are about judgement under pressure, so the targets are higher
+      — a 60% understanding of trade-offs is not a usable one when the budget is fixed.
+    requires:
+      - {capability: scalability,          target: 0.70}
+      - {capability: database-performance, target: 0.70}
+      - {capability: caching,              target: 0.65}
+      - {capability: load-balancing,       target: 0.65}
+      - {capability: trade-off-analysis,   target: 0.70}
+      - {capability: system-design,        target: 0.70}
+      - {capability: reliability,          target: 0.60}
+
+  # --- Other goals ----------------------------------------------------------------
+  # Deliberately thinner. §22 rules out a large career ontology, and the MVP demo is the
+  # backend path (§23). These exist so a learner choosing another goal gets a real target
+  # rather than nothing, not because the curriculum has been designed.
+
+  - id: frontend-foundations
+    goal: frontend-developer
+    level: 1
+    name: Frontend Foundations
+    summary: >
+      Can build against an API and debug what comes back. Thin by design — the MVP's
+      corpus and experiences are backend-oriented, so several of these will show as
+      untestable until material exists.
+    requires:
+      - {capability: http,                     target: 0.70}
+      - {capability: api-design,               target: 0.60}
+      - {capability: programming-fundamentals, target: 0.60}
+      - {capability: debugging,                target: 0.60}
+      - {capability: git,                      target: 0.50}
+
+  - id: ai-engineering-foundations
+    goal: ai-engineer
+    level: 1
+    name: AI Engineering Foundations
+    summary: >
+      Can build and reason about a system that serves a model. Retrieval and serving are
+      backend problems before they are model problems.
+    requires:
+      - {capability: programming-fundamentals, target: 0.70}
+      - {capability: data-structures,          target: 0.60}
+      - {capability: algorithms,               target: 0.60}
+      - {capability: databases,                target: 0.65}
+      - {capability: api-design,               target: 0.60}
+      - {capability: scalability,              target: 0.60}
+
+  - id: general-foundations
+    goal: other
+    level: 1
+    name: Engineering Foundations
+    summary: >
+      The capabilities that matter regardless of direction. A reasonable place to start
+      when the destination is not settled yet.
+    requires:
+      - {capability: programming-fundamentals, target: 0.70}
+      - {capability: http,                     target: 0.60}
+      - {capability: databases,                target: 0.60}
+      - {capability: debugging,                target: 0.60}
+      - {capability: git,                      target: 0.50}
+      - {capability: testing,                  target: 0.50}

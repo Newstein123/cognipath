@@ -1,0 +1,142 @@
+[
+  {
+    "evidence": {
+      "id": "003__http-debug-001",
+      "studentId": "003",
+      "experienceId": "http-debug-001",
+      "capabilityId": "http",
+      "type": "diagnostic_response",
+      "attempt": 1,
+      "response": "I think request is success since log show success. I will check network tab it actally make the right api call. If it is correct api and return really success, I will check code why the save didn't happen.",
+      "results": [
+        {
+          "criterionId": "200-is-the-clue",
+          "verdict": "partial",
+          "justification": "The student gestures at narrowing the issue by noting \"request is success since log show success\" to look at why code didn't save, but does not explicitly reason about the 200 indicating handler execution."
+        },
+        {
+          "criterionId": "three-distinct",
+          "verdict": "unmet",
+          "justification": "The response fails to provide three distinct explanations for why the data was not saved despite the 200 status."
+        },
+        {
+          "criterionId": "discriminates",
+          "verdict": "unmet",
+          "justification": "The response does not outline methods to differentiate between explanations, as no explanations were provided."
+        },
+        {
+          "criterionId": "layers",
+          "verdict": "met",
+          "justification": "The response considers both the client/network layer (\"check network tab it actally make the right api call\") and the server logic layer (\"check code why the save didn't happen\")."
+        },
+        {
+          "criterionId": "evidence-not-guess",
+          "verdict": "met",
+          "justification": "The student proposes gathering evidence by checking the network tab and reviewing the code rather than speculatively changing code."
+        }
+      ],
+      "createdAt": "2026-09-22T17:51:51.475345+00:00"
+    },
+    "assessment": {
+      "studentId": "003",
+      "experienceId": "http-debug-001",
+      "createdAt": "2026-09-22T17:51:51.475345+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "debugging",
+          "score": 0.25,
+          "masteryBefore": null,
+          "masteryAfter": 0.25,
+          "met": [
+            "evidence-not-guess"
+          ],
+          "partial": [],
+          "unmet": [
+            "three-distinct",
+            "discriminates"
+          ]
+        },
+        {
+          "capabilityId": "http",
+          "score": 0.7,
+          "masteryBefore": null,
+          "masteryAfter": 0.7,
+          "met": [
+            "layers"
+          ],
+          "partial": [
+            "200-is-the-clue"
+          ],
+          "unmet": []
+        }
+      ],
+      "explanation": "HTTP measured at 70% for the first time. You showed considers more than one layer \u2014 request body, handler logic, transaction, client-side.\n\nDebugging measured at 25% for the first time. You showed proposes checking evidence rather than changing code speculatively. Still to develop: gives three genuinely different explanations, not three phrasings of one; says how they would tell the explanations apart."
+    }
+  },
+  {
+    "evidence": {
+      "id": "003__caching.md#exercise-choose-a-strategy",
+      "studentId": "003",
+      "experienceId": "caching.md#exercise-choose-a-strategy",
+      "capabilityId": "caching",
+      "type": "exercise_response",
+      "attempt": 1,
+      "response": "I don't know",
+      "results": [
+        {
+          "criterionId": "differentiates-fields",
+          "verdict": "unmet",
+          "justification": "The response only states \"I don't know\" and completely lacks any caching strategies for either price or stock count."
+        },
+        {
+          "criterionId": "ttl-justified",
+          "verdict": "unmet",
+          "justification": "The response does not propose or justify a TTL for either field."
+        },
+        {
+          "criterionId": "observable-consequence",
+          "verdict": "unmet",
+          "justification": "The response does not describe what a user would observe if the price strategy were applied to stock."
+        },
+        {
+          "criterionId": "names-the-tension",
+          "verdict": "unmet",
+          "justification": "The response makes no mention of the tension between data freshness and system load."
+        }
+      ],
+      "createdAt": "2026-09-22T17:54:49.228474+00:00"
+    },
+    "assessment": {
+      "studentId": "003",
+      "experienceId": "caching.md#exercise-choose-a-strategy",
+      "createdAt": "2026-09-22T17:54:49.228474+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "caching",
+          "score": 0.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.0,
+          "met": [],
+          "partial": [],
+          "unmet": [
+            "differentiates-fields",
+            "ttl-justified",
+            "observable-consequence"
+          ]
+        },
+        {
+          "capabilityId": "trade-off-analysis",
+          "score": 0.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.0,
+          "met": [],
+          "partial": [],
+          "unmet": [
+            "names-the-tension"
+          ]
+        }
+      ],
+      "explanation": "Caching measured at 0% for the first time. Still to develop: treats the price and the stock count differently rather than proposing one strategy for both; chooses a TTL for each field and ties it to how often that field actually changes.\n\nTrade-off Analysis measured at 0% for the first time. Still to develop: frames it as freshness against load rather than as a single correct answer."
+    }
+  }
+]

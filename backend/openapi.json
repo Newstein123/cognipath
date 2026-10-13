@@ -1,0 +1,1509 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Cognith API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/onboarding/options": {
+      "get": {
+        "summary": "Onboarding Options",
+        "operationId": "onboarding_options_api_onboarding_options_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingOptions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners": {
+      "get": {
+        "summary": "List Learners",
+        "operationId": "list_learners_api_learners_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LearnerSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Learners Api Learners Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Learner",
+        "operationId": "create_learner_api_learners_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearnerCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners/{learner_id}/profile": {
+      "get": {
+        "summary": "Get Profile",
+        "operationId": "get_profile_api_learners__learner_id__profile_get",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillProfile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners/{learner_id}/next": {
+      "get": {
+        "summary": "Get Next",
+        "operationId": "get_next_api_learners__learner_id__next_get",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 3,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NextActivities"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners/{learner_id}/diagnostic": {
+      "get": {
+        "summary": "Get Diagnostic",
+        "operationId": "get_diagnostic_api_learners__learner_id__diagnostic_get",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Diagnostic"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activities/{activity_id}": {
+      "get": {
+        "summary": "Get Activity Route",
+        "operationId": "get_activity_route_api_activities__activity_id__get",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Activity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners/{learner_id}/attempts": {
+      "post": {
+        "summary": "Submit Attempt",
+        "operationId": "submit_attempt_api_learners__learner_id__attempts_post",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttemptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners/{learner_id}/lessons": {
+      "post": {
+        "summary": "Create Lesson",
+        "operationId": "create_lesson_api_learners__learner_id__lessons_post",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LessonRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lesson"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners/{learner_id}/tutor": {
+      "post": {
+        "summary": "Ask Tutor",
+        "operationId": "ask_tutor_api_learners__learner_id__tutor_post",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TutorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TutorAnswer"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/learners/{learner_id}/evidence": {
+      "get": {
+        "summary": "Get Evidence",
+        "operationId": "get_evidence_api_learners__learner_id__evidence_get",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EvidenceEntry"
+                  },
+                  "title": "Response Get Evidence Api Learners  Learner Id  Evidence Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Activity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "capabilityIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilityids"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "minutes": {
+            "type": "integer",
+            "title": "Minutes"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/Criterion"
+            },
+            "type": "array",
+            "title": "Criteria"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title",
+          "capabilityId",
+          "capabilityIds",
+          "level",
+          "minutes",
+          "prompt",
+          "criteria"
+        ],
+        "title": "Activity"
+      },
+      "AttemptRequest": {
+        "properties": {
+          "activityId": {
+            "type": "string",
+            "title": "Activityid"
+          },
+          "response": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Response"
+          }
+        },
+        "type": "object",
+        "required": [
+          "activityId",
+          "response"
+        ],
+        "title": "AttemptRequest"
+      },
+      "AttemptResult": {
+        "properties": {
+          "attempt": {
+            "type": "integer",
+            "title": "Attempt"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionResult"
+            },
+            "type": "array",
+            "title": "Criteria"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/SkillChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/SkillProfile"
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextActivities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt",
+          "criteria",
+          "changes",
+          "explanation",
+          "profile",
+          "next"
+        ],
+        "title": "AttemptResult"
+      },
+      "Criterion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "criterion": {
+            "type": "string",
+            "title": "Criterion"
+          },
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "criterion",
+          "capabilityId"
+        ],
+        "title": "Criterion"
+      },
+      "CriterionResult": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "criterion": {
+            "type": "string",
+            "title": "Criterion"
+          },
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "criterion",
+          "capabilityId",
+          "verdict",
+          "justification"
+        ],
+        "title": "CriterionResult"
+      },
+      "Diagnostic": {
+        "properties": {
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/DiagnosticTarget"
+            },
+            "type": "array",
+            "title": "Targets"
+          },
+          "activities": {
+            "items": {
+              "$ref": "#/components/schemas/Activity"
+            },
+            "type": "array",
+            "title": "Activities"
+          },
+          "minutes": {
+            "type": "integer",
+            "title": "Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targets",
+          "activities",
+          "minutes"
+        ],
+        "title": "Diagnostic"
+      },
+      "DiagnosticTarget": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "name",
+          "notes"
+        ],
+        "title": "DiagnosticTarget"
+      },
+      "EvidenceEntry": {
+        "properties": {
+          "activityId": {
+            "type": "string",
+            "title": "Activityid"
+          },
+          "attempt": {
+            "type": "integer",
+            "title": "Attempt"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "response": {
+            "type": "string",
+            "title": "Response"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionResult"
+            },
+            "type": "array",
+            "title": "Criteria"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/SkillChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "activityId",
+          "attempt",
+          "createdAt",
+          "response",
+          "criteria",
+          "changes",
+          "explanation"
+        ],
+        "title": "EvidenceEntry"
+      },
+      "GoalMatch": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "goalId": {
+            "type": "string",
+            "title": "Goalid"
+          },
+          "goalName": {
+            "type": "string",
+            "title": "Goalname"
+          },
+          "supported": {
+            "type": "boolean",
+            "title": "Supported"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "goalId",
+          "goalName",
+          "supported"
+        ],
+        "title": "GoalMatch"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HeldBack": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "name",
+          "reason"
+        ],
+        "title": "HeldBack"
+      },
+      "InitialEstimate": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "selfRated": {
+            "type": "number",
+            "title": "Selfrated"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "name",
+          "selfRated",
+          "reason"
+        ],
+        "title": "InitialEstimate"
+      },
+      "LearnerCreated": {
+        "properties": {
+          "learner": {
+            "$ref": "#/components/schemas/LearnerSummary"
+          },
+          "goal": {
+            "$ref": "#/components/schemas/GoalMatch"
+          },
+          "initialEstimates": {
+            "items": {
+              "$ref": "#/components/schemas/InitialEstimate"
+            },
+            "type": "array",
+            "title": "Initialestimates"
+          },
+          "unrecognisedTechnologies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unrecognisedtechnologies"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/SkillProfile"
+          }
+        },
+        "type": "object",
+        "required": [
+          "learner",
+          "goal",
+          "initialEstimates",
+          "unrecognisedTechnologies",
+          "profile"
+        ],
+        "title": "LearnerCreated"
+      },
+      "LearnerSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/SkillCounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "goal",
+          "counts"
+        ],
+        "title": "LearnerSummary"
+      },
+      "Lesson": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "answered": {
+            "type": "boolean",
+            "title": "Answered"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "prerequisitesFirst": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Prerequisitesfirst"
+          },
+          "gate": {
+            "type": "string",
+            "title": "Gate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "name",
+          "question",
+          "answered",
+          "explanation",
+          "sources",
+          "prerequisitesFirst",
+          "gate"
+        ],
+        "title": "Lesson"
+      },
+      "LessonRequest": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId"
+        ],
+        "title": "LessonRequest"
+      },
+      "NextActivities": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/Step"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "heldBack": {
+            "items": {
+              "$ref": "#/components/schemas/HeldBack"
+            },
+            "type": "array",
+            "title": "Heldback"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "steps",
+          "heldBack"
+        ],
+        "title": "NextActivities"
+      },
+      "OnboardingOptions": {
+        "properties": {
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "type": "array",
+            "title": "Goals"
+          },
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "type": "array",
+            "title": "Levels"
+          },
+          "technologies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Technologies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "goals",
+          "levels",
+          "technologies"
+        ],
+        "title": "OnboardingOptions"
+      },
+      "OnboardingRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Goal"
+          },
+          "technologies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Technologies",
+            "default": []
+          },
+          "knows": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Knows",
+            "default": ""
+          },
+          "built": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Built",
+            "default": ""
+          },
+          "level": {
+            "type": "string",
+            "title": "Level",
+            "default": "intermediate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "goal"
+        ],
+        "title": "OnboardingRequest"
+      },
+      "Option": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "Option"
+      },
+      "Skill": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "area": {
+            "type": "string",
+            "title": "Area"
+          },
+          "statement": {
+            "type": "string",
+            "title": "Statement"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SkillState"
+          },
+          "mastery": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mastery"
+          },
+          "selfRated": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selfrated"
+          },
+          "evidenceCount": {
+            "type": "integer",
+            "title": "Evidencecount"
+          },
+          "lastAssessedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastassessedat"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "name",
+          "area",
+          "statement",
+          "state",
+          "mastery",
+          "selfRated",
+          "evidenceCount",
+          "lastAssessedAt",
+          "explanation"
+        ],
+        "title": "Skill"
+      },
+      "SkillChange": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "masteryBefore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Masterybefore"
+          },
+          "masteryAfter": {
+            "type": "number",
+            "title": "Masteryafter"
+          },
+          "stateBefore": {
+            "$ref": "#/components/schemas/SkillState"
+          },
+          "stateAfter": {
+            "$ref": "#/components/schemas/SkillState"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "name",
+          "score",
+          "masteryBefore",
+          "masteryAfter",
+          "stateBefore",
+          "stateAfter"
+        ],
+        "title": "SkillChange"
+      },
+      "SkillCounts": {
+        "properties": {
+          "mastered": {
+            "type": "integer",
+            "title": "Mastered"
+          },
+          "developing": {
+            "type": "integer",
+            "title": "Developing"
+          },
+          "unknown": {
+            "type": "integer",
+            "title": "Unknown"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mastered",
+          "developing",
+          "unknown",
+          "total"
+        ],
+        "title": "SkillCounts"
+      },
+      "SkillProfile": {
+        "properties": {
+          "learner": {
+            "$ref": "#/components/schemas/LearnerSummary"
+          },
+          "position": {
+            "type": "string",
+            "title": "Position"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/Skill"
+            },
+            "type": "array",
+            "title": "Skills"
+          }
+        },
+        "type": "object",
+        "required": [
+          "learner",
+          "position",
+          "skills"
+        ],
+        "title": "SkillProfile"
+      },
+      "SkillState": {
+        "type": "string",
+        "enum": [
+          "mastered",
+          "developing",
+          "unknown"
+        ],
+        "title": "SkillState"
+      },
+      "Source": {
+        "properties": {
+          "chunkId": {
+            "type": "string",
+            "title": "Chunkid"
+          },
+          "citation": {
+            "type": "string",
+            "title": "Citation"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "cited": {
+            "type": "boolean",
+            "title": "Cited"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chunkId",
+          "citation",
+          "excerpt",
+          "score",
+          "reference",
+          "cited"
+        ],
+        "title": "Source"
+      },
+      "Step": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/StepKind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "capabilityId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capabilityid"
+          },
+          "capabilityName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capabilityname"
+          },
+          "activityId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activityid"
+          },
+          "minutes": {
+            "type": "integer",
+            "title": "Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "title",
+          "reason",
+          "capabilityId",
+          "capabilityName",
+          "activityId",
+          "minutes"
+        ],
+        "title": "Step"
+      },
+      "StepKind": {
+        "type": "string",
+        "enum": [
+          "onboard",
+          "diagnose",
+          "learn",
+          "practise",
+          "apply",
+          "mission",
+          "nothing"
+        ],
+        "title": "StepKind"
+      },
+      "TutorAnswer": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "answered": {
+            "type": "boolean",
+            "title": "Answered"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "gate": {
+            "type": "string",
+            "title": "Gate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "answered",
+          "answer",
+          "sources",
+          "gate"
+        ],
+        "title": "TutorAnswer"
+      },
+      "TutorRequest": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Question"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "TutorRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Verdict": {
+        "type": "string",
+        "enum": [
+          "met",
+          "partial",
+          "unmet"
+        ],
+        "title": "Verdict"
+      }
+    }
+  }
+}

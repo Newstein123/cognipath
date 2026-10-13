@@ -1,0 +1,207 @@
+{
+  "student": "demo",
+  "mission": "scale-food-delivery-api",
+  "state": {
+    "appServers": 4,
+    "replicas": 0,
+    "dbTier": "large",
+    "cache": true,
+    "loadBalancer": true
+  },
+  "steps": [
+    {
+      "kind": "investigate",
+      "ref": "request-mix",
+      "name": "What the requests actually do",
+      "reasoning": "",
+      "text": "About 85% of requests read (menus, restaurant listings, order status) and about\n12% write (placing and updating orders). Reads dominate, and most read the same\nfew hundred restaurants.",
+      "after": null,
+      "at": "2026-09-22T23:58:22.188238"
+    },
+    {
+      "kind": "investigate",
+      "ref": "db-pressure",
+      "name": "Where the database time goes",
+      "reasoning": "",
+      "text": "The database is the slowest component even at current load: 115ms of the 250ms\nis spent there, and it rises sharply as utilisation climbs. Write capacity on\nthe current tier is only slightly below read capacity.",
+      "after": null,
+      "at": "2026-09-22T23:58:22.232595"
+    },
+    {
+      "kind": "act",
+      "ref": "add-app-server",
+      "name": "Add an application server",
+      "reasoning": "more capacity",
+      "text": "Application capacity increases. Database load increases with it \u2014 every new\nserver sends its own traffic to the same database.",
+      "before": {
+        "offeredRps": 10000,
+        "servedRps": 222,
+        "latencyMs": 5790,
+        "dbUtilisation": 44.9735,
+        "costMonth": 500,
+        "warnings": [
+          "database is over capacity (4497%) \u2014 latency is unbounded here",
+          "application tier caps throughput at 2,500 req/sec"
+        ]
+      },
+      "after": {
+        "offeredRps": 10000,
+        "servedRps": 222,
+        "latencyMs": 5790,
+        "dbUtilisation": 44.9735,
+        "costMonth": 600,
+        "warnings": [
+          "2 application servers, but no load balancer \u2014 1 of them receive no traffic",
+          "database is over capacity (4497%) \u2014 latency is unbounded here",
+          "application tier caps throughput at 2,500 req/sec"
+        ]
+      },
+      "at": "2026-09-22T23:58:22.277673"
+    },
+    {
+      "kind": "act",
+      "ref": "add-load-balancer",
+      "name": "Put a load balancer in front",
+      "reasoning": "so the extra servers actually receive traffic",
+      "text": "Traffic can now be distributed across application servers. Until this exists,\nextra servers sit idle. Session state held in a server's memory will now break.",
+      "before": {
+        "offeredRps": 10000,
+        "servedRps": 222,
+        "latencyMs": 5790,
+        "dbUtilisation": 44.9735,
+        "costMonth": 600,
+        "warnings": [
+          "2 application servers, but no load balancer \u2014 1 of them receives no traffic",
+          "database is over capacity (4497%) \u2014 latency is unbounded here",
+          "application tier caps throughput at 2,500 req/sec"
+        ]
+      },
+      "after": {
+        "offeredRps": 10000,
+        "servedRps": 222,
+        "latencyMs": 5790,
+        "dbUtilisation": 44.9735,
+        "costMonth": 660,
+        "warnings": [
+          "database is over capacity (4497%) \u2014 latency is unbounded here",
+          "application tier caps throughput at 5,000 req/sec"
+        ]
+      },
+      "at": "2026-09-22T23:58:31.944550"
+    },
+    {
+      "kind": "act",
+      "ref": "add-app-server",
+      "name": "Add an application server",
+      "reasoning": "85% reads at 10k means ~8500 req/sec of read load; one server caps at 2500",
+      "text": "Application capacity increases. Database load increases with it \u2014 every new\nserver sends its own traffic to the same database.",
+      "before": {
+        "offeredRps": 10000,
+        "servedRps": 222,
+        "latencyMs": 5790,
+        "dbUtilisation": 44.9735,
+        "costMonth": 660,
+        "warnings": [
+          "database is over capacity (4497%) \u2014 latency is unbounded here",
+          "application tier caps throughput at 5,000 req/sec"
+        ]
+      },
+      "after": {
+        "offeredRps": 10000,
+        "servedRps": 222,
+        "latencyMs": 5790,
+        "dbUtilisation": 44.9735,
+        "costMonth": 760,
+        "warnings": [
+          "database is over capacity (4497%) \u2014 latency is unbounded here",
+          "application tier caps throughput at 7,500 req/sec"
+        ]
+      },
+      "at": "2026-09-22T23:58:31.989719"
+    },
+    {
+      "kind": "act",
+      "ref": "add-app-server",
+      "name": "Add an application server",
+      "reasoning": "need roughly 4 servers to carry 10000 req/sec",
+      "text": "Application capacity increases. Database load increases with it \u2014 every new\nserver sends its own traffic to the same database.",
+      "before": {
+        "offeredRps": 10000,
+        "servedRps": 222,
+        "latencyMs": 5790,
+        "dbUtilisation": 44.9735,
+        "costMonth": 760,
+        "warnings": [
+          "database is over capacity (4497%) \u2014 latency is unbounded here",
+          "application tier caps throughput at 7,500 req/sec"
+        ]
+      },
+      "after": {
+        "offeredRps": 10000,
+        "servedRps": 222,
+        "latencyMs": 5790,
+        "dbUtilisation": 44.9735,
+        "costMonth": 860,
+        "warnings": [
+          "database is over capacity (4497%) \u2014 latency is unbounded here"
+        ]
+      },
+      "at": "2026-09-22T23:58:32.034420"
+    },
+    {
+      "kind": "act",
+      "ref": "add-cache",
+      "name": "Add a cache in front of reads",
+      "reasoning": "reads are 85% of traffic and most hit the same few hundred restaurants, so a cache removes most read load for $120 rather than buying database capacity for it",
+      "text": "Repeated reads stop reaching the database \u2014 about 85% of them. Cache\ninvalidation is now a consideration: something has to decide when the cached\ncopy is wrong.",
+      "before": {
+        "offeredRps": 10000,
+        "servedRps": 222,
+        "latencyMs": 5790,
+        "dbUtilisation": 44.9735,
+        "costMonth": 860,
+        "warnings": [
+          "database is over capacity (4497%) \u2014 latency is unbounded here"
+        ]
+      },
+      "after": {
+        "offeredRps": 10000,
+        "servedRps": 1417,
+        "latencyMs": 5790,
+        "dbUtilisation": 7.0588,
+        "costMonth": 980,
+        "warnings": [
+          "database is over capacity (706%) \u2014 latency is unbounded here"
+        ]
+      },
+      "at": "2026-09-22T23:58:32.079721"
+    },
+    {
+      "kind": "act",
+      "ref": "upgrade-db-large",
+      "name": "Upgrade the database to large",
+      "reasoning": "cache took reads from 8500 to 1275/sec but writes are still 1200/sec and replicas would not help those; large tier covers both and at $1100 still leaves room under the $2000 cap",
+      "text": "Database capacity increases substantially, for reads and writes. This is the\nlargest single line on the bill.",
+      "before": {
+        "offeredRps": 10000,
+        "servedRps": 1417,
+        "latencyMs": 5790,
+        "dbUtilisation": 7.0588,
+        "costMonth": 980,
+        "warnings": [
+          "database is over capacity (706%) \u2014 latency is unbounded here"
+        ]
+      },
+      "after": {
+        "offeredRps": 10000,
+        "servedRps": 10000,
+        "latencyMs": 190,
+        "dbUtilisation": 0.2352,
+        "costMonth": 1680,
+        "warnings": []
+      },
+      "at": "2026-09-22T23:58:37.196855"
+    }
+  ],
+  "startedAt": "2026-09-22T23:58:22.188232"
+}

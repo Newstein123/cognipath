@@ -1,0 +1,204 @@
+# Cognith — the flagship mission. Claude.md §12, §13, §21 Phase 9.
+#
+# EVERYTHING HERE IS DETERMINISTIC. §13:
+#
+#   "Do NOT let Gemini randomly decide the consequences of every student action.
+#    Mission mechanics should be deterministic where possible."
+#
+# So the simulation is arithmetic over the parameters below, and every action states its
+# own effects and its own consequence text. Gemini never touches the simulation — it
+# judges the learner's REASONING against the rubric, exactly as in Phase 6 (decisions.md
+# D23). Nothing in this file is a prompt.
+#
+# The numbers are calibrated so that `python mission.py --calibrate` reproduces §12's
+# starting state exactly, confirms the targets are reachable, and confirms that each
+# single-lever strategy fails. That check is the acceptance test for this file.
+
+missions:
+  - id: scale-food-delivery-api
+    title: Scale the Food Delivery API
+    level: advanced
+    minutes: 25
+    capabilities: [scalability, system-design, trade-off-analysis, database-performance,
+                   caching, load-balancing]
+
+    brief: |
+      You have inherited the backend for a food delivery service. It works, and it is
+      about to stop working.
+
+      Marketing has booked a campaign that is expected to take traffic from 100
+      requests/sec to 10,000 requests/sec within three months. Orders must stay fast —
+      product has set a hard ceiling of 200ms — and finance has capped infrastructure at
+      $2,000/month.
+
+      Investigate the system, then change it. Every change costs money and has a
+      consequence. You must say WHY you made each change: the reasoning is what is
+      assessed, not whether you found the cheapest answer.
+
+    # --- Targets, from §12 ------------------------------------------------------
+    target:
+      rps: 10000
+      latency_ms: 200
+      cost_month: 2000
+
+    # --- Starting system, from §12 ----------------------------------------------
+    initial:
+      app_servers: 1
+      replicas: 0
+      db_tier: small
+      cache: false
+      load_balancer: false
+
+    # --- The model --------------------------------------------------------------
+    # Every number here is load-bearing and explainable. Read with mission.py's
+    # `--explain` output, which shows each term of the latency calculation.
+    model:
+      baseline_rps: 100          # what the system serves today
+      read_ratio: 0.85           # share of requests that read
+      write_ratio: 0.12          # share that write; the rest are cheap/no-op
+
+      # Application tier. A second server is useless without something to distribute to
+      # it — that is `load_balancer`, and the engine enforces it.
+      app_capacity_per_server: 2500
+      app_cost_per_server: 100
+
+      # Database tiers. `writes` is the capacity for write operations, and crucially it
+      # is NOT increased by replicas (§13: "write bottleneck remains").
+      db_tiers:
+        small:  {reads: 189,  writes: 170,  cost: 400}
+        medium: {reads: 1512, writes: 1360, cost: 700}
+        large:  {reads: 5670, writes: 5103, cost: 1100}
+
+      # A replica adds READ capacity at a fraction of the tier's cost. Nothing else.
+      replica_cost_ratio: 0.60
+      max_replicas: 5
+
+      cache_hit_rate: 0.85       # share of reads a cache absorbs
+      cache_cost: 120
+      load_balancer_cost: 60
+
+      # Latency. A queueing curve, not a line: the system is fine until it is not.
+      #   latency = app_latency_ms + db_latency_ms / (1 - utilisation)
+      # Utilisation is the WORSE of read and write pressure, so a write bottleneck shows
+      # up in latency even when reads are comfortable.
+      app_latency_ms: 40
+      db_latency_ms: 115
+      max_utilisation: 0.98      # clamp, so a saturated system reports a huge number
+                                 # rather than dividing by zero
+
+    # --- Actions ----------------------------------------------------------------
+    # §13's rules, as data. `consequence` is authored text shown after the change —
+    # written, not generated, so the student gets the same honest account every time.
+    actions:
+      - id: add-app-server
+        name: Add an application server
+        effect: {app_servers: 1}
+        consequence: |
+          Application capacity increases. Database load increases with it — every new
+          server sends its own traffic to the same database.
+        note: Useless on its own unless traffic can be distributed to it.
+
+      - id: add-load-balancer
+        name: Put a load balancer in front
+        effect: {load_balancer: true}
+        consequence: |
+          Traffic can now be distributed across application servers. Until this exists,
+          extra servers sit idle. Session state held in a server's memory will now break.
+
+      - id: add-cache
+        name: Add a cache in front of reads
+        effect: {cache: true}
+        consequence: |
+          Repeated reads stop reaching the database — about 85% of them. Cache
+          invalidation is now a consideration: something has to decide when the cached
+          copy is wrong.
+
+      - id: add-replica
+        name: Add a read replica
+        effect: {replicas: 1}
+        consequence: |
+          Read capacity increases. The write bottleneck remains — replicas take no
+          writes. Reads served from a replica may be slightly stale.
+
+      - id: upgrade-db-medium
+        name: Upgrade the database to medium
+        effect: {db_tier: medium}
+        consequence: |
+          Database capacity increases for both reads and writes. Infrastructure cost
+          increases.
+
+      - id: upgrade-db-large
+        name: Upgrade the database to large
+        effect: {db_tier: large}
+        consequence: |
+          Database capacity increases substantially, for reads and writes. This is the
+          largest single line on the bill.
+
+    # --- What the learner investigates ------------------------------------------
+    # §23: "Student investigates and makes architectural decisions." Investigation is
+    # free and is itself a signal — a learner who changes nothing before looking has not
+    # demonstrated the capability §10 cares about.
+    investigations:
+      - id: current-metrics
+        name: Current throughput, latency and cost
+        reveals: |
+          100 req/sec, 250ms average latency, database at 45% utilisation, $500/month.
+      - id: request-mix
+        name: What the requests actually do
+        reveals: |
+          About 85% of requests read (menus, restaurant listings, order status) and about
+          12% write (placing and updating orders). Reads dominate, and most read the same
+          few hundred restaurants.
+      - id: db-pressure
+        name: Where the database time goes
+        reveals: |
+          The database is the slowest component even at current load: 115ms of the 250ms
+          is spent there, and it rises sharply as utilisation climbs. Write capacity on
+          the current tier is only slightly below read capacity.
+      - id: app-profile
+        name: Application server headroom
+        reveals: |
+          One application server saturates around 2,500 req/sec. There is only one, and
+          nothing in front of it to distribute traffic.
+
+    # --- Rubric ------------------------------------------------------------------
+    # Same contract as every other assessable experience (D25): each criterion names the
+    # capability it evidences and carries a weight. Assessed over the whole session
+    # transcript, which records every decision and the reasoning given for it.
+    rubric:
+      - id: investigated-first
+        criterion: Investigated the system before changing it, rather than applying a remedy immediately
+        capability: scalability
+        weight: 1.5
+      - id: found-real-bottleneck
+        criterion: Identified the database as the binding constraint, not the application tier
+        capability: database-performance
+        weight: 2.0
+      - id: lb-before-servers
+        criterion: Recognised that additional application servers do nothing without a load balancer in front
+        capability: load-balancing
+        weight: 1.5
+      - id: cache-reasoning
+        criterion: Justified caching by the read-heavy request mix rather than as a generic speed-up
+        capability: caching
+        weight: 1.5
+      - id: invalidation-named
+        criterion: Acknowledged cache invalidation or staleness as a cost of the caching decision
+        capability: caching
+        weight: 1.0
+      - id: replica-write-limit
+        criterion: Showed awareness that read replicas do not relieve write pressure
+        capability: database-performance
+        weight: 1.5
+      - id: budget-as-constraint
+        criterion: Treated the $2,000 cap as a real constraint shaping the design, not as an afterthought
+        capability: trade-off-analysis
+        weight: 1.5
+      - id: explains-tradeoff
+        criterion: Named what their chosen architecture gives up, or what would make it the wrong choice
+        capability: trade-off-analysis
+        weight: 2.0
+      - id: coherent-architecture
+        criterion: Ended with an architecture whose parts address different constraints rather than duplicating each other
+        capability: system-design
+        weight: 1.5

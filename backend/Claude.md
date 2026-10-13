@@ -1,0 +1,1345 @@
+
+# Cognith — Project Instructions
+
+## 1. Product Overview
+
+Cognith is an AI-native learning and capability development platform.
+
+The goal is not to build another LMS, course marketplace, or generic AI tutor.
+
+The core idea is:
+
+> Education should move from measuring what students can submit to developing and proving what students can actually do.
+
+AI makes information and digital output increasingly abundant. Students can use AI to generate essays, code, presentations, answers, and other outputs.
+
+Cognith focuses on the learner's underlying capability:
+
+- Understanding
+- Reasoning
+- Problem solving
+- Decision making
+- Application
+- Adaptation
+- Creation
+- Reflection
+
+The platform should help a learner move from:
+
+> What do I currently know?
+
+to:
+
+> What can I actually do?
+
+and then:
+
+> What do I need to become capable of doing next?
+
+---
+
+# 2. MVP Scope
+
+The MVP is focused on:
+
+**Domain:** Software Engineering
+
+**Primary user:** Student
+
+**Example learner goal:**
+
+> "I want to become a Backend Software Engineer."
+
+The MVP should demonstrate one complete adaptive learning loop.
+
+### MVP learning loop
+
+```text
+Student Goal
+    ↓
+Student Background
+    ↓
+Initial Capability Map
+    ↓
+Diagnostic
+    ↓
+Identify Capability Gap
+    ↓
+Targeted Learning
+    ↓
+Practice
+    ↓
+Realistic Mission
+    ↓
+Student Decision
+    ↓
+Mission Consequence
+    ↓
+Evidence
+    ↓
+Assessment
+    ↓
+Updated Capability
+    ↓
+Next Recommended Challenge
+````
+
+This complete loop is more important than having many features.
+
+---
+
+# 3. Core Product Thesis
+
+Traditional education often follows:
+
+```text
+Curriculum
+    ↓
+Content
+    ↓
+Assignment
+    ↓
+Submission
+    ↓
+Grade
+```
+
+Cognith should move toward:
+
+```text
+Goal
+    ↓
+Capability
+    ↓
+Practice
+    ↓
+Decision
+    ↓
+Evidence
+    ↓
+Feedback
+    ↓
+Adaptation
+```
+
+The platform should optimize for capability development rather than content completion.
+
+---
+
+# 4. Important Product Distinction
+
+Cognith is NOT:
+
+* A traditional LMS
+* A course marketplace
+* A generic chatbot
+* A simple AI tutor
+* A quiz generator
+* A career recommendation website
+* A replacement for university education
+
+Cognith is:
+
+> An adaptive learning engine that moves a learner from their current capabilities toward the capabilities they need.
+
+The AI tutor is only one component.
+
+---
+
+# 5. Existing RAG System
+
+There is already a working Python RAG system in this project.
+
+### IMPORTANT
+
+Do NOT rewrite or replace the existing RAG system unless there is a clear technical reason.
+
+First inspect and understand it.
+
+The existing RAG system should eventually become the **knowledge layer** of Cognith.
+
+Conceptually:
+
+```text
+Capability Gap
+      ↓
+Relevant Knowledge
+      ↓
+RAG Retrieval
+      ↓
+Gemini
+      ↓
+Explanation / Example / Practice
+```
+
+RAG answers:
+
+> "What knowledge should the learner receive?"
+
+The Capability System answers:
+
+> "What should the learner be able to do?"
+
+These are separate concepts.
+
+---
+
+# 6. Core Product Concepts
+
+The MVP has five primary concepts.
+
+## 6.1 Capability
+
+A capability is something a learner can actually do.
+
+Do NOT define capabilities only as topics.
+
+Bad:
+
+```text
+Caching
+HTTP
+Redis
+Databases
+```
+
+Better:
+
+```text
+Can design an API.
+
+Can diagnose a slow database query.
+
+Can identify a system bottleneck.
+
+Can design a scalable backend.
+
+Can evaluate architectural trade-offs.
+```
+
+Knowledge and technologies support capabilities.
+
+---
+
+## 6.2 Student Capability
+
+Represents the current estimated capability of a specific student.
+
+Example:
+
+```json
+{
+  "studentId": "student-001",
+  "capabilityId": "scalability",
+  "mastery": 0.35,
+  "confidence": 0.60,
+  "status": "developing",
+  "evidenceCount": 4,
+  "lastAssessedAt": "..."
+}
+```
+
+Important distinction:
+
+### Self-reported capability
+
+What the student believes they know.
+
+### Demonstrated capability
+
+What evidence shows they can actually do.
+
+Initial onboarding should mostly create self-reported information.
+
+Diagnostics and missions generate demonstrated evidence.
+
+Do not treat self-reported confidence as proof of mastery.
+
+---
+
+## 6.3 Learning Experience
+
+A learning experience is something the student does.
+
+Examples:
+
+* Explanation
+* Interactive example
+* Exercise
+* Quiz
+* Coding challenge
+* Case study
+* Simulation
+* Project
+* Reflection
+
+Each experience should connect to one or more capabilities.
+
+---
+
+## 6.4 Mission
+
+A mission is a realistic problem or situation where the learner must make decisions.
+
+Example:
+
+```text
+Scale a Backend API
+
+Current:
+100 requests/sec
+250ms latency
+45% database CPU
+
+Requirement:
+10,000 requests/sec
+<200ms latency
+<$2,000/month
+```
+
+The student investigates the situation and makes architectural decisions.
+
+The mission should produce consequences.
+
+---
+
+## 6.5 Evidence
+
+Evidence is observable proof generated by the learner.
+
+Examples:
+
+* Decision
+* Explanation
+* Code
+* Architecture
+* Debugging process
+* Reflection
+* Mission outcome
+* Retry
+* Revision
+
+Example:
+
+```json
+{
+  "studentId": "student-001",
+  "capabilityId": "scalability",
+  "experienceId": "scale-api-001",
+  "type": "simulation_decision",
+  "decision": "introduced caching",
+  "reasoning": "Reduce repeated database queries",
+  "result": "partial",
+  "score": 0.61,
+  "createdAt": "..."
+}
+```
+
+The system should use evidence to update capability estimates.
+
+---
+
+# 7. Capability Graph
+
+The MVP needs a small capability graph for Software Engineering.
+
+Do NOT create a huge ontology.
+
+Initial structure:
+
+```text
+Software Engineering
+│
+├── Programming
+│   ├── Programming Fundamentals
+│   ├── Data Structures
+│   └── Algorithms
+│
+├── Backend
+│   ├── HTTP
+│   ├── API Design
+│   ├── Authentication
+│   └── Databases
+│
+├── Engineering
+│   ├── Testing
+│   ├── Debugging
+│   └── Git
+│
+└── System Design
+    ├── Scalability
+    ├── Caching
+    ├── Load Balancing
+    ├── Reliability
+    └── Trade-off Analysis
+```
+
+However, the hierarchy alone is not the main point.
+
+Capabilities also have relationships.
+
+Examples:
+
+```text
+HTTP
+  → prerequisite_for → API Design
+
+API Design
+  → contributes_to → System Design
+
+Databases
+  → prerequisite_for → System Design
+
+Caching
+  → supports → Scalability
+
+Load Balancing
+  → supports → Scalability
+
+Trade-off Analysis
+  → applies_to → Scalability
+```
+
+Relationships must be stored as data, not hard-coded into business logic.
+
+For the MVP, Firestore is sufficient.
+
+Do NOT introduce Neo4j or another specialized graph database unless there is a demonstrated need.
+
+---
+
+# 8. Student Onboarding
+
+Do not assume every student already knows their exact career path.
+
+However, career discovery is NOT a major MVP feature.
+
+The MVP can simply ask:
+
+> "What are you currently working toward?"
+
+For example:
+
+* Backend Software Engineer
+* Frontend Developer
+* AI Engineer
+* Other
+
+For the main demo, use:
+
+> Backend Software Engineer
+
+Then ask:
+
+1. What do you already know?
+2. What technologies have you used?
+3. What have you built?
+4. How confident are you?
+
+Example:
+
+```text
+Goal:
+Backend Software Engineer
+
+Technologies:
+PHP, Laravel, MySQL, Redis, Docker
+
+Experience:
+Built APIs and booking systems
+
+Confidence:
+Intermediate
+```
+
+The system then generates an initial capability map.
+
+Important:
+
+The initial capability map is an estimate, not a final assessment.
+
+---
+
+# 9. Initial Capability Map
+
+Example:
+
+```text
+API Design          75%
+Databases           80%
+Authentication      70%
+Debugging           65%
+System Design       50%
+Scalability         35%
+Trade-off Analysis  40%
+```
+
+The UI should clearly communicate:
+
+> "This is an initial estimate based on what you've told us. Let's verify it."
+
+This distinction is central to the product.
+
+---
+
+# 10. Diagnostic Engine
+
+Do not give every student the same long exam.
+
+The diagnostic should identify important or uncertain capabilities and verify them.
+
+Example:
+
+Student says they are intermediate in system design.
+
+Cognith tests:
+
+* Scalability
+* Trade-off Analysis
+* Database Performance
+
+Example diagnostic:
+
+```text
+Your API currently handles:
+
+100 requests/sec
+250ms latency
+
+Expected traffic:
+
+10,000 requests/sec
+
+What would you investigate or change?
+
+Explain your reasoning.
+```
+
+The diagnostic should test:
+
+* Problem decomposition
+* Reasoning
+* Decision making
+* Trade-offs
+* Application
+
+Avoid relying only on memorization questions.
+
+---
+
+# 11. Assessment
+
+Do NOT simply ask Gemini:
+
+> "How good is this student?"
+
+Assessment must use structured rubrics.
+
+Example:
+
+```json
+{
+  "capability": "scalability",
+  "criteria": [
+    "recognizes traffic growth",
+    "identifies bottlenecks",
+    "considers horizontal scaling",
+    "considers database constraints",
+    "considers cost",
+    "explains trade-offs"
+  ]
+}
+```
+
+Gemini can evaluate the learner's response against these criteria.
+
+Prefer structured JSON output.
+
+The system should preserve the underlying evidence.
+
+Do not create a single opaque AI score as the student's identity.
+
+---
+
+# 12. Flagship Mission
+
+The MVP should have ONE polished flagship mission.
+
+### Mission:
+
+**Scale a Backend API**
+
+Starting system:
+
+```text
+100 requests/sec
+250ms latency
+45% database CPU
+$500/month
+```
+
+Requirement:
+
+```text
+10,000 requests/sec
+<200ms latency
+<$2,000/month
+```
+
+The learner can make decisions involving:
+
+* Application servers
+* Load balancing
+* Caching
+* Database replicas
+* Database upgrades
+* Architecture changes
+
+The learner must explain why they made the decision.
+
+---
+
+# 13. Deterministic Mission Rules
+
+Do NOT let Gemini randomly decide the consequences of every student action.
+
+Mission mechanics should be deterministic where possible.
+
+Example:
+
+```text
+Add application servers
+→ Application capacity increases
+→ Database load may increase
+
+Add caching
+→ Repeated reads decrease
+→ Cache invalidation becomes a consideration
+
+Add database replicas
+→ Read capacity increases
+→ Write bottleneck remains
+
+Increase database instance
+→ Database capacity increases
+→ Infrastructure cost increases
+```
+
+Gemini can evaluate reasoning and communicate consequences, but the core simulation rules should be controlled by application logic.
+
+This makes the mission more reliable and demonstrable.
+
+---
+
+# 14. Example Evidence
+
+After a mission:
+
+```text
+Scalability Evidence
+
+Recognized traffic growth        ✓
+Considered horizontal scaling    ✓
+Identified DB bottleneck         ✓
+Considered caching               ✓
+Considered cost                  △
+Explained trade-offs             ✓
+```
+
+Then the capability state can change:
+
+```text
+Scalability
+
+Before: 35%
+After:  52%
+```
+
+The system should explain WHY it changed.
+
+Example:
+
+> "You demonstrated stronger bottleneck identification and horizontal scaling reasoning, but database capacity planning remains an area to develop."
+
+---
+
+# 15. Adaptive Learning
+
+The main adaptive loop is:
+
+```text
+Current Capability
+       ↓
+Identify Gap
+       ↓
+Select Learning Experience
+       ↓
+Practice
+       ↓
+Mission
+       ↓
+Evidence
+       ↓
+Assessment
+       ↓
+Update Capability
+       ↓
+Select Next Experience
+```
+
+This is the heart of Cognith.
+
+---
+
+# 16. Beginner Support
+
+Cognith should support students with little or no initial knowledge.
+
+However, the MVP does NOT need to implement an entire beginner-to-expert Computer Science curriculum.
+
+The architecture should support progression:
+
+```text
+Explain
+   ↓
+Example
+   ↓
+Small Practice
+   ↓
+Guided Challenge
+   ↓
+Independent Challenge
+   ↓
+Realistic Mission
+```
+
+An advanced student can start later in the progression.
+
+A beginner starts earlier.
+
+Same learning engine, different starting point.
+
+---
+
+# 17. Zettel as Product/UX Reference
+
+Zettel can be used as a UX/product reference for:
+
+* Personalized learning
+* Interactive lessons
+* AI tutoring
+* Learning flow
+* Coding/practice experience
+
+However:
+
+DO NOT clone Zettel.
+
+Cognith's differentiating concept is:
+
+```text
+Capability
+    ↓
+Diagnostic
+    ↓
+Gap
+    ↓
+Learning
+    ↓
+Mission
+    ↓
+Evidence
+    ↓
+Capability Update
+```
+
+The product should feel like a combination of:
+
+> Personal learning coach + capability assessment + realistic challenge environment
+
+rather than simply an AI course generator.
+
+---
+
+# 18. Google Technology
+
+The hackathon requires Google technology.
+
+Preferred MVP stack:
+
+### Frontend
+
+React / Next.js
+
+### Authentication
+
+Firebase Authentication
+
+### Database
+
+Firestore
+
+### Backend
+
+Cloud Run
+
+### AI
+
+Gemini
+
+### Storage
+
+Google Cloud Storage where needed
+
+### Existing RAG
+
+Keep the current Python implementation.
+
+The exact Google services should follow the existing project architecture where practical.
+
+Do not add infrastructure unnecessarily.
+
+---
+
+# 19. Suggested Data Model
+
+Initial collections/entities:
+
+```text
+capabilities/
+capability_edges/
+students/
+student_capabilities/
+learning_experiences/
+missions/
+mission_sessions/
+evidence/
+assessments/
+knowledge_chunks/
+```
+
+Do not over-engineer relationships.
+
+The most important conceptual entities are:
+
+```text
+Capability
+CapabilityEdge
+StudentCapability
+LearningExperience
+Mission
+Evidence
+Knowledge
+Student
+```
+
+---
+
+# 20. Development Method
+
+This project MUST be developed feature-by-feature and layer-by-layer.
+
+Do NOT build the entire product in one pass.
+
+For every phase:
+
+### Step 1 — Inspect
+
+Understand the existing implementation.
+
+### Step 2 — Explain
+
+Before writing code, explain:
+
+* What are we building?
+* Why?
+* What problem does it solve?
+* How does it connect to the existing architecture?
+* What data is involved?
+* What files will change?
+
+### Step 3 — Implement
+
+Implement ONLY that phase.
+
+Do not perform unrelated refactoring.
+
+### Step 4 — Test
+
+Provide concrete tests and example inputs/outputs.
+
+### Step 5 — Explain
+
+Explain:
+
+* What was created
+* How data flows
+* How components communicate
+* Why the implementation works
+* How to test it manually
+
+### Step 6 — Stop
+
+WAIT for the user to confirm before starting the next phase.
+
+---
+
+# 21. Development Phases
+
+## Phase 0 — Existing RAG
+
+Inspect and document the existing Python RAG system.
+
+Do not modify it.
+
+Document:
+
+* Entry points
+* API endpoints
+* Embeddings
+* Vector storage
+* Retrieval
+* Generation
+* Models
+* Configuration
+* Data flow
+
+---
+
+## Phase 1 — Capability Model
+
+Implement:
+
+* Capability
+* Capability relationships
+
+Start with the Software Engineering capability set.
+
+Use data-driven relationships.
+
+---
+
+## Phase 2 — Student Capability
+
+Implement:
+
+* Student
+* StudentCapability
+
+Support:
+
+* mastery
+* confidence
+* status
+* evidence count
+* timestamps
+
+---
+
+## Phase 3 — Student Onboarding
+
+Implement:
+
+* Goal
+* Background
+* Experience
+* Technologies
+* Confidence
+
+Generate initial capability state.
+
+---
+
+## Phase 4 — Capability Map
+
+Display the student's initial capability profile.
+
+Clearly distinguish:
+
+```text
+Self-reported
+vs
+Demonstrated
+```
+
+---
+
+## Phase 5 — Diagnostic
+
+Implement targeted diagnostics.
+
+Use capability relationships and student state to select relevant capabilities.
+
+---
+
+## Phase 6 — Evidence + Assessment
+
+Implement:
+
+```text
+Student Response
+    ↓
+Evidence
+    ↓
+Rubric
+    ↓
+Gemini Evaluation
+    ↓
+Assessment
+    ↓
+Student Capability Update
+```
+
+---
+
+## Phase 7 — RAG Integration
+
+Connect the existing RAG system to capability gaps.
+
+Flow:
+
+```text
+Capability Gap
+    ↓
+Relevant Knowledge
+    ↓
+RAG
+    ↓
+Gemini
+    ↓
+Learning Experience
+```
+
+Do not redesign the RAG unnecessarily.
+
+---
+
+## Phase 8 — Learning Experience
+
+Implement the minimum experience types required for the MVP.
+
+Do not build a full LMS.
+
+---
+
+## Phase 9 — Flagship Mission
+
+Implement the backend scalability mission.
+
+Use deterministic rules for system consequences.
+
+---
+
+## Phase 10 — Complete Adaptive Loop
+
+Connect:
+
+```text
+Goal
+→ Profile
+→ Capability
+→ Diagnostic
+→ Gap
+→ RAG
+→ Practice
+→ Mission
+→ Evidence
+→ Assessment
+→ Capability Update
+→ Next Challenge
+```
+
+This is the final MVP vertical slice.
+
+---
+
+# 22. MVP Non-Goals
+
+Do NOT build these for the AI Cup MVP:
+
+* Full career discovery system
+* Interest graph
+* Multiple university portals
+* Teacher dashboard
+* Employer platform
+* Peer learning
+* Large career ontology
+* Dozens of career paths
+* Full LMS
+* Complex graph database
+* Large simulation library
+* Mobile application
+* Complete Computer Science degree curriculum
+
+These may become future product features.
+
+---
+
+# 23. Hackathon Demo
+
+The demo should NOT be a dashboard tour.
+
+The main demo should tell one story.
+
+### Student
+
+> "I want to become a Backend Software Engineer."
+
+### Cognith
+
+Understands their background.
+
+Creates an initial capability map.
+
+### Cognith
+
+> "Your backend foundation looks reasonable. I want to verify your scalability reasoning."
+
+### Mission
+
+```text
+100 req/sec
+→
+10,000 req/sec
+```
+
+Student investigates and makes architectural decisions.
+
+### System
+
+Shows consequences.
+
+Student adapts.
+
+### Cognith
+
+Evaluates the student's reasoning.
+
+Creates evidence.
+
+Updates capability.
+
+Then:
+
+> "Your next challenge should focus on database scalability."
+
+The judge should understand the entire product by watching one student complete one learning loop.
+
+---
+
+# 24. Product Positioning
+
+Preferred description:
+
+> **Cognith is an adaptive learning engine that helps students build and prove real-world capabilities through personalized learning, realistic challenges, and evidence-based assessment.**
+
+Short version:
+
+> **Learn. Practice. Decide. Prove.**
+
+Alternative product thesis:
+
+> **Don't measure what students can submit. Measure what they can actually do.**
+
+---
+
+# 25. Architecture Principle
+
+Keep these layers separate:
+
+```text
+Student
+   ↓
+Learning Engine
+   ↓
+Capability System
+   ↓
+Learning Experiences
+   ↓
+Mission Engine
+   ↓
+Evidence
+   ↓
+Assessment
+   ↓
+Student Capability
+```
+
+AI services sit alongside these layers:
+
+```text
+                 ┌──────── Gemini ────────┐
+                 │                        │
+                 ▼                        ▼
+              RAG / Knowledge        Evaluation
+                 │                        │
+                 └──────────┬─────────────┘
+                            │
+                            ▼
+                     Learning Engine
+```
+
+Do not put the entire application inside a single giant Gemini prompt.
+
+Business logic, mission rules, capability relationships, evidence, and student state must remain structured application data.
+
+---
+
+# 26. Engineering Principles
+
+1. Prefer simple architecture.
+2. Keep business logic deterministic where possible.
+3. Keep AI responsibilities explicit.
+4. Do not hide important logic inside prompts.
+5. Store structured data rather than relying on conversation history.
+6. Keep capabilities data-driven.
+7. Preserve evidence and provenance.
+8. Avoid premature abstraction.
+9. Avoid unnecessary dependencies.
+10. Do not refactor unrelated code.
+11. Reuse the existing RAG system.
+12. Build one vertical slice before expanding horizontally.
+13. Every new feature must have a clear relationship to the MVP learning loop.
+14. Explain architecture before implementation.
+15. Never silently move to the next development phase.
+
+---
+
+# 27. Definition of Done for MVP
+
+The MVP is successful when one student can complete:
+
+```text
+Goal
+ ↓
+Onboarding
+ ↓
+Initial Capability Map
+ ↓
+Diagnostic
+ ↓
+Capability Gap
+ ↓
+Targeted Learning
+ ↓
+Mission
+ ↓
+Decision
+ ↓
+Consequence
+ ↓
+Evidence
+ ↓
+Assessment
+ ↓
+Updated Capability
+ ↓
+Next Challenge
+```
+
+The user should be able to understand:
+
+1. What they currently know
+2. What they are weak at
+3. Why Cognith identified that gap
+4. What they learned
+5. How they applied it
+6. What evidence they produced
+7. How their capability changed
+8. What they should practice next
+
+That complete loop is more important than the number of features.
+
+```
+
+### I would use this as our build contract
+
+The most important change from our earlier thinking is that **we are not building a giant education ecosystem**.
+
+We're building one convincing loop:
+
+**Understand me → assess me → teach me what I need → make me use it → observe me → update what you know about me.**
+
+And the existing RAG becomes one layer inside that loop rather than the center of the product.
+
+For Claude, the **first instruction after putting this file in the repository should simply be:**
+
+> **"Read CLAUDE.md. Do Phase 0 only. Inspect the existing Python RAG system, document its architecture and data flow, and do not modify any code yet. Explain your findings and wait for my confirmation."**
+
+That will give you a clean starting point and let you understand the existing system before we add the capability layer.
+```
+
+---
+
+# 28. Documentation
+
+Documentation lives in `docs/`.
+
+This file is **the plan**. `docs/` is **the record** of what was actually built.
+
+## 28.1 The update rule
+
+Docs are a **phase-completion artifact**.
+
+Write or update them at the END of a completed phase, as part of that phase's
+§20 Step 5 explanation.
+
+Do NOT update docs continuously or mid-phase.
+
+Do NOT create empty stub docs in advance. A doc is created by the phase that owns it.
+
+## 28.2 Every completed phase must
+
+1. Write or update the doc it owns (§28.3).
+2. Update the phase log in `docs/architecture.md` §12.
+3. Append any non-obvious decision to `docs/decisions.md`.
+
+A decision belongs in `decisions.md` when it would not be obvious to someone reading the
+code — especially when the obvious alternative was rejected for a measured reason.
+
+Record the format: decision → why → where it lives in code → what would make us revisit it.
+
+## 28.3 Phase to document ownership
+
+```text
+Phase 0   Existing RAG            docs/architecture.md
+Phase 1   Capability Model        docs/capability-model.md
+Phase 2   Student Capability      docs/capability-model.md
+Phase 3   Student Onboarding      docs/onboarding.md
+Phase 4   Capability Map          docs/onboarding.md
+Phase 5   Diagnostic              docs/assessment.md
+Phase 6   Evidence + Assessment   docs/assessment.md
+Phase 7   RAG Integration         docs/architecture.md  (+ capability-model.md)
+Phase 8   Learning Experience     docs/learning-experiences.md
+Phase 9   Flagship Mission        docs/missions.md
+Phase 10  Complete Adaptive Loop  docs/architecture.md
+```
+
+`docs/README.md` is the index — it carries this table plus the current status of each doc.
+
+Phases 7 and 10 update `docs/architecture.md` rather than adding a new doc, because both
+change the overall architecture rather than adding an isolated layer.
+
+## 28.4 What documentation is for
+
+Docs exist so the reasoning survives the session it was made in.
+
+Write down:
+
+* How data flows between components
+* Which decisions were measured rather than assumed
+* Open questions a later phase must settle
+* Gaps that exist in the current system
+
+Do NOT write down:
+
+* Anything already obvious from reading the code
+* Speculative future design that no phase has committed to
+
+Mark anything not yet built clearly as not built.
+
+## 28.5 Diagrams
+
+Use plain ASCII inside fenced code blocks.
+
+They render in an editor, on GitHub, and in a terminal without a rendering dependency.

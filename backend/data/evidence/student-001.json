@@ -1,0 +1,90 @@
+[
+  {
+    "evidence": {
+      "id": "student-001__scale-api-001",
+      "studentId": "student-001",
+      "experienceId": "scale-api-001",
+      "capabilityId": "scalability",
+      "type": "diagnostic_response",
+      "response": "I would add more servers and use Redis for caching. I would also use a load balancer to spread the traffic. Kubernetes would help with autoscaling. Probably switch to a NoSQL database since those scale better.",
+      "results": [
+        {
+          "criterionId": "growth-changes-shape",
+          "verdict": "unmet",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "measure-first",
+          "verdict": "unmet",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "db-constraint",
+          "verdict": "partial",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "horizontal",
+          "verdict": "partial",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "cost-or-limit",
+          "verdict": "unmet",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "names-downside",
+          "verdict": "unmet",
+          "justification": "manual"
+        }
+      ],
+      "createdAt": "2026-09-22T16:38:15.966231+00:00"
+    },
+    "assessment": {
+      "studentId": "student-001",
+      "experienceId": "scale-api-001",
+      "createdAt": "2026-09-22T16:38:15.966231+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "scalability",
+          "score": 0.125,
+          "masteryBefore": null,
+          "masteryAfter": 0.125,
+          "met": [],
+          "partial": [
+            "horizontal"
+          ],
+          "unmet": [
+            "growth-changes-shape",
+            "measure-first"
+          ]
+        },
+        {
+          "capabilityId": "trade-off-analysis",
+          "score": 0.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.0,
+          "met": [],
+          "partial": [],
+          "unmet": [
+            "cost-or-limit",
+            "names-downside"
+          ]
+        },
+        {
+          "capabilityId": "database-performance",
+          "score": 0.5,
+          "masteryBefore": null,
+          "masteryAfter": 0.5,
+          "met": [],
+          "partial": [
+            "db-constraint"
+          ],
+          "unmet": []
+        }
+      ],
+      "explanation": "Database Performance measured at 50% for the first time.\n\nScalability measured at 12% for the first time. Still to develop: recognises that 100x growth changes which component fails first, rather than treating it as 'more of the same'; says they would measure or profile to locate the bottleneck before changing anything.\n\nTrade-off Analysis measured at 0% for the first time. Still to develop: acknowledges a real-world limit \u2014 cost, operational complexity, or time; names a specific way their own chosen approach could fail or fall short."
+    }
+  }
+]

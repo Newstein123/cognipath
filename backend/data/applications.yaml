@@ -1,0 +1,191 @@
+# Cognith — APPLY. The rung between practice and mission.
+#
+# §16's progression is: explain -> example -> small practice -> guided challenge ->
+# independent challenge -> realistic mission. Phase 8 (D29) collapsed that to three types,
+# arguing the middle names were vocabulary rather than behaviour. That was wrong about one
+# of them, and this file is the correction.
+#
+# WHAT MAKES APPLY DIFFERENT
+# --------------------------
+#   practice   one capability, and the question NAMES the lever
+#              "Explain why the existing index does not help."
+#
+#   apply      several capabilities, and the question names NOTHING
+#              "Checkout got slow. Here is what you know."
+#              Indexing might not be the answer. Deciding WHICH lever applies is the
+#              capability practice cannot test, because practice puts it in the question.
+#
+#   mission    several capabilities, plus state and a budget, where decisions compound
+#
+# THE READINESS RULE
+# ------------------
+# `requires` lists the capabilities an application integrates. It only unlocks once each
+# of them has EVIDENCE — you cannot integrate what you have not practised. That gate is
+# what makes the four stages a ladder rather than a menu.
+#
+# Rubrics follow the Phase 6 contract exactly (D25): each criterion names the capability it
+# evidences and carries a weight. The distinctive criterion in every one of these is some
+# form of "chose the right lever, and can say why the obvious one was wrong" — because that
+# is the thing being tested.
+
+applications:
+
+  - id: apply-slow-checkout
+    title: Checkout got slow
+    requires: [database-performance, debugging, caching]
+    level: intermediate
+    minutes: 15
+    prompt: |
+      Checkout p95 latency went from 180ms to 2.4 seconds over three weeks. Nothing was
+      deployed in that window.
+
+      What you know:
+        - order volume is up about 40%
+        - the orders table has grown from 800k to 1.1m rows
+        - the checkout path makes 6 database calls; one of them is a stock check
+        - the stock check reads a table that is written to constantly
+        - a cache was added to the product catalogue two months ago
+        - database CPU averages 55%, with spikes to 95% at peak
+
+      Work out what is most likely happening and what you would do about it. Say what you
+      would rule out first, and why the obvious answer might be wrong here.
+    rubric:
+      - id: rules-out-growth
+        criterion: Recognises that 40% more volume and 37% more rows do not by themselves explain a 13x latency increase
+        capability: debugging
+        weight: 2.0
+      - id: contention-not-volume
+        criterion: Considers lock contention or write pressure on the constantly-written stock table, not only read volume
+        capability: database-performance
+        weight: 2.0
+      - id: questions-the-cache
+        criterion: Treats the existing catalogue cache as something to check rather than assume is helping
+        capability: caching
+        weight: 1.5
+      - id: rejects-obvious
+        criterion: Explicitly says why adding an index or more cache may not be the fix here
+        capability: trade-off-analysis
+        weight: 2.0
+      - id: ordered-investigation
+        criterion: Gives an order of investigation where each step rules something out
+        capability: debugging
+        weight: 1.5
+      - id: p95-vs-average
+        criterion: Notices that the 55% average with 95% spikes is consistent with a p95 problem, and says so
+        capability: database-performance
+        weight: 1.0
+
+  - id: apply-api-under-pressure
+    title: An API two teams disagree about
+    requires: [api-design, http, authentication]
+    level: intermediate
+    minutes: 15
+    prompt: |
+      Two teams consume your orders API. The mobile team wants a single endpoint returning
+      the order plus the customer, the restaurant, and the delivery status, because their
+      round trips are expensive. The internal dashboard team wants those separately,
+      because they render them in different panels and refresh at different rates.
+
+      Neither team can change. You own the API. The mobile app is used by 40,000 customers
+      and the dashboard by 30 staff.
+
+      Design your response. Say what you would build, what you would refuse, and how you
+      would justify the refusal to the team you disappoint.
+    rubric:
+      - id: serves-both
+        criterion: Finds an approach that serves both access patterns rather than picking a winner by headcount
+        capability: api-design
+        weight: 2.0
+      - id: caching-implication
+        criterion: Recognises that combining resources with different refresh rates hurts caching, for the client or the server
+        capability: http
+        weight: 1.5
+      - id: auth-differs
+        criterion: Notices that 40,000 customers and 30 internal staff warrant different authentication and authorisation treatment
+        capability: authentication
+        weight: 1.5
+      - id: refuses-something
+        criterion: Actually refuses something and justifies it, rather than agreeing to build both requests as asked
+        capability: trade-off-analysis
+        weight: 2.0
+      - id: contract-stability
+        criterion: Considers what their choice commits them to maintaining afterwards
+        capability: api-design
+        weight: 1.5
+
+  - id: apply-traffic-spike
+    title: A spike you did not plan for
+    requires: [scalability, load-balancing, caching]
+    level: advanced
+    minutes: 15
+    prompt: |
+      A promotion goes live at 18:00 tomorrow. Marketing expects 8x normal traffic for
+      about ninety minutes. You have one day and cannot change the database tier in time —
+      the maintenance window is next week.
+
+      Current system: 3 application servers behind a load balancer, one database, a cache
+      in front of product reads. Peak today is 1,200 req/sec at 140ms.
+
+      What do you do before 18:00, and what do you do if it starts failing at 18:05? Be
+      specific about what you would sacrifice.
+    rubric:
+      - id: constraint-is-real
+        criterion: Works within the stated constraint instead of proposing the database change that is unavailable
+        capability: trade-off-analysis
+        weight: 2.0
+      - id: reduce-load-not-add
+        criterion: Focuses on reducing load reaching the database — cache warming, longer TTLs, shedding — rather than only adding capacity
+        capability: caching
+        weight: 2.0
+      - id: app-tier-scaling
+        criterion: Scales the application tier and accounts for what that does to database connections
+        capability: scalability
+        weight: 1.5
+      - id: has-a-plan-b
+        criterion: Gives a concrete during-the-incident action, not only preparation
+        capability: reliability
+        weight: 1.5
+      - id: names-sacrifice
+        criterion: Names something specific they would sacrifice — stale data, a degraded feature, queued writes
+        capability: trade-off-analysis
+        weight: 2.0
+      - id: lb-health
+        criterion: Considers how the load balancer behaves when instances start failing health checks under load
+        capability: load-balancing
+        weight: 1.0
+
+  - id: apply-model-a-domain
+    title: Model it before you build it
+    requires: [databases, api-design, programming-fundamentals]
+    level: foundation
+    minutes: 15
+    prompt: |
+      A restaurant wants a system where customers book tables. A booking is for a date,
+      time, party size and table. Tables have capacities. Bookings can be changed or
+      cancelled up to two hours before. Staff need to see tonight's bookings, and need to
+      know quickly whether a given slot is free.
+
+      Design the data model and the two most important API endpoints. Then say which
+      requirement made your model hardest, and what you would have done differently if
+      that requirement did not exist.
+    rubric:
+      - id: entities-and-keys
+        criterion: Identifies the entities and how they relate, including how a booking connects to a table and a time
+        capability: databases
+        weight: 1.5
+      - id: availability-query
+        criterion: Models it so "is this slot free" is answerable without scanning everything
+        capability: databases
+        weight: 2.0
+      - id: cancellation-window
+        criterion: Accounts for the two-hour rule somewhere deliberate rather than leaving it implicit
+        capability: programming-fundamentals
+        weight: 1.5
+      - id: endpoints-fit-model
+        criterion: Proposes endpoints that follow from the model rather than restating it
+        capability: api-design
+        weight: 1.5
+      - id: hardest-named
+        criterion: Names which requirement drove the design and what they would change without it
+        capability: trade-off-analysis
+        weight: 2.0

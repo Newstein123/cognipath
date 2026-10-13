@@ -1,0 +1,69 @@
+# The question set. `expect` is the required behaviour:
+#   answer  - must produce a grounded answer citing expect_docs
+#   abstain - must refuse; answering from Gemini's own knowledge is a FAILURE
+
+# --- In-corpus: direct -------------------------------------------------------
+- q: "Why would adding an index improve database query performance?"
+  expect: answer
+  expect_docs: [database-indexing.md]
+
+- q: "What does a 404 status code mean?"
+  expect: answer
+  expect_docs: [http.md]
+
+- q: "What's the difference between a cache hit and a cache miss?"
+  expect: answer
+  expect_docs: [caching.md]
+
+- q: "When should I use a read replica?"
+  expect: answer
+  expect_docs: [database-replication.md]
+
+- q: "What is the difference between layer 4 and layer 7 load balancing?"
+  expect: answer
+  expect_docs: [load-balancing.md]
+
+- q: "How should I version a REST API?"
+  expect: answer
+  expect_docs: [rest-api.md]
+
+# --- In-corpus: semantic (question avoids the document's vocabulary) ---------
+- q: "My queries got slower as the table grew. Nothing in the code changed. Why?"
+  expect: answer
+  expect_docs: [database-indexing.md]
+  note: "says nothing about indexes; retrieval must be semantic, not keyword"
+
+- q: "A user updated their profile but the change seems to have disappeared on the next page load."
+  expect: answer
+  expect_docs: [database-replication.md]
+  note: "describes read-your-own-writes without naming it"
+
+# --- In-corpus: spans two documents -----------------------------------------
+- q: "What do I give up when I add a cache or an index to speed things up?"
+  expect: answer
+  expect_docs: [system-design.md, caching.md, database-indexing.md]
+  match: any
+  note: "trade-off reasoning that legitimately spans several docs"
+
+# --- Out-of-corpus: must abstain --------------------------------------------
+- q: "What is the CAP theorem?"
+  expect: abstain
+  note: "THE critical test. system-design.md discusses consistency/availability
+         trade-offs, so retrieval will surface plausible-looking but insufficient
+         chunks. Gemini certainly knows the answer and must refuse anyway."
+
+- q: "How do I deploy a service to Kubernetes?"
+  expect: abstain
+
+- q: "Explain how the Raft consensus algorithm elects a leader."
+  expect: abstain
+  note: "database-replication.md covers leader/follower and failover but never Raft"
+
+- q: "Should I use Kafka or RabbitMQ for my message queue?"
+  expect: abstain
+
+- q: "What's the weather in Tokyo today?"
+  expect: abstain
+
+- q: "Write me a Python function to reverse a linked list."
+  expect: abstain

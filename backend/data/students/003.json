@@ -1,0 +1,130 @@
+{
+  "student": {
+    "id": "003",
+    "name": "Astro",
+    "goal": "Backend Software Engineer",
+    "createdAt": "2026-09-22T17:46:55.260301+00:00"
+  },
+  "student_capabilities": [
+    {
+      "id": "003__programming-fundamentals",
+      "studentId": "003",
+      "capabilityId": "programming-fundamentals",
+      "confidence": 0.45,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "003__http",
+      "studentId": "003",
+      "capabilityId": "http",
+      "confidence": 0.45,
+      "mastery": 0.7,
+      "status": "demonstrated",
+      "evidenceCount": 1,
+      "lastAssessedAt": "2026-09-22T17:51:51.475345+00:00"
+    },
+    {
+      "id": "003__api-design",
+      "studentId": "003",
+      "capabilityId": "api-design",
+      "confidence": 0.45,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "003__authentication",
+      "studentId": "003",
+      "capabilityId": "authentication",
+      "confidence": 0.45,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "003__databases",
+      "studentId": "003",
+      "capabilityId": "databases",
+      "confidence": 0.45,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "003__database-performance",
+      "studentId": "003",
+      "capabilityId": "database-performance",
+      "confidence": 0.325,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "003__debugging",
+      "studentId": "003",
+      "capabilityId": "debugging",
+      "confidence": 0.45,
+      "mastery": 0.25,
+      "status": "developing",
+      "evidenceCount": 1,
+      "lastAssessedAt": "2026-09-22T17:51:51.475345+00:00"
+    },
+    {
+      "id": "003__git",
+      "studentId": "003",
+      "capabilityId": "git",
+      "confidence": 0.45,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "003__system-design",
+      "studentId": "003",
+      "capabilityId": "system-design",
+      "confidence": 0.45,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "003__scalability",
+      "studentId": "003",
+      "capabilityId": "scalability",
+      "confidence": 0.325,
+      "mastery": null,
+      "status": "claimed",
+      "evidenceCount": 0,
+      "lastAssessedAt": null
+    },
+    {
+      "id": "003__caching",
+      "studentId": "003",
+      "capabilityId": "caching",
+      "confidence": null,
+      "mastery": 0.0,
+      "status": "developing",
+      "evidenceCount": 1,
+      "lastAssessedAt": "2026-09-22T17:54:49.228474+00:00"
+    },
+    {
+      "id": "003__trade-off-analysis",
+      "studentId": "003",
+      "capabilityId": "trade-off-analysis",
+      "confidence": null,
+      "mastery": 0.0,
+      "status": "developing",
+      "evidenceCount": 1,
+      "lastAssessedAt": "2026-09-22T17:54:49.228474+00:00"
+    }
+  ]
+}

@@ -1,0 +1,279 @@
+# Cognith — capability graph for the Software Engineering domain.
+#
+# This file is DATA. Claude.md §7 requires relationships to be stored as data rather
+# than hard-coded into business logic, so nothing here is duplicated in Python.
+#
+# Authoring rules:
+#
+#   statement   Required. What the learner can DO (Claude.md §6.1). A capability is not
+#               a topic: "Caching" is a topic, "Can decide where to cache, what to cache,
+#               and how to invalidate it" is a capability. Write it so that a piece of
+#               evidence could plausibly confirm or contradict it.
+#
+#   area        One of the four groupings in the §7 tree. Areas are groupings, NOT
+#               capabilities — "Backend" is not something a learner can do, so it has no
+#               row of its own. `system-design` IS a capability (see the note below).
+#
+#   level       Expected difficulty band: foundation | intermediate | advanced.
+#               Read later by the diagnostic engine to order what to verify first.
+#               It is an authoring estimate, not a measurement.
+#
+#   knowledge_docs
+#               `id:` values from knowledge/*.md frontmatter — the documents that can
+#               teach this capability. A separate vocabulary from capability ids, because
+#               Claude.md §5 keeps knowledge and capability distinct; this list is the
+#               explicit mapping between the two (decisions.md Q1, D9).
+#
+#               These are DOCUMENT ids, not the corpus's `capability:` tags. The tags are
+#               too coarse to join on: one `system-design` tag covers caching.md,
+#               load-balancing.md and system-design.md, so a tag-level mapping cannot
+#               tell the Caching capability from Load Balancing. Document ids are 1:1
+#               with files and precise.
+#
+#               Read by NO code yet — Phase 7 consumes it. An empty list means the corpus
+#               has no material for this capability; run
+#               `python capabilities.py --coverage` to see the gaps.
+
+domain: software-engineering
+
+areas:
+  programming:   Programming
+  backend:       Backend
+  engineering:   Engineering
+  system-design: System Design
+
+# --- Capabilities -----------------------------------------------------------------
+# 16 rows. The §7 tree lists 15 leaves; `system-design` is the 16th because §7's own
+# relationship examples use System Design as an edge target, and §9 and §10 both treat
+# it as an assessable capability rather than a heading.
+
+capabilities:
+
+  # --- Programming ----------------------------------------------------------------
+  - id: programming-fundamentals
+    name: Programming Fundamentals
+    statement: Can write a correct program using variables, control flow, functions, and error handling.
+    description: >
+      The floor for everything else. Covers reading code as well as writing it, and
+      handling the error cases rather than only the happy path.
+    area: programming
+    level: foundation
+    knowledge_docs: []
+
+  - id: data-structures
+    name: Data Structures
+    statement: Can choose an appropriate data structure for a problem and explain why the alternatives are worse.
+    description: >
+      Assessed on the choice and its justification, not on reimplementing a linked list
+      from memory.
+    area: programming
+    level: foundation
+    knowledge_docs: []
+
+  - id: algorithms
+    name: Algorithms
+    statement: Can reason about the time and space cost of an approach and pick one that meets a stated requirement.
+    description: >
+      Complexity as a decision tool. The useful skill is recognising that an O(n^2) step
+      is the reason a request takes eight seconds.
+    area: programming
+    level: intermediate
+    knowledge_docs: []
+
+  # --- Backend --------------------------------------------------------------------
+  - id: http
+    name: HTTP
+    statement: Can explain and debug an HTTP request and response, including methods, status codes, and headers.
+    description: >
+      The substrate under every other backend capability. Debugging matters as much as
+      recall: reading an actual exchange and saying what went wrong.
+    area: backend
+    level: foundation
+    knowledge_docs: [http]
+
+  - id: api-design
+    name: API Design
+    statement: Can design an API whose resources, methods, and status codes model the domain correctly.
+    description: >
+      Judged on whether a consumer could use it without asking questions, and on whether
+      the error cases are designed rather than incidental.
+    area: backend
+    level: intermediate
+    knowledge_docs: [rest-api]
+
+  - id: authentication
+    name: Authentication
+    statement: Can choose and implement an authentication and authorization scheme appropriate to a system's risk.
+    description: >
+      Includes knowing the difference between the two, and why the appropriate scheme
+      depends on what is being protected.
+    area: backend
+    level: intermediate
+    knowledge_docs: []
+
+  - id: databases
+    name: Databases
+    statement: Can model data for a domain and write correct queries against that model.
+    description: >
+      Schema design and querying. Performance is related but distinct — see the note on
+      database-performance in docs/capability-model.md.
+    area: backend
+    level: foundation
+    knowledge_docs: [database-indexing, database-replication]
+
+  - id: database-performance
+    name: Database Performance
+    statement: Can diagnose why a query or database is slow and choose a change that fixes it.
+    description: >
+      Distinct from `databases`, which is modelling and querying. This is behaviour under
+      load: indexes, execution plans, read/write split, and knowing which of those the
+      evidence actually points at. Added in Phase 5 because §10 names it as a diagnostic
+      target and §12's flagship mission turns on it — the question Phase 1 deferred.
+    area: backend
+    level: intermediate
+    knowledge_docs: [database-indexing, database-replication]
+
+  # --- Engineering ----------------------------------------------------------------
+  - id: testing
+    name: Testing
+    statement: Can write a test that would fail if the behaviour it describes broke.
+    description: >
+      The statement is deliberately narrow, because it is the part learners get wrong:
+      tests that pass regardless of whether the code works are the common failure.
+    area: engineering
+    level: intermediate
+    knowledge_docs: []
+
+  - id: debugging
+    name: Debugging
+    statement: Can locate the cause of a defect from evidence rather than by guessing.
+    description: >
+      Assessed on process, not outcome. Forming a hypothesis and testing it is the
+      capability; stumbling onto the fix is not.
+    area: engineering
+    level: intermediate
+    knowledge_docs: []
+
+  - id: git
+    name: Git
+    statement: Can use version control to isolate, review, and integrate a change safely.
+    description: >
+      Branching, reviewing a diff, and recovering from a mistake. Has no edges yet —
+      see docs/capability-model.md on isolated capabilities.
+    area: engineering
+    level: foundation
+    knowledge_docs: []
+
+  # --- System Design --------------------------------------------------------------
+  - id: system-design
+    name: System Design
+    statement: Can design a backend system that satisfies stated throughput, latency, and cost requirements.
+    description: >
+      The integrative capability of this area, and the target of the flagship mission in
+      §12. Present as a capability because §7's relationship examples, §9's capability
+      map, and §10's diagnostic all treat it as one.
+    area: system-design
+    level: advanced
+    knowledge_docs: [system-design, caching, load-balancing, database-replication]
+
+  - id: scalability
+    name: Scalability
+    statement: Can identify the bottleneck limiting a system's throughput and choose a change that removes it.
+    description: >
+      Bottleneck identification first, remedy second. Adding capacity to the wrong tier
+      is the characteristic novice error, and the mission in §12 is built to surface it.
+    area: system-design
+    level: advanced
+    knowledge_docs: [load-balancing, caching, database-replication]
+
+  - id: caching
+    name: Caching
+    statement: Can decide where to cache, what to cache, and how to invalidate it.
+    description: >
+      Invalidation is the load-bearing third of this. A learner who adds a cache without
+      addressing staleness has not demonstrated the capability.
+    area: system-design
+    level: intermediate
+    knowledge_docs: [caching]
+
+  - id: load-balancing
+    name: Load Balancing
+    statement: Can distribute traffic across instances and reason about the consequences for state and failure.
+    description: >
+      The consequences are the capability — session state and health checking — not the
+      act of putting a balancer in the diagram.
+    area: system-design
+    level: intermediate
+    knowledge_docs: [load-balancing]
+
+  - id: reliability
+    name: Reliability
+    statement: Can anticipate a system's failure modes and design it to degrade rather than collapse.
+    description: >
+      Asking what happens when a dependency is slow rather than absent, and designing for
+      the answer.
+    area: system-design
+    level: advanced
+    knowledge_docs: [database-replication]
+
+  - id: trade-off-analysis
+    name: Trade-off Analysis
+    statement: Can compare architectural options and justify a choice against explicit constraints.
+    description: >
+      Cross-cutting: it is exercised inside other capabilities rather than alone, which is
+      why its edges are `applies_to`. §3's thesis makes this central — the reasoning is
+      the evidence, not the conclusion.
+    area: system-design
+    level: advanced
+    knowledge_docs: [system-design]
+
+# --- Edges ------------------------------------------------------------------------
+# `from` and `to` are capability ids. `relation` is one of four types whose SEMANTICS
+# live in cognith_capability/models.py:
+#
+#   prerequisite_for  blocking — A must be developed before B is worth assessing
+#   contributes_to    A is a component of B
+#   supports          A is a technique that serves B
+#   applies_to        A is cross-cutting, exercised inside B's context
+#
+# How much evidence propagates along each edge is a Phase 6 policy decision. Phase 1
+# only records that the relationship exists.
+#
+# `source: claude-md-7` marks the six examples given verbatim in Claude.md §7. The rest
+# are authored for this phase and are the reviewable part of this file.
+
+edges:
+
+  # --- The six from §7, verbatim --------------------------------------------------
+  - {from: http,               relation: prerequisite_for, to: api-design,    source: claude-md-7}
+  - {from: api-design,         relation: contributes_to,   to: system-design, source: claude-md-7}
+  - {from: databases,          relation: prerequisite_for, to: system-design, source: claude-md-7}
+  - {from: caching,            relation: supports,         to: scalability,   source: claude-md-7}
+  - {from: load-balancing,     relation: supports,         to: scalability,   source: claude-md-7}
+  - {from: trade-off-analysis, relation: applies_to,       to: scalability,   source: claude-md-7}
+
+  # --- Authored: prerequisite chains ----------------------------------------------
+  - {from: programming-fundamentals, relation: prerequisite_for, to: data-structures}
+  - {from: data-structures,          relation: prerequisite_for, to: algorithms}
+  - {from: programming-fundamentals, relation: prerequisite_for, to: testing}
+  - {from: programming-fundamentals, relation: prerequisite_for, to: debugging}
+  - {from: http,                     relation: prerequisite_for, to: authentication}
+  - {from: http,                     relation: prerequisite_for, to: caching}
+  - {from: http,                     relation: prerequisite_for, to: load-balancing}
+  - {from: databases,                relation: prerequisite_for, to: scalability}
+
+  - {from: databases,                relation: prerequisite_for, to: database-performance}
+
+  # --- Authored: composition ------------------------------------------------------
+  - {from: scalability,    relation: contributes_to, to: system-design}
+  - {from: reliability,    relation: contributes_to, to: system-design}
+  - {from: testing,        relation: contributes_to, to: reliability}
+  - {from: authentication, relation: contributes_to, to: api-design}
+  - {from: database-performance, relation: contributes_to, to: system-design}
+  - {from: database-performance, relation: supports,       to: scalability}
+
+  # --- Authored: cross-cutting ----------------------------------------------------
+  - {from: trade-off-analysis, relation: applies_to, to: system-design}
+  - {from: trade-off-analysis, relation: applies_to, to: reliability}
+  - {from: debugging,          relation: applies_to, to: scalability}
+  - {from: debugging,          relation: applies_to, to: database-performance}

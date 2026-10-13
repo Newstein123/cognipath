@@ -1,0 +1,202 @@
+[
+  {
+    "evidence": {
+      "id": "fresh__http.md#exercise-read-a-failing-request",
+      "studentId": "fresh",
+      "experienceId": "http.md#exercise-read-a-failing-request",
+      "capabilityId": "http",
+      "type": "exercise_response",
+      "attempt": 1,
+      "response": "Retrying is probably fine, the server just had a blip.",
+      "results": [
+        {
+          "criterionId": "retry-unsafe",
+          "verdict": "unmet",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "four-hundred-differs",
+          "verdict": "partial",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "non-idempotent",
+          "verdict": "unmet",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "duplicate-orders",
+          "verdict": "unmet",
+          "justification": "manual"
+        }
+      ],
+      "createdAt": "2026-09-22T17:33:34.613863+00:00"
+    },
+    "assessment": {
+      "studentId": "fresh",
+      "experienceId": "http.md#exercise-read-a-failing-request",
+      "createdAt": "2026-09-22T17:33:34.613863+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "http",
+          "score": 0.1364,
+          "masteryBefore": null,
+          "masteryAfter": 0.1364,
+          "met": [],
+          "partial": [
+            "four-hundred-differs"
+          ],
+          "unmet": [
+            "retry-unsafe",
+            "non-idempotent"
+          ]
+        },
+        {
+          "capabilityId": "reliability",
+          "score": 0.0,
+          "masteryBefore": null,
+          "masteryAfter": 0.0,
+          "met": [],
+          "partial": [],
+          "unmet": [
+            "duplicate-orders"
+          ]
+        }
+      ],
+      "explanation": "HTTP measured at 14% for the first time. Still to develop: says retrying is not safe here, because a 500 does not tell the client whether the order was created; names non-idempotency as the property of POST that makes the retry risky.\n\nReliability measured at 0% for the first time. Still to develop: connects it to the real consequence \u2014 five retries can create five orders."
+    }
+  },
+  {
+    "evidence": {
+      "id": "fresh__http.md#exercise-read-a-failing-request",
+      "studentId": "fresh",
+      "experienceId": "http.md#exercise-read-a-failing-request",
+      "capabilityId": "http",
+      "type": "exercise_response",
+      "attempt": 1,
+      "response": "A 500 means the server failed. A 400 means my request was wrong so retrying it unchanged will not help. I would retry the 500 a few times.",
+      "results": [
+        {
+          "criterionId": "retry-unsafe",
+          "verdict": "unmet",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "four-hundred-differs",
+          "verdict": "met",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "non-idempotent",
+          "verdict": "unmet",
+          "justification": "manual"
+        },
+        {
+          "criterionId": "duplicate-orders",
+          "verdict": "partial",
+          "justification": "manual"
+        }
+      ],
+      "createdAt": "2026-09-22T17:33:34.614236+00:00"
+    },
+    "assessment": {
+      "studentId": "fresh",
+      "experienceId": "http.md#exercise-read-a-failing-request",
+      "createdAt": "2026-09-22T17:33:34.614236+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "http",
+          "score": 0.2727,
+          "masteryBefore": 0.1364,
+          "masteryAfter": 0.2046,
+          "met": [
+            "four-hundred-differs"
+          ],
+          "partial": [],
+          "unmet": [
+            "retry-unsafe",
+            "non-idempotent"
+          ]
+        },
+        {
+          "capabilityId": "reliability",
+          "score": 0.5,
+          "masteryBefore": 0.0,
+          "masteryAfter": 0.25,
+          "met": [],
+          "partial": [
+            "duplicate-orders"
+          ],
+          "unmet": []
+        }
+      ],
+      "explanation": "Reliability rose from 0% to 25%.\n\nHTTP rose from 14% to 20%. You showed explains that a 400 means the request itself was rejected, so retrying it unchanged is pointless rather than dangerous. Still to develop: says retrying is not safe here, because a 500 does not tell the client whether the order was created; names non-idempotency as the property of POST that makes the retry risky."
+    }
+  },
+  {
+    "evidence": {
+      "id": "fresh__http.md#exercise-read-a-failing-request",
+      "studentId": "fresh",
+      "experienceId": "http.md#exercise-read-a-failing-request",
+      "capabilityId": "http",
+      "type": "exercise_response",
+      "attempt": 1,
+      "response": "Retrying is not safe. The 500 tells me the server failed but not whether the order was actually written before it failed, so the client cannot know if retrying duplicates it.\n\nThat is because POST is not idempotent: applying it twice is not the same as applying it once. Five automatic retries can create five orders.\n\nA 400 is different. It means the request itself was rejected, so the server never acted on it. Retrying it unchanged is pointless rather than dangerous.",
+      "results": [
+        {
+          "criterionId": "retry-unsafe",
+          "verdict": "met",
+          "justification": "The response explicitly states that retrying is unsafe because a 500 error does not indicate \"whether the order was actually written before it failed.\""
+        },
+        {
+          "criterionId": "four-hundred-differs",
+          "verdict": "met",
+          "justification": "The response explains that a 400 means the request was rejected and not acted on, making retrying unchanged \"pointless rather than dangerous.\""
+        },
+        {
+          "criterionId": "non-idempotent",
+          "verdict": "met",
+          "justification": "The response directly identifies that the retry is risky \"because POST is not idempotent: applying it twice is not the same as applying it once.\""
+        },
+        {
+          "criterionId": "duplicate-orders",
+          "verdict": "met",
+          "justification": "The response explicitly notes the concrete consequence that \"[f]ive automatic retries can create five orders.\""
+        }
+      ],
+      "createdAt": "2026-09-22T17:40:57.250430+00:00"
+    },
+    "assessment": {
+      "studentId": "fresh",
+      "experienceId": "http.md#exercise-read-a-failing-request",
+      "createdAt": "2026-09-22T17:40:57.250430+00:00",
+      "outcomes": [
+        {
+          "capabilityId": "http",
+          "score": 1.0,
+          "masteryBefore": 0.2046,
+          "masteryAfter": 0.483,
+          "met": [
+            "retry-unsafe",
+            "four-hundred-differs",
+            "non-idempotent"
+          ],
+          "partial": [],
+          "unmet": []
+        },
+        {
+          "capabilityId": "reliability",
+          "score": 1.0,
+          "masteryBefore": 0.25,
+          "masteryAfter": 0.5125,
+          "met": [
+            "duplicate-orders"
+          ],
+          "partial": [],
+          "unmet": []
+        }
+      ],
+      "explanation": "HTTP rose from 20% to 48%. You showed says retrying is not safe here, because a 500 does not tell the client whether the order was created; explains that a 400 means the request itself was rejected, so retrying it unchanged is pointless rather than dangerous.\n\nReliability rose from 25% to 51%. You showed connects it to the real consequence \u2014 five retries can create five orders."
+    }
+  }
+]

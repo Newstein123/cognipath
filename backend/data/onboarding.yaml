@@ -1,0 +1,148 @@
+# Cognith — onboarding vocabulary and estimation rules.
+#
+# Turns Claude.md §8's intake answers into an INITIAL capability estimate (§9).
+#
+# Everything here is DATA. No Gemini call is involved in Phase 3, deliberately:
+# §26.4 says not to hide important logic inside prompts, and the technology-to-capability
+# mapping IS domain knowledge. Keeping it here means every estimate can be explained back
+# to the student ("we estimated Databases at 80% because you listed MySQL"), which §26.7
+# requires and an LLM guess cannot provide.
+#
+# The output is a SELF-REPORT ESTIMATE, not a measurement. It sets `confidence` only;
+# `mastery` stays None until evidence exists (decisions.md D12).
+
+# --- Self-rated level -> confidence ceiling --------------------------------------
+# §8's fourth question is "How confident are you?", answered with a single level. That
+# level CAPS every estimate: a beginner who lists Laravel does not get 75% API Design.
+#
+# Ceilings are calibrated so §8's example (Intermediate) can reach §9's example map,
+# whose highest value is Databases at 80%.
+levels:
+  none:         {ceiling: 0.10, label: "Just starting out"}
+  beginner:     {ceiling: 0.45, label: "Beginner"}
+  intermediate: {ceiling: 0.85, label: "Intermediate"}
+  advanced:     {ceiling: 0.95, label: "Advanced"}
+  expert:       {ceiling: 1.00, label: "Expert"}
+
+# --- Goals ------------------------------------------------------------------------
+# §8: "What are you currently working toward?" Kept to the four options §8 lists.
+# `focus` is which capabilities matter for this goal — used to order the capability map,
+# NOT to change any estimate. A goal must never inflate a self-report.
+goals:
+  backend-engineer:
+    name: Backend Software Engineer
+    focus: [programming-fundamentals, http, api-design, authentication, databases,
+            database-performance, system-design, scalability, caching, load-balancing,
+            reliability,
+            trade-off-analysis, testing, debugging, git]
+  frontend-developer:
+    name: Frontend Developer
+    focus: [http, api-design, programming-fundamentals, testing, debugging, git]
+  ai-engineer:
+    name: AI Engineer
+    focus: [programming-fundamentals, data-structures, algorithms, databases,
+            api-design, system-design, scalability]
+  other:
+    name: Other / not sure yet
+    focus: [programming-fundamentals, http, databases, git, debugging, testing]
+
+# --- Technologies -> capability signals -------------------------------------------
+# §8: "What technologies have you used?"
+#
+# Each signal is "what confidence does competent use of this technology imply for this
+# capability?" Values are deliberately moderate — using a tool is not the same as being
+# able to reason about it, and Phase 5 exists to check.
+#
+# `aliases` are matched case-insensitively, and are also what the free-text scanner
+# looks for.
+technologies:
+  php:
+    name: PHP
+    aliases: [php]
+    signals: {programming-fundamentals: 0.70, debugging: 0.65, http: 0.55}
+  laravel:
+    name: Laravel
+    aliases: [laravel, lumen]
+    signals: {api-design: 0.75, authentication: 0.70, http: 0.70,
+              databases: 0.55, programming-fundamentals: 0.65}
+  mysql:
+    name: MySQL
+    aliases: [mysql, mariadb]
+    signals: {databases: 0.80, database-performance: 0.40}
+  postgres:
+    name: PostgreSQL
+    aliases: [postgres, postgresql, psql]
+    signals: {databases: 0.80, database-performance: 0.40}
+  redis:
+    name: Redis
+    aliases: [redis]
+    signals: {caching: 0.70, databases: 0.30}
+  docker:
+    name: Docker
+    aliases: [docker, containers, kubernetes, k8s]
+    signals: {system-design: 0.50, load-balancing: 0.40, reliability: 0.35}
+  python:
+    name: Python
+    aliases: [python, django, flask, fastapi]
+    signals: {programming-fundamentals: 0.70, debugging: 0.65, api-design: 0.55,
+              http: 0.55}
+  javascript:
+    name: JavaScript
+    aliases: [javascript, js, node, nodejs, typescript, express]
+    signals: {programming-fundamentals: 0.70, http: 0.60, api-design: 0.55,
+              debugging: 0.60}
+  git:
+    name: Git
+    aliases: [git, github, gitlab]
+    signals: {git: 0.70}
+  nginx:
+    name: Nginx
+    aliases: [nginx, apache, haproxy]
+    signals: {load-balancing: 0.60, http: 0.55}
+  aws:
+    name: AWS / cloud
+    aliases: [aws, gcp, azure, cloud run, cloud]
+    signals: {system-design: 0.50, scalability: 0.45, reliability: 0.40}
+
+# --- Free-text concepts -> capability signals -------------------------------------
+# §8's first and third questions ("What do you already know?", "What have you built?")
+# are prose. They are scanned for these phrases — deterministic and auditable, rather
+# than inferred by a model.
+#
+# Matches are discounted by `free_text_discount` below: saying "I built APIs" in prose is
+# a weaker claim than listing a technology.
+concepts:
+  api:            {aliases: [api, apis, rest, restful, endpoint, endpoints], signals: {api-design: 0.70}}
+  auth:           {aliases: [auth, authentication, login, oauth, jwt], signals: {authentication: 0.65}}
+  booking-system: {aliases: ["booking system", "booking systems", "reservation"], signals: {system-design: 0.55, databases: 0.50}}
+  database-query: {aliases: [sql, query, queries, "database design", schema], signals: {databases: 0.65}}
+  indexing:       {aliases: [index, indexes, indexing, "query optimization", "slow query"], signals: {database-performance: 0.70, databases: 0.55}}
+  testing:        {aliases: [test, tests, testing, unit test, phpunit, pytest], signals: {testing: 0.60}}
+  debugging:      {aliases: [debug, debugging, profiling, "bug fix"], signals: {debugging: 0.60}}
+  scaling:        {aliases: [scale, scaling, scalability, "high traffic", throughput], signals: {scalability: 0.50}}
+  caching:        {aliases: [cache, caching, memcached], signals: {caching: 0.60}}
+  microservices:  {aliases: [microservice, microservices, "distributed system"], signals: {system-design: 0.60, reliability: 0.45}}
+  queue:          {aliases: [queue, queues, rabbitmq, kafka, "message broker"], signals: {system-design: 0.50, reliability: 0.45}}
+  algorithms:     {aliases: [algorithm, algorithms, "data structure", "data structures", leetcode], signals: {algorithms: 0.55, data-structures: 0.60}}
+
+# --- Estimation rules -------------------------------------------------------------
+rules:
+  # A phrase found in prose counts for less than an explicitly listed technology.
+  free_text_discount: 0.85
+
+  # How a DIRECT signal propagates one hop along the Phase 1 capability graph.
+  #
+  # Direction is asymmetric and that asymmetry is the point:
+  #
+  #   prerequisite_for BACKWARD is strong — if you can design APIs, you know HTTP.
+  #   prerequisite_for FORWARD is absent  — knowing HTTP says nothing about whether you
+  #                                         can design an API. Omitted, not set to 0.
+  #
+  # Derived signals propagate from DIRECT signals only, never from other derived ones.
+  # Without that rule system-design -> reliability -> testing would invent a testing
+  # claim out of nothing.
+  propagation:
+    prerequisite_for: {backward: 0.90}
+    contributes_to:   {forward: 0.70, backward: 0.60}
+    supports:         {forward: 0.50, backward: 0.55}
+    applies_to:       {forward: 0.50, backward: 0.80}

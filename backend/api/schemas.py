@@ -306,6 +306,13 @@ class QuizQuestion(Model):
     explanation: str
 
 
+class AppliedTask(Model):
+    kind: str            # explain | predict | debug | choose
+    prompt: str
+    criteria: list[str]
+    model_answer: str
+
+
 class LessonSection(Model):
     """One concept: probe (already known?) → explanation, example, diagram → check."""
     #: The unit-plan concept this section teaches (null outside a unit part).
@@ -316,8 +323,31 @@ class LessonSection(Model):
     example: str
     diagram: Diagram
     check: QuizQuestion
+    #: The applied check after teaching — the evidence of understanding.
+    task: AppliedTask | None = None
     #: Course sections this part of the lesson is built from.
     sources: list[str]
+
+
+class JudgeRequest(Model):
+    capability_id: str
+    concept: str
+    task: AppliedTask
+    answer: str = Field(min_length=1, max_length=3000)
+
+
+class JudgedCriterion(Model):
+    criterion: str
+    verdict: Verdict
+    justification: str
+
+
+class Judgement(Model):
+    #: met = every criterion met · partial = some · unmet = none
+    outcome: Verdict
+    criteria: list[JudgedCriterion]
+    missed: list[str]
+    model_answer: str
 
 
 class ReexplainRequest(Model):
@@ -397,6 +427,8 @@ class UnitInfo(Model):
     part: int            # 1-based part this lesson teaches (0 = not a unit part)
     parts: int
     covered: int
+    #: Concepts the learner showed (met, or after a second explanation) — not just taught.
+    demonstrated: int
     total: int
     concepts: list[UnitConcept]
 

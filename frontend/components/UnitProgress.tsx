@@ -11,12 +11,16 @@ export function UnitProgress({ unit, current }: { unit: UnitInfo; current?: numb
       <div className="spread">
         <strong>
           {current ? `Part ${current} of ${unit.parts}` : "Unit"} · covered {unit.covered} of {unit.total} ideas
+          {" "}· demonstrated {unit.demonstrated}
         </strong>
         <span className="small muted">{pct}% of the material</span>
       </div>
       <div className="progress"><span style={{ width: `${pct}%` }} /></div>
       <details>
         <summary className="small">Everything this unit covers</summary>
+        <p className="small muted" style={{ margin: "6px 0 0" }}>
+          ✓ demonstrated · △ demonstrated after a second explanation · ! covered, not demonstrated yet · ○ not covered yet
+        </p>
         {parts.map((p) => (
           <div key={p} style={{ marginTop: 8 }}>
             <div className="small muted" style={{ fontWeight: 700 }}>

@@ -70,6 +70,18 @@ class QuizQuestion(BaseModel):
     explanation: str = Field(description="Why the right option is right, 1–2 sentences.")
 
 
+class AppliedTask(BaseModel):
+    """After teaching: the learner APPLIES the idea in their own words. Recognising the
+    right option in a list is not the same as using an idea; this is the evidence."""
+    kind: Literal["explain", "predict", "debug", "choose"] = Field(
+        description="explain = say why in 1–3 sentences; predict = what happens / what is "
+                    "returned; debug = find what is wrong; choose = pick an option and justify.")
+    prompt: str = Field(description="A short NEW situation (not the worked example), "
+                                    "answerable in under 2 minutes, in 1–3 sentences.")
+    criteria: list[str] = Field(description="1–2 things a correct answer must contain.")
+    model_answer: str = Field(description="A short correct answer, shown after the attempt.")
+
+
 class Section(BaseModel):
     """One concept, taught as a short guided exchange (see the module docstring)."""
     title: str = Field(description="3–7 words.")
@@ -79,8 +91,9 @@ class Section(BaseModel):
     example: str = Field(description="A worked example with numbered steps and any literal "
                                      "request/JSON/SQL/maths it needs, at most ~180 words.")
     diagram: Diagram
-    check: QuizQuestion = Field(description="Asked AFTER teaching: apply the idea in a "
-                                "situation different from the probe and the example.")
+    check: QuizQuestion = Field(description="A quick multiple-choice check, used to confirm "
+                                "a learner who already knew the idea.")
+    task: AppliedTask
     excerpt_ids: list[str]
 
 
@@ -120,13 +133,16 @@ a procedure.
    Diagrams must be consistent with the example and the excerpts.
 4. `excerpt_ids` lists the excerpts each section is built from. Never cite an id that \
 was not supplied.
-5. `probe` and `check`: exactly 4 options each, one correct; wrong options are \
+5. `task` is the real check after teaching: an APPLIED task in a new situation — vary \
+the kind across concepts (explain / predict / debug / choose); keep it short; 1–2 \
+criteria a marker can judge from a typed answer; a short model answer.
+6. `probe` and `check`: exactly 4 options each, one correct; wrong options are \
 realistic MISCONCEPTIONS a learner might hold; `explanation` says why the right one is \
 right. The probe is friendly and answerable from everyday intuition where possible; the \
 check must use a different situation from both the probe and the example.
-6. If the learner's missed points are given, the lesson must address them.
-7. Maths in Unicode (∈ ∉ ⊆ ⊂ ∪ ∩ ∅ ∀ ∃ ¬ ∧ ∨ → ↔ ≡ ≠ ≤ ≥ ² ⁿ), never LaTeX or backslashes.
-8. Friendly and direct, like a good tutor. No filler."""
+7. If the learner's missed points are given, the lesson must address them.
+8. Maths in Unicode (∈ ∉ ⊆ ⊂ ∪ ∩ ∅ ∀ ∃ ¬ ∧ ∨ → ↔ ≡ ≠ ≤ ≥ ² ⁿ), never LaTeX or backslashes.
+9. Friendly and direct, like a good tutor. No filler."""
 
 
 def clean_diagram(d: Diagram) -> Diagram | None:
@@ -160,13 +176,16 @@ def validate(lesson: StructuredLesson, sent_ids: set[str],
         for name, q in (("probe", sec.probe), ("check", sec.check)):
             if len(q.options) != 4 or not 0 <= q.answer_index < 4:
                 problems.append(f"section {i} {name} needs 4 options and a valid answer_index")
+        if not 1 <= len(sec.task.criteria) <= 3 or len(sec.task.prompt.strip()) < 20:
+            problems.append(f"section {i} task needs a prompt and 1–3 criteria")
     return problems
 
 
 def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] = (),
              model: str | None = None, focus: list[str] | None = None,
              learner: str = "",
-             concepts: list[tuple[str, list[str]]] | None = None) -> StructuredLesson | None:
+             concepts: list[tuple[str, list[str]]] | None = None,
+             task_kind: str | None = None) -> StructuredLesson | None:
     """A validated lesson, or None — the caller then shows the plain explanation.
 
     With `focus`, the lesson is REMEDIAL: 1–2 concepts covering exactly those points. The
@@ -193,6 +212,8 @@ def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] 
             "worked example from its example excerpts (same scenario, names and values):\n"
             + "\n".join(f"{n}. {title}  [excerpts: {', '.join(ids)}]"
                          for n, (title, ids) in enumerate(concepts, 1)))
+        if task_kind:
+            parts.append(f"The applied `task` for this concept must be of kind '{task_kind}'.")
     elif focus:
         parts.append(
             "FOCUSED LESSON. The learner already showed the rest of this topic; they missed "
@@ -333,3 +354,34 @@ def followup(cap: Capability, concept: str, explanation: str, kind: str, hits: l
     sent = {h.chunk.id for h in hits}
     r.excerpt_ids = [e for e in r.excerpt_ids if e in sent]
     return r if r.answerable and r.text.strip() else None
+
+
+def generate_part(cap: Capability, question: str, concepts: list[tuple[str, list[Hit]]],
+                  learner: str = "", model: str | None = None,
+                  offset: int = 0) -> StructuredLesson | None:
+    """One unit part, generated ONE CONCEPT PER CALL, in parallel.
+
+    A single call writing three concepts — each with explanation, example, diagram, probe,
+    check and applied task — took ~90 s. Per-concept calls run side by side, so the wait
+    is about one concept's. Each call sees only its own concept's excerpts, which also
+    keeps every concept grounded in its own section of the material.
+    """
+    import contextvars
+    from concurrent.futures import ThreadPoolExecutor
+
+    # Vary how understanding is shown across a part: say why, predict, debug, choose.
+    kinds = ["explain", "predict", "debug", "choose"]
+
+    def one(n: int) -> StructuredLesson | None:
+        title, hits = concepts[n]
+        return generate(cap, question, hits, model=model, learner=learner,
+                        concepts=[(title, [h.chunk.id for h in hits])],
+                        task_kind=kinds[(offset + n) % len(kinds)])
+
+    with ThreadPoolExecutor(len(concepts) or 1) as pool:
+        results = list(pool.map(lambda n: contextvars.copy_context().run(one, n),
+                                range(len(concepts))))
+    if any(r is None or not r.sections for r in results):
+        return None
+    return StructuredLesson(answerable=True, hook=results[0].hook,
+                            sections=[r.sections[0] for r in results])

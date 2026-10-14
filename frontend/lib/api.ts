@@ -91,11 +91,15 @@ export interface Diagram {
   headers: string[]; rows: string[][]; steps: string[];
 }
 export interface UnitInfo {
-  part: number; parts: number; covered: number; total: number;
+  part: number; parts: number;
+  /** covered = taught; demonstrated = the learner showed it (met or after a second try). */
+  covered: number; demonstrated: number; total: number;
   concepts: { id: string; title: string; part: number; status: Verdict | null }[];
 }
+export interface AppliedTask { kind: "explain" | "predict" | "debug" | "choose"; prompt: string; criteria: string[]; modelAnswer: string }
 export interface LessonSection {
   conceptId: string | null;
+  task: AppliedTask | null;
   title: string; probe: QuizQuestion; explanation: string; example: string;
   diagram: Diagram; check: QuizQuestion; sources: string[];
 }
@@ -149,6 +153,10 @@ export const api = {
     post<AttemptResult>(`/api/learners/${enc(id)}/attempts`, { activityId, response, helpUsed }),
   challenge: (id: string, capabilityId: string, avoidActivityId?: string | null, focus: string[] = []) =>
     post<Activity>(`/api/learners/${enc(id)}/challenges`, { capabilityId, avoidActivityId, focus }),
+  judge: (id: string, body: { capabilityId: string; concept: string; task: AppliedTask; answer: string }) =>
+    post<{ outcome: Verdict; missed: string[]; modelAnswer: string;
+           criteria: { criterion: string; verdict: Verdict; justification: string }[] }>(
+      `/api/learners/${enc(id)}/lessons/judge`, body),
   reexplain: (id: string, body: { capabilityId: string; concept: string; explanation: string;
                                   question: string; chosen: string; correct: string }) =>
     post<{ answered: boolean; explanation: string; check: QuizQuestion | null; sources: string[] }>(

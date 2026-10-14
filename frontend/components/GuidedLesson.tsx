@@ -7,38 +7,78 @@ import { Loading, Markdown, StateBadge } from "./ui";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 const NOT_SURE = "I'm not sure yet";
+const TASK_LABEL: Record<string, string> = {
+  explain: "YOUR TURN — EXPLAIN IT",
+  predict: "YOUR TURN — PREDICT WHAT HAPPENS",
+  debug: "YOUR TURN — FIND THE PROBLEM",
+  choose: "YOUR TURN — CHOOSE AND JUSTIFY",
+};
 
 type Phase =
-  | "probe"        // does the learner already know it?
-  | "confirm"      // they did — a different question to be sure
-  | "teach"        // explanation, diagram, worked example
-  | "check"        // apply it in a new situation
-  | "reexplaining" // fetching a different explanation
-  | "recheck"      // after the different explanation
+  | "probe"        // does the learner already know it? (multiple choice, fast)
+  | "confirm"      // they did — a different quick question to be sure
+  | "teach"        // explanation, diagram, worked example, then the applied task
+  | "judging"
+  | "reexplaining" // explain again, aimed at what the answer missed
+  | "recheck"
   | "done";
 
+/** What the learner showed for one concept. "Covered" = taught; "demonstrated" = shown. */
 interface Outcome { conceptId?: string | null; title: string; verdict: Verdict; note: string }
 
-/** A concept at a time, the way a tutor would: ask first, teach only what's needed,
- *  check straight away, explain differently when an answer reveals a misconception.
- *  Outcomes are posted as light evidence at the end (they can't claim mastery). */
-export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFirst, onComplete }: {
+const NOTE = {
+  knew: "demonstrated — you already knew it",
+  learned: "demonstrated after the lesson",
+  second: "demonstrated after a second explanation",
+  unclear: "covered — not demonstrated yet",
+} as const;
+
+type Judged = {
+  outcome: Verdict; missed: string[]; modelAnswer: string;
+  criteria: { criterion: string; verdict: Verdict; justification: string }[];
+};
+
+/** Teach → apply in your own words → feedback on the actual answer → explain the missed
+ *  part differently. Each concept's outcome is saved the moment it is decided, so the
+ *  coverage on screen and in the profile always agree. Outcomes are light evidence. */
+export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFirst, onComplete, onConceptDone }: {
   learnerId: string; capabilityId: string; hook: string | null;
   sections: LessonSection[];
-  /** Beginners: no probe — explain, then check. */
   teachFirst: boolean;
   onComplete: (result: AttemptResult | null) => void;
+  /** Called after each concept is saved, so the page can refresh coverage. */
+  onConceptDone?: () => void;
 }) {
-  const [i, setI] = useState(0);
   const start: Phase = teachFirst ? "teach" : "probe";
+  const [i, setI] = useState(0);
   const [phase, setPhase] = useState<Phase>(start);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
-  const [log, setLog] = useState<string[]>([]);       // short tutor lines for this concept
+  const [log, setLog] = useState<string[]>([]);
+  const [answer, setAnswer] = useState("");
+  const [judged, setJudged] = useState<Judged | null>(null);
   const [re, setRe] = useState<{ explanation: string; check: QuizQuestion | null } | null>(null);
+  const [last, setLast] = useState<AttemptResult | null>(null);
   const [saving, setSaving] = useState(false);
-  // "Explain more simply" etc. — re-teaching THIS concept, not a topic-wide Q&A.
   const [extras, setExtras] = useState<{ label: string; text: string; sources: string[] }[]>([]);
   const [extraBusy, setExtraBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const sec = sections[i];
+  const task = sec.task;
+
+  const say = (line: string) => setLog((l) => [...l, line]);
+
+  async function finishConcept(verdict: Verdict, note: keyof typeof NOTE) {
+    const o = { conceptId: sec.conceptId, title: sec.title, verdict, note: NOTE[note] };
+    setOutcomes((cur) => [...cur, o]);
+    setPhase("done");
+    setSaving(true);
+    try {
+      // Saved now, not at the end of the part: coverage must match what the screen says.
+      setLast(await api.lessonResult(learnerId, { capabilityId, concepts: [o] }));
+      onConceptDone?.();
+    } catch { /* the outcome stays on screen; the profile catches up on the next save */ }
+    finally { setSaving(false); }
+  }
 
   async function more(kind: "simpler" | "example" | "mistakes", label: string) {
     setExtraBusy(label);
@@ -47,34 +87,7 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
       setExtras((x) => [...x, { label, text: r.text, sources: r.sources }]);
     } catch (e) {
       setExtras((x) => [...x, { label, text: (e as Error).message, sources: [] }]);
-    } finally {
-      setExtraBusy(null);
-    }
-  }
-  const sec = sections[i];
-
-  function say(line: string) { setLog((l) => [...l, line]); }
-
-  function finishConcept(verdict: Verdict, note: string) {
-    setOutcomes((o) => [...o, { conceptId: sec.conceptId, title: sec.title, verdict, note }]);
-    setPhase("done");
-  }
-
-  async function explainDifferently(q: QuizQuestion, chosen: number) {
-    setPhase("reexplaining");
-    try {
-      const r = await api.reexplain(learnerId, {
-        capabilityId, concept: sec.title, explanation: sec.explanation,
-        question: q.question, chosen: q.options[chosen], correct: q.options[q.answerIndex],
-      });
-      setRe({ explanation: r.explanation, check: r.check });
-      setPhase(r.check ? "recheck" : "done");
-      if (!r.check) setOutcomes((o) => [...o, { conceptId: sec.conceptId, title: sec.title, verdict: "unmet", note: "still unclear" }]);
-    } catch {
-      setRe({ explanation: "I couldn't load a different explanation. Read the example again, or ask the tutor below.", check: null });
-      setOutcomes((o) => [...o, { conceptId: sec.conceptId, title: sec.title, verdict: "unmet", note: "still unclear" }]);
-      setPhase("done");
-    }
+    } finally { setExtraBusy(null); }
   }
 
   function onProbe(choice: number, notSure: boolean) {
@@ -87,44 +100,66 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
     }
   }
 
-  function onCheck(choice: number) {
+  function onConfirm(choice: number) {
     if (choice === sec.check.answerIndex) {
-      if (phase === "confirm") { say("Confirmed — you know this. Skipping the explanation."); finishConcept("met", "knew it already"); }
-      else { say("Exactly. You've got it."); finishConcept("met", "learned it"); }
+      say("Confirmed — you know this. Skipping ahead.");
+      finishConcept("met", "knew");
     } else {
-      say("Not quite — let me explain it a different way, aimed at that answer.");
-      explainDifferently(sec.check, choice);
+      say("Not quite — let's go through it properly.");
+      setPhase("teach");
+    }
+  }
+
+  async function submitTask() {
+    if (!task) return;
+    setPhase("judging"); setErr(null);
+    try {
+      const j = await api.judge(learnerId, { capabilityId, concept: sec.title, task, answer });
+      setJudged(j);
+      if (j.outcome === "met") {
+        say("That's it — you applied it correctly.");
+        finishConcept("met", "learned");
+        return;
+      }
+      say(j.outcome === "partial"
+        ? "Part of that is right. Let me explain just the part you missed."
+        : "Not yet — let me explain it a different way, aimed at your answer.");
+      setPhase("reexplaining");
+      const r = await api.reexplain(learnerId, {
+        capabilityId, concept: sec.title, explanation: sec.explanation,
+        question: task.prompt, chosen: answer,
+        correct: `A correct answer needed to: ${j.missed.join("; ")}`,
+      });
+      setRe({ explanation: r.explanation, check: r.check });
+      if (r.check) setPhase("recheck"); else finishConcept("unmet", "unclear");
+    } catch (e) {
+      setErr((e as Error).message); setPhase("teach");
     }
   }
 
   function onRecheck(choice: number) {
     if (!re?.check) return;
-    if (choice === re.check.answerIndex) { say("That's it. It clicked the second time."); finishConcept("partial", "after a second explanation"); }
-    else { say("Still tricky — we'll come back to this one. The tutor below can help."); finishConcept("unmet", "still unclear"); }
+    if (choice === re.check.answerIndex) { say("That's it — it clicked the second time."); finishConcept("partial", "second"); }
+    else { say("Still tricky — we'll come back to it. The tutor below can help."); finishConcept("unmet", "unclear"); }
   }
 
-  async function next() {
+  function next() {
     if (i + 1 < sections.length) {
-      setI(i + 1); setPhase(start); setLog([]); setRe(null); setExtras([]);
+      setI(i + 1); setPhase(start); setLog([]); setRe(null); setExtras([]); setAnswer(""); setJudged(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-    setSaving(true);
-    try {
-      onComplete(await api.lessonResult(learnerId, { capabilityId, concepts: outcomes }));
-    } catch {
-      onComplete(null);
+    } else {
+      onComplete(last);
     }
   }
 
-  const showTeach = ["teach", "check", "reexplaining", "recheck"].includes(phase)
-    || (phase === "done" && outcomes[outcomes.length - 1]?.note !== "knew it already");
+  const knewIt = phase === "done" && outcomes[outcomes.length - 1]?.note === NOTE.knew;
+  const showTeach = !["probe", "confirm"].includes(phase) && !knewIt;
+  const answering = phase === "teach";
 
   return (
     <div>
       {i === 0 && hook && <p className="hook" style={{ fontSize: 16 }}>{hook}</p>}
 
-      {/* finished concepts, one line each */}
       {outcomes.slice(0, phase === "done" ? -1 : undefined).map((o) => (
         <div key={o.title} className="concept-done">
           <span className={`badge ${o.verdict}`}>{o.verdict === "met" ? "✓" : o.verdict === "partial" ? "△" : "…"}</span>
@@ -138,14 +173,16 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
           <span className="small muted">Concept {i + 1} of {sections.length}</span>
         </div>
 
-        {/* 1. ask first — unless the learner is new to this, then explain first */}
         {!teachFirst && (
-          <Question label="FIRST, WHAT DO YOU THINK?" q={sec.probe} allowNotSure
+          <Choice label="FIRST, WHAT DO YOU THINK?" q={sec.probe} allowNotSure
             locked={phase !== "probe"} onAnswer={onProbe} />
         )}
         {!teachFirst && log[0] && <Tutor text={log[0]} />}
+        {!teachFirst && log[0]?.startsWith("You already") && (
+          <Choice label="TO BE SURE" q={sec.check} locked={phase !== "confirm"} onAnswer={(c) => onConfirm(c)} />
+        )}
+        {knewIt && log[1] && <Tutor text={log[1]} />}
 
-        {/* 2. teach — only if needed */}
         {showTeach && (
           <div className="teach">
             <Markdown text={sec.explanation} />
@@ -164,43 +201,68 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
             <div className="row" style={{ gap: 6, marginTop: 10 }}>
               {([["simpler", "Explain it more simply"], ["example", "Show me another example"],
                  ["mistakes", "Common mistakes"]] as const).map(([kind, label]) => (
-                <button key={kind} className="chip" disabled={!!extraBusy}
-                  onClick={() => more(kind, label)}>{label}</button>
+                <button key={kind} className="chip" disabled={!!extraBusy} onClick={() => more(kind, label)}>{label}</button>
               ))}
             </div>
             {extraBusy && <Loading stages={[`${extraBusy}…`]} />}
           </div>
         )}
 
-        {/* 3. check — or confirm, for someone who already knew it */}
-        {(phase === "confirm" || (showTeach && phase !== "teach")) && (
-          <Question label={phase === "confirm" || log[0]?.startsWith("You already") ? "TO BE SURE" : "NOW TRY THIS"}
-            q={sec.check} locked={phase !== "check" && phase !== "confirm"}
-            onAnswer={(c) => onCheck(c)} />
+        {/* the real check: apply the idea in your own words */}
+        {showTeach && task && (
+          <div className="check">
+            <div className="small muted" style={{ fontWeight: 700, letterSpacing: ".04em" }}>
+              {TASK_LABEL[task.kind] ?? "YOUR TURN"}
+            </div>
+            <div style={{ margin: "6px 0 10px" }}><Markdown text={task.prompt} /></div>
+            {answering ? (
+              <>
+                <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} style={{ minHeight: 80 }}
+                  placeholder="A few sentences in your own words. Reasoning counts more than wording." />
+                {err && <div className="error">{err}</div>}
+                <div className="row" style={{ marginTop: 8 }}>
+                  <button className="btn" disabled={!answer.trim()} onClick={submitTask}>Check my answer →</button>
+                  <span className="small muted">Marked on {task.criteria.length} point{task.criteria.length > 1 ? "s" : ""}</span>
+                </div>
+              </>
+            ) : (
+              <div className="prompt small">{answer}</div>
+            )}
+            {phase === "judging" && <Loading stages={["Reading your answer…", "Checking each point…"]} />}
+            {judged && (
+              <div style={{ marginTop: 10 }}>
+                {judged.criteria.map((c) => (
+                  <div key={c.criterion} className="row" style={{ alignItems: "flex-start", flexWrap: "nowrap", margin: "6px 0" }}>
+                    <span className={`badge ${c.verdict}`}>{c.verdict === "met" ? "✓" : c.verdict === "partial" ? "△" : "✗"}</span>
+                    <div className="md-inline" style={{ minWidth: 0 }}><Markdown text={c.criterion} />
+                      <div className="small muted"><Markdown text={c.justification} /></div></div>
+                  </div>
+                ))}
+                <details style={{ marginTop: 6 }}>
+                  <summary className="small">A model answer</summary>
+                  <div className="small"><Markdown text={judged.modelAnswer} /></div>
+                </details>
+              </div>
+            )}
+          </div>
         )}
-        {phase === "teach" && (
-          <button className="btn" style={{ marginTop: 10 }} onClick={() => setPhase("check")}>I&apos;ve read it — check me →</button>
-        )}
-        {(teachFirst ? log[0] : log[1]) && <Tutor text={(teachFirst ? log[0] : log[1])!} />}
+        {showTeach && log[teachFirst ? 0 : 1] && <Tutor text={log[teachFirst ? 0 : 1]} />}
 
-        {/* 4. explain differently, then a new check */}
-        {phase === "reexplaining" && <Loading stages={["Working out what that answer misunderstood…", "Explaining it another way…"]} />}
+        {phase === "reexplaining" && <Loading stages={["Working out what your answer missed…", "Explaining just that part…"]} />}
         {re && (
           <div className="teach again">
-            <div className="example-label">ANOTHER WAY TO SEE IT</div>
+            <div className="example-label">THE PART YOU MISSED</div>
             <Markdown text={re.explanation} />
           </div>
         )}
-        {re?.check && (
-          <Question label="ONE MORE TRY" q={re.check} locked={phase !== "recheck"} onAnswer={onRecheck} />
-        )}
-        {(teachFirst ? log[1] : log[2]) && <Tutor text={(teachFirst ? log[1] : log[2])!} />}
+        {re?.check && <Choice label="ONE MORE TRY" q={re.check} locked={phase !== "recheck"} onAnswer={onRecheck} />}
+        {showTeach && log[teachFirst ? 1 : 2] && <Tutor text={log[teachFirst ? 1 : 2]} />}
 
         {phase === "done" && (
           <div className="row" style={{ marginTop: 14, justifyContent: "flex-end" }}>
-            {saving ? <Loading stages={["Updating your skill profile…"]} /> : (
+            {saving ? <Loading stages={["Saving to your profile…"]} /> : (
               <button className="btn" onClick={next}>
-                {i + 1 < sections.length ? `Next concept: ${sections[i + 1].title} →` : "Finish the lesson →"}
+                {i + 1 < sections.length ? `Next concept: ${sections[i + 1].title} →` : "Finish this part →"}
               </button>
             )}
           </div>
@@ -215,7 +277,7 @@ function Tutor({ text }: { text: string }) {
   return <div className="tutor-line"><span className="tutor-avatar">C</span><span>{text}</span></div>;
 }
 
-function Question({ label, q, locked, onAnswer, allowNotSure }: {
+function Choice({ label, q, locked, onAnswer, allowNotSure }: {
   label: string; q: QuizQuestion; locked: boolean;
   onAnswer: (choice: number, notSure: boolean) => void; allowNotSure?: boolean;
 }) {
@@ -242,9 +304,7 @@ function Question({ label, q, locked, onAnswer, allowNotSure }: {
         })}
       </div>
       {answered && !notSure && (
-        <div className={picked === q.answerIndex ? "verdict ok" : "verdict miss"}>
-          <Markdown text={q.explanation} />
-        </div>
+        <div className={picked === q.answerIndex ? "verdict ok" : "verdict miss"}><Markdown text={q.explanation} /></div>
       )}
     </div>
   );
@@ -253,14 +313,14 @@ function Question({ label, q, locked, onAnswer, allowNotSure }: {
 export function LessonOutcome({ result }: { result: AttemptResult }) {
   return (
     <div className="card highlight">
-      <h2>Lesson complete</h2>
+      <h2>Part complete</h2>
       {result.changes.map((c) => (
         <p key={c.capabilityId} style={{ margin: "4px 0" }}>
           <strong>{c.name}</strong>: <StateBadge state={c.stateBefore} /> → <StateBadge state={c.stateAfter} />
         </p>
       ))}
       <p className="small muted" style={{ marginBottom: 0 }}>
-        Quick checks show progress but can&apos;t prove mastery on their own — the challenge below does that.
+        In-lesson tasks show progress, but a skill is only mastered after the unit challenge.
       </p>
     </div>
   );

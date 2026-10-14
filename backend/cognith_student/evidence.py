@@ -295,9 +295,11 @@ class GeminiEvaluator:
     student" even if asked.
     """
 
-    def __init__(self, model: str | None = None):
+    def __init__(self, model: str | None = None, thinking: str | None = None):
         from cognith_rag.config import GENERATION_MODEL
         self.model = model or GENERATION_MODEL
+        #: "low" for short in-lesson tasks, where a fast verdict matters more than depth.
+        self.thinking = thinking
 
     def evaluate(self, item: Assessable, response: str) -> list[CriterionResult]:
         from cognith_rag.embeddings import get_client
@@ -322,7 +324,8 @@ class GeminiEvaluator:
                 "mime_type": "application/json",
                 "schema": _Judgements.model_json_schema(),
             },
-            generation_config={"temperature": 0.0},
+            generation_config={"temperature": 0.0,
+                               **({"thinking_level": self.thinking} if self.thinking else {})},
         )
         parsed = _Judgements.model_validate_json(interaction.output_text)
 

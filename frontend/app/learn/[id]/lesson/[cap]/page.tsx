@@ -119,6 +119,7 @@ function LessonView() {
       {lesson && guided && !finished && (
         <GuidedLesson learnerId={id} capabilityId={cap} hook={lesson.hook}
           sections={lesson.sections!} teachFirst={lesson.teachFirst}
+          onConceptDone={() => api.unit(id, cap).then(setUnitAfter).catch(() => {})}
           onComplete={(r) => {
             setOutcome(r); setFinished(true); window.scrollTo(0, 0);
             api.unit(id, cap).then(setUnitAfter).catch(() => {});
@@ -127,7 +128,7 @@ function LessonView() {
       {finished && outcome && <LessonOutcome result={outcome} />}
       {finished && unit && !unitDone && nextPart && (
         <div className="card highlight">
-          <h2>Part done — {unit.covered} of {unit.total} ideas covered</h2>
+          <h2>Part done — covered {unit.covered} of {unit.total} ideas, demonstrated {unit.demonstrated}</h2>
           <p className="muted">
             The challenge comes once you&apos;ve covered the whole unit, so it can test all of it.
           </p>

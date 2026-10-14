@@ -542,14 +542,27 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         kk = GapResolver(graph(), profile)
         kk._store = store()
         retrieved = kk.knowledge_for(gap, explain=False)
-        concepts = None
         if part is not None:
+            # One concept per call, in parallel (microlesson.generate_part); each concept
+            # sees its own sections, plus the unit intro / common mistakes at the ends.
             chunk = {c.id: c for c in store().chunks}
-            ids = up.plan.chunk_ids_for(part, first=part_n == 0,
-                                        last=part_n == len(up.plan.parts) - 1)
-            hits = [Hit(chunk[i], 1.0) for i in ids if i in chunk]
-            concepts = [(c.title, c.chunk_ids + c.example_ids) for c in part]
-        elif focus and cap.knowledge_docs:
+            last = len(part) - 1
+            per = []
+            for n, c in enumerate(part):
+                ids = c.chunk_ids + c.example_ids
+                if n == 0 and part_n == 0:
+                    ids = up.plan.intro_ids + ids
+                if n == last and part_n == len(up.plan.parts) - 1:
+                    ids = ids + up.plan.mistake_ids
+                per.append((c.title, [Hit(chunk[i], 1.0) for i in ids if i in chunk]))
+            hits = [h for _, hs in per for h in hs]
+            try:
+                return microlesson.generate_part(cap, retrieved.question, per,
+                                                 learner=str(ctx), offset=part_n * 3), hits
+            except Exception:  # noqa: BLE001
+                return None, hits
+        concepts = None
+        if focus and cap.knowledge_docs:
             hits = focused_hits(cap, focus)
         else:
             hits = retrieved.hits
@@ -591,6 +604,7 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
             explanation=x.explanation, example=x.example,
             diagram=s.Diagram(**x.diagram.model_dump()),
             check=s.QuizQuestion(**x.check.model_dump()),
+            task=s.AppliedTask(**x.task.model_dump()),
             sources=[citation[e] for e in x.excerpt_ids if e in citation])
             for n, x in enumerate(micro.sections)] if micro else None,
         gate=res.gate if res else "no_corpus",
@@ -603,6 +617,7 @@ def unit_info(up, part_n: int | None) -> s.UnitInfo | None:
     return s.UnitInfo(
         part=(part_n + 1) if part_n is not None else 0, parts=len(up.plan.parts),
         covered=up.done, total=up.total,
+        demonstrated=sum(1 for v in up.covered.values() if v in ("met", "partial")),
         concepts=[s.UnitConcept(id=c.id, title=c.title, part=up.plan.part_of(c.id) + 1,
                                 status=up.covered.get(c.id)) for c in up.plan.concepts])
 
@@ -699,6 +714,35 @@ def retrieve_for(profile: CapabilityProfile, cap, query: str | None = None):
     return resolver.knowledge_for(
         Gap(capability_id=cap.id, mastery=row.mastery, confidence=row.confidence),
         explain=False).hits
+
+
+@app.post("/api/learners/{learner_id}/lessons/judge", response_model=s.Judgement)
+def judge_task(learner_id: str, req: s.JudgeRequest):
+    """Mark an in-lesson applied task against its 1–2 criteria. The verdict is what tells
+    Cognith whether the concept was understood — not having read it."""
+    from types import SimpleNamespace
+
+    from cognith_student.diagnostic import RubricCriterion
+
+    load_profile(learner_id)
+    cap = capability_or_404(req.capability_id)
+    rubric = tuple(RubricCriterion(id=f"t{i}", criterion=c, capability_id=cap.id)
+                   for i, c in enumerate(req.task.criteria))
+    item = SimpleNamespace(id="lesson-task", capability_id=cap.id, rubric=rubric,
+                           prompt=f"(Concept: {req.concept})\n{req.task.prompt}")
+    try:
+        results = GeminiEvaluator(thinking="low").evaluate(item, req.answer)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, f"Couldn't mark that answer: {type(exc).__name__}") from None
+    verdicts = [r.verdict.value for r in results]
+    outcome = ("met" if all(v == "met" for v in verdicts)
+               else "unmet" if all(v == "unmet" for v in verdicts) else "partial")
+    return s.Judgement(
+        outcome=s.Verdict(outcome), model_answer=req.task.model_answer,
+        criteria=[s.JudgedCriterion(criterion=c.criterion, verdict=s.Verdict(r.verdict.value),
+                                    justification=r.justification)
+                  for c, r in zip(rubric, results)],
+        missed=[c.criterion for c, r in zip(rubric, results) if r.verdict.value != "met"])
 
 
 @app.post("/api/learners/{learner_id}/lessons/reexplain", response_model=s.Reexplanation)

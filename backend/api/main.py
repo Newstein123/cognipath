@@ -186,12 +186,12 @@ def explain_skill(row: StudentCapability, gap: Gap | None) -> str:
     if row.status is MasteryStatus.DEMONSTRATED:
         text = f"Demonstrated at {row.mastery:.0%} across {pieces}."
         if gap and gap.unmet:
-            text += f' One thing still missed: "{gap.unmet[0]}".'
+            text += f' One thing still missed: "{gap.unmet[0].removeprefix("Understands: ")}".'
         return text
     if row.status is MasteryStatus.DEVELOPING:
         text = f"Demonstrated {row.mastery:.0%} so far, from {pieces}."
         if gap and gap.unmet:
-            text += f' Still to develop: "{gap.unmet[0]}".'
+            text += f' Still to develop: "{gap.unmet[0].removeprefix("Understands: ")}".'
         return text
     if row.status is MasteryStatus.CLAIMED:
         return (f"You rated yourself {row.confidence:.0%}. Not verified yet — "
@@ -204,6 +204,12 @@ def skill_profile(profile: CapabilityProfile, loop: AdaptiveLoop | None = None) 
 
     loop = loop or AdaptiveLoop(graph(), profile)
     gaps = {g.capability_id: g for g in loop.resolver.gaps()}
+    plan = next_activities(loop.recommend(limit=10))
+    step_for = {}
+    for st in plan.steps:
+        if st.capability_id and st.capability_id not in step_for:
+            step_for[st.capability_id] = st
+    history = skill_evidence(profile.student.id)
     skills = []
     for row in profile.all_rows():
         cap = graph().get(row.capability_id)
@@ -215,14 +221,51 @@ def skill_profile(profile: CapabilityProfile, loop: AdaptiveLoop | None = None) 
             if state is s.SkillState.MASTERED and not up.complete:
                 state = s.SkillState.DEVELOPING
                 why += " Finish the unit to master it."
+        gap = gaps.get(cap.id)
         skills.append(s.Skill(
             capability_id=cap.id, name=cap.name, area=cap.area, statement=cap.statement,
             state=state, mastery=row.mastery, self_rated=row.confidence,
             evidence_count=row.evidence_count,
             last_assessed_at=row.last_assessed_at.isoformat() if row.last_assessed_at else None,
             explanation=why,
+            evidence=history.get(cap.id, [])[:4],
+            uncertain=[u.removeprefix("Understands: ") for u in (gap.unmet[:3] if gap else ())],
+            coverage=s.Coverage(covered=up.done, total=up.total,
+                                demonstrated=sum(1 for v in up.covered.values() if v in ("met", "partial")))
+            if up else None,
+            next_step=step_for.get(cap.id),
         ))
-    return s.SkillProfile(learner=summary(profile), position=loop.position(), skills=skills)
+    return s.SkillProfile(learner=summary(profile), position=loop.position(), skills=skills,
+                          next_step=plan.steps[0] if plan.steps else None)
+
+
+def skill_evidence(learner_id: str) -> dict[str, list[s.SkillEvidence]]:
+    """capability id -> evidence entries in learner terms, newest first."""
+    out: dict[str, list[s.SkillEvidence]] = {}
+    lib = library()
+    for entry in reversed(get_storage().load_evidence(learner_id)):
+        ev, asmt = entry["evidence"], entry["assessment"]
+        exp = lib.experiences.get(ev["experienceId"])
+        kind = ("lesson" if ev["experienceId"].startswith("checks-")
+                else "challenge" if ev["experienceId"].startswith("gen-")
+                else "diagnosis" if exp is not None and exp.type.value == "diagnostic"
+                else "practice")
+        title = ("Lesson checks" if kind == "lesson"
+                 else exp.title if exp is not None else ev["experienceId"])
+        assisted = "guided help" in asmt.get("explanation", "")[:80]
+        for o in asmt.get("outcomes", []):
+            shown = len(o.get("met", [])) + len(o.get("partial", []))
+            n_all = shown + len(o.get("unmet", []))
+            rows = out.setdefault(o["capabilityId"], [])
+            # Lesson tasks are saved one concept at a time; show a day's as one line.
+            if (kind == "lesson" and rows and rows[-1].kind == "lesson"
+                    and rows[-1].created_at[:10] == ev["createdAt"][:10]):
+                rows[-1].met += shown
+                rows[-1].total += n_all
+                continue
+            rows.append(s.SkillEvidence(title=title, kind=kind, created_at=ev["createdAt"],
+                                        met=shown, total=n_all, assisted=assisted))
+    return out
 
 
 def next_activities(state: LoopState) -> s.NextActivities:

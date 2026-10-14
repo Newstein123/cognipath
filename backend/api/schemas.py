@@ -114,6 +114,22 @@ class LearnerSummary(Model):
     course: Course
 
 
+class SkillEvidence(Model):
+    """One piece of evidence behind a skill state, in learner terms."""
+    title: str
+    kind: str            # lesson | practice | challenge | diagnosis
+    created_at: str
+    met: int
+    total: int
+    assisted: bool = False
+
+
+class Coverage(Model):
+    covered: int
+    demonstrated: int
+    total: int
+
+
 class Skill(Model):
     capability_id: str
     name: str
@@ -129,6 +145,14 @@ class Skill(Model):
     last_assessed_at: str | None
     #: One sentence for the learner on why the skill is in this state.
     explanation: str
+    #: The evidence behind the state, newest first (at most 4).
+    evidence: list[SkillEvidence] = []
+    #: What the latest attempt on this skill did not show yet.
+    uncertain: list[str] = []
+    #: Unit coverage — taught vs demonstrated — when the skill has material.
+    coverage: Coverage | None = None
+    #: The recommended next step for THIS skill, if the plan has one.
+    next_step: "Step | None" = None
 
 
 class SkillProfile(Model):
@@ -136,6 +160,8 @@ class SkillProfile(Model):
     #: "8 of 17 demonstrated, 9 assessed, 5 still taken on trust."
     position: str
     skills: list[Skill]
+    #: The single most useful thing to do now, and why.
+    next_step: "Step | None" = None
 
 
 class LearnerCreated(Model):
@@ -505,3 +531,7 @@ class EvidenceEntry(Model):
     criteria: list[CriterionResult]
     changes: list[SkillChange]
     explanation: str
+
+
+Skill.model_rebuild()
+SkillProfile.model_rebuild()

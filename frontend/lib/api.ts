@@ -26,8 +26,12 @@ export interface Skill {
   capabilityId: string; name: string; area: string; statement: string;
   state: SkillState; mastery: number | null; selfRated: number | null;
   evidenceCount: number; lastAssessedAt: string | null; explanation: string;
+  evidence: { title: string; kind: string; createdAt: string; met: number; total: number; assisted: boolean }[];
+  uncertain: string[];
+  coverage: { covered: number; demonstrated: number; total: number } | null;
+  nextStep: Step | null;
 }
-export interface SkillProfile { learner: LearnerSummary; position: string; skills: Skill[] }
+export interface SkillProfile { learner: LearnerSummary; position: string; skills: Skill[]; nextStep: Step | null }
 export interface LearnerCreated {
   learner: LearnerSummary;
   goal: { text: string; goalId: string; goalName: string; supported: boolean };

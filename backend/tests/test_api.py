@@ -344,3 +344,32 @@ def test_goal_text_picks_the_course(client):
     assert r["learner"]["course"]["id"] == "mat221"
     r = client.post("/api/learners", json={**body, "goal": "build a REST API with authentication"}).json()
     assert r["learner"]["course"]["id"] == "rest-api"
+
+
+def test_real_challenge_generator_uses_the_learners_course(client, monkeypatch):
+    """Regression: the generator dependency was built before the learner's course was
+    active, so a REST-course challenge looked up http-basics in the wrong course."""
+    import json
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    import re
+
+    monkeypatch.setattr("cognith_rag.embeddings.embed_query",
+                        lambda text: np.ones(768, dtype=np.float32) / np.sqrt(768))
+    learner = client.post("/api/learners", json={**ONBOARDING, "course": "rest-api", "name": "R",
+                                                 "technologies": [], "level": "none"}).json()
+    lid = learner["learner"]["id"]
+
+    def create(**kw):  # a stand-in for Gemini that cites an excerpt it was actually sent
+        chunk = re.search(r"EXCERPT id=(\S+) ---", kw["input"]).group(1)
+        return SimpleNamespace(output_text=json.dumps({
+            "title": "A new situation", "prompt": "p" * 80, "minutes": 6,
+            "criteria": [{"criterion": f"c{i}", "excerpt_id": chunk} for i in range(3)]}))
+
+    fake = SimpleNamespace(interactions=SimpleNamespace(create=create))
+    monkeypatch.setattr("cognith_learning.generator.get_client", lambda: fake)
+    r = client.post(f"/api/learners/{lid}/challenges", json={"capabilityId": "http-basics"})
+    assert r.status_code == 201, r.text
+    assert r.json()["capabilityId"] == "http-basics"

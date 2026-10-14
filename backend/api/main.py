@@ -562,8 +562,12 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
 
 
 def generator() -> ChallengeGenerator:
-    """Overridden in tests, so they need no API key."""
-    return ChallengeGenerator(graph())
+    """Overridden in tests, so they need no API key.
+
+    Built WITHOUT a graph: FastAPI resolves dependencies before the endpoint body runs,
+    i.e. before load_profile has switched to the learner's course. The endpoint attaches
+    the right course's graph after loading the profile."""
+    return ChallengeGenerator(None)
 
 
 @app.post("/api/learners/{learner_id}/challenges", response_model=s.Activity, status_code=201)
@@ -572,6 +576,8 @@ def create_challenge(learner_id: str, req: s.ChallengeRequest,
     """A NEW challenge for one capability, written from its course material and aimed
     at what the learner missed. Persisted so its evidence stays traceable."""
     profile = load_profile(learner_id)
+    if hasattr(gen, "graph"):
+        gen.graph = graph()  # the learner's course, now that it is active
     try:
         cap = graph().get(req.capability_id)
     except KeyError:

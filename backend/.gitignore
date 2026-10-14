@@ -7,3 +7,15 @@ data/generated/
 data/students/astro-*
 data/evidence/astro-*
 courses/mat221/
+# Real learners stay local; only the seeded demo learners are tracked.
+data/students/*
+!data/students/demo.json
+!data/students/fresh.json
+!data/students/003.json
+!data/students/student-001.json
+!data/students/student-002.json
+data/evidence/*
+!data/evidence/demo.json
+!data/evidence/fresh.json
+!data/evidence/003.json
+!data/evidence/student-001.json

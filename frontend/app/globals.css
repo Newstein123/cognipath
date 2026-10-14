@@ -249,3 +249,12 @@ details summary { cursor: pointer; }
 .unit-list li.partial .mark { color: var(--amber); }
 .unit-list li.unmet .mark { color: var(--red); }
 .unit-list li.todo { color: var(--muted); }
+.multipart { margin-top: 14px; }
+.multipart .part { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.part-q { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.part-q .md > p { margin: 0 0 4px; }
+.part-label { flex: none; font-weight: 700; color: var(--primary); min-width: 28px; }
+.subs { list-style: none; padding: 0; margin: 6px 0 0; }
+.subs li { display: flex; gap: 6px; align-items: baseline; padding: 2px 0; }
+.subs li .md > p { margin: 0; }
+.sub-label { flex: none; font-weight: 600; color: var(--muted); min-width: 34px; }

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api, lessonHref, pct, type Activity, type AttemptResult } from "@/lib/api";
 import { GuidedHelp } from "./GuidedHelp";
+import { joinAnswers, MultiPartAnswer, splitParts } from "./MultiPart";
 import { ErrorBox, Loading, Markdown, StateBadge, StepCard } from "./ui";
 
 const MARK = { met: "✓", partial: "△", unmet: "✗" } as const;
@@ -22,6 +23,12 @@ export function ActivityRunner({
   showTeach?: boolean;
 }) {
   const [response, setResponse] = useState("");
+  // Multi-part questions — "(a) … (b) …" — get one answer box per part.
+  const split = useMemo(() => splitParts(activity.prompt), [activity.prompt]);
+  const [partAnswers, setPartAnswers] = useState<string[]>([]);
+  const answerText = split ? joinAnswers(split.parts, partAnswers) : response;
+  const hasAnswer = split ? partAnswers.some((a) => a?.trim()) : !!response.trim();
+  const blank = split ? split.parts.filter((_, k) => !partAnswers[k]?.trim()).map((p) => p.label) : [];
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AttemptResult | null>(null);
@@ -32,7 +39,7 @@ export function ActivityRunner({
     setBusy(true);
     setError(null);
     try {
-      setResult(await api.attempt(learnerId, activity.id, response, helpUsed));
+      setResult(await api.attempt(learnerId, activity.id, answerText, helpUsed));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -47,7 +54,9 @@ export function ActivityRunner({
           <h2 style={{ margin: 0 }}>{activity.title}</h2>
           <span className="muted small">{activity.level} · about {activity.minutes} min</span>
         </div>
-        <div className="prompt md" style={{ marginTop: 14, whiteSpace: "normal" }}><Markdown text={activity.prompt} /></div>
+        {!split && (
+          <div className="prompt md" style={{ marginTop: 14, whiteSpace: "normal" }}><Markdown text={activity.prompt} /></div>
+        )}
 
         {/* Criteria often state the expected answer, so they are revealed only in the
             feedback, each with its verdict. */}
@@ -58,18 +67,28 @@ export function ActivityRunner({
 
         {!result && (
           <>
-            <label htmlFor="answer">Your answer</label>
-            <textarea
-              id="answer" value={response} disabled={busy}
-              placeholder="Explain your reasoning. There is no word limit — what matters is the thinking."
-              onChange={(e) => setResponse(e.target.value)}
-            />
+            {split ? (
+              <MultiPartAnswer intro={split.intro} parts={split.parts} answers={partAnswers}
+                onChange={setPartAnswers} disabled={busy} />
+            ) : (
+              <>
+                <label htmlFor="answer">Your answer</label>
+                <textarea
+                  id="answer" value={response} disabled={busy}
+                  placeholder="Explain your reasoning. There is no word limit — what matters is the thinking."
+                  onChange={(e) => setResponse(e.target.value)}
+                />
+              </>
+            )}
             <ErrorBox error={error} />
             {busy ? (
               <Loading stages={["Reading your answer…", "Judging each criterion…", "Updating your skill profile…"]} />
             ) : (
               <div className="row" style={{ marginTop: 12 }}>
-                <button className="btn" disabled={!response.trim()} onClick={submit}>Submit answer</button>
+                <button className="btn" disabled={!hasAnswer} onClick={submit}>Submit answer</button>
+                {split && hasAnswer && blank.length > 0 && (
+                  <span className="small muted">Not answered yet: {blank.map((b) => `(${b})`).join(", ")}</span>
+                )}
                 {helpUsed > 0 && <span className="small muted">Submitted with help — counts as assisted.</span>}
               </div>
             )}

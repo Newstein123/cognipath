@@ -1618,3 +1618,24 @@ cards, then a page plus an end quiz; none responded to what the learner got wron
 
 **Where:** `cognith_learning/microlesson.py`, `api/main.py` (`/lessons/reexplain`,
 `/lessons/result`, `/hint`), `frontend/components/GuidedLesson.tsx`.
+
+---
+
+## D54 — Guided help during challenges; help makes evidence "assisted"
+
+**Phase 15.**
+
+**Decision:** challenges (not diagnostics) get a tutor panel with graduated help — 1 nudge
+(guiding question), 2 key idea, 3 similar worked example on different values — unlocked in
+order, plus free questions. The model is given the marking criteria as things it must not
+state, sees only course excerpts as facts, and self-flags a reply that would reveal the
+answer (replaced). Each request is counted and sent with the answer; any help caps the
+observed score (1 → 0.85, 2 → 0.75, 3+ → 0.65) and the explanation says the attempt was
+assisted.
+
+**Why:** the vision wants an AI tutor available during challenges as guidance, and also
+that "a competency remains incomplete" until applied independently. Uncapped help would
+let a learner reach mastery on an answer the tutor walked them through.
+
+**Where:** `cognith_learning/guide.py`, `POST /api/learners/{id}/help`,
+`AttemptRequest.help_used`, `frontend/components/GuidedHelp.tsx`.

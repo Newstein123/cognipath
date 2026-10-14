@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api, lessonHref, pct, type Activity, type AttemptResult } from "@/lib/api";
+import { GuidedHelp } from "./GuidedHelp";
 import { ErrorBox, Loading, Markdown, StateBadge, StepCard } from "./ui";
 
 const MARK = { met: "✓", partial: "△", unmet: "✗" } as const;
@@ -24,26 +25,14 @@ export function ActivityRunner({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AttemptResult | null>(null);
-  const [hint, setHint] = useState<string | null>(null);
-  const [hinting, setHinting] = useState(false);
-
-  async function getHint() {
-    setHinting(true);
-    try {
-      const h = await api.hint(learnerId, activity.id);
-      setHint(h.answered ? h.hint : "No hint in the course material for this one — try the tutor.");
-    } catch (e) {
-      setHint((e as Error).message);
-    } finally {
-      setHinting(false);
-    }
-  }
+  // Guided-help requests so far; sent with the answer, which then counts as assisted.
+  const [helpUsed, setHelpUsed] = useState(0);
 
   async function submit() {
     setBusy(true);
     setError(null);
     try {
-      setResult(await api.attempt(learnerId, activity.id, response));
+      setResult(await api.attempt(learnerId, activity.id, response, helpUsed));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -69,10 +58,6 @@ export function ActivityRunner({
 
         {!result && (
           <>
-            {hint && (
-              <div className="tutor-line"><span className="tutor-avatar">C</span>
-                <span className="md-inline"><Markdown text={`**Hint:** ${hint}`} /></span></div>
-            )}
             <label htmlFor="answer">Your answer</label>
             <textarea
               id="answer" value={response} disabled={busy}
@@ -85,16 +70,17 @@ export function ActivityRunner({
             ) : (
               <div className="row" style={{ marginTop: 12 }}>
                 <button className="btn" disabled={!response.trim()} onClick={submit}>Submit answer</button>
-                {activity.type !== "diagnostic" && !hint && (
-                  <button className="btn secondary" disabled={hinting} onClick={getHint}>
-                    {hinting ? "Finding a hint…" : "Get a hint"}
-                  </button>
-                )}
+                {helpUsed > 0 && <span className="small muted">Submitted with help — counts as assisted.</span>}
               </div>
             )}
           </>
         )}
       </div>
+
+      {/* No help during the diagnosis: it measures where the learner starts. */}
+      {!result && activity.type !== "diagnostic" && (
+        <GuidedHelp learnerId={learnerId} activityId={activity.id} onUse={setHelpUsed} />
+      )}
 
       {result && (
         <AttemptResultView

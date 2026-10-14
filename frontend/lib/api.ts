@@ -123,8 +123,8 @@ export const api = {
   next: (id: string, limit = 4) => call<NextActivities>(`/api/learners/${enc(id)}/next?limit=${limit}`),
   diagnostic: (id: string) => call<Diagnostic>(`/api/learners/${enc(id)}/diagnostic`),
   activity: (activityId: string) => call<Activity>(`/api/activities/${enc(activityId)}`),
-  attempt: (id: string, activityId: string, response: string) =>
-    post<AttemptResult>(`/api/learners/${enc(id)}/attempts`, { activityId, response }),
+  attempt: (id: string, activityId: string, response: string, helpUsed = 0) =>
+    post<AttemptResult>(`/api/learners/${enc(id)}/attempts`, { activityId, response, helpUsed }),
   challenge: (id: string, capabilityId: string, avoidActivityId?: string | null) =>
     post<Activity>(`/api/learners/${enc(id)}/challenges`, { capabilityId, avoidActivityId }),
   reexplain: (id: string, body: { capabilityId: string; concept: string; explanation: string;
@@ -134,8 +134,9 @@ export const api = {
   lessonResult: (id: string, body: { capabilityId: string;
                                      concepts: { title: string; verdict: Verdict; note: string }[] }) =>
     post<AttemptResult>(`/api/learners/${enc(id)}/lessons/result`, body),
-  hint: (id: string, activityId: string) =>
-    post<{ answered: boolean; hint: string; sources: string[] }>(`/api/learners/${enc(id)}/hint`, { activityId }),
+  help: (id: string, body: { activityId: string; level?: number; message: string;
+                            history: { role: string; text: string }[] }) =>
+    post<{ answered: boolean; reply: string; sources: string[] }>(`/api/learners/${enc(id)}/help`, body),
   lesson: (id: string, capabilityId: string) =>
     post<Lesson>(`/api/learners/${enc(id)}/lessons`, { capabilityId }),
   tutor: (id: string, question: string, capabilityId?: string) =>

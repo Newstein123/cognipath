@@ -232,3 +232,6 @@ details summary { cursor: pointer; }
 .teach.again { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--primary); }
 .concept-done { display: flex; gap: 8px; align-items: center; padding: 8px 12px; margin-bottom: 8px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.help { border-style: dashed; }
+.student-line { margin: 10px 0 0 auto; width: fit-content; max-width: 85%; padding: 8px 12px; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--border); }

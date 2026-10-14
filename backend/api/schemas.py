@@ -204,6 +204,10 @@ class Diagnostic(Model):
 class AttemptRequest(Model):
     activity_id: str
     response: str = Field(min_length=1, max_length=10000)
+    #: Guided-help requests made before submitting. Any help makes this ASSISTED evidence:
+    #: the observed score is capped (1 → 0.85, 2 → 0.75, 3+ → 0.65) and the explanation
+    #: says so, because a skill is proven only when applied independently.
+    help_used: int = Field(0, ge=0)
 
 
 class CriterionResult(Model):
@@ -327,13 +331,22 @@ class LessonResultRequest(Model):
     concepts: list[ConceptVerdict] = Field(min_length=1)
 
 
-class HintRequest(Model):
+class HelpTurn(Model):
+    role: str  # "student" | "tutor"
+    text: str
+
+
+class HelpRequest(Model):
     activity_id: str
+    #: 1 nudge · 2 key idea · 3 similar worked example. Omit to answer `message` instead.
+    level: int | None = Field(None, ge=1, le=3)
+    message: str = Field("", max_length=1000)
+    history: list[HelpTurn] = []
 
 
-class Hint(Model):
+class Help(Model):
     answered: bool
-    hint: str
+    reply: str
     sources: list[str]
 
 

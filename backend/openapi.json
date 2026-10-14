@@ -515,11 +515,11 @@
         }
       }
     },
-    "/api/learners/{learner_id}/hint": {
+    "/api/learners/{learner_id}/help": {
       "post": {
-        "summary": "Hint",
-        "description": "A nudge for a challenge \u2014 grounded in the course material, never the answer.",
-        "operationId": "hint_api_learners__learner_id__hint_post",
+        "summary": "Challenge Help",
+        "description": "Guided help during a challenge: nudge \u2192 key idea \u2192 similar example, or a reply to\nthe learner's own question. Helps them think; never gives the answer.",
+        "operationId": "challenge_help_api_learners__learner_id__help_post",
         "parameters": [
           {
             "name": "learner_id",
@@ -536,7 +536,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/HintRequest"
+                "$ref": "#/components/schemas/HelpRequest"
               }
             }
           }
@@ -547,7 +547,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Hint"
+                  "$ref": "#/components/schemas/Help"
                 }
               }
             }
@@ -735,6 +735,12 @@
             "maxLength": 10000,
             "minLength": 1,
             "title": "Response"
+          },
+          "helpUsed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Helpused",
+            "default": 0
           }
         },
         "type": "object",
@@ -1194,15 +1200,15 @@
         ],
         "title": "HeldBack"
       },
-      "Hint": {
+      "Help": {
         "properties": {
           "answered": {
             "type": "boolean",
             "title": "Answered"
           },
-          "hint": {
+          "reply": {
             "type": "string",
-            "title": "Hint"
+            "title": "Reply"
           },
           "sources": {
             "items": {
@@ -1215,23 +1221,68 @@
         "type": "object",
         "required": [
           "answered",
-          "hint",
+          "reply",
           "sources"
         ],
-        "title": "Hint"
+        "title": "Help"
       },
-      "HintRequest": {
+      "HelpRequest": {
         "properties": {
           "activityId": {
             "type": "string",
             "title": "Activityid"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Message",
+            "default": ""
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/HelpTurn"
+            },
+            "type": "array",
+            "title": "History",
+            "default": []
           }
         },
         "type": "object",
         "required": [
           "activityId"
         ],
-        "title": "HintRequest"
+        "title": "HelpRequest"
+      },
+      "HelpTurn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "title": "HelpTurn"
       },
       "InitialEstimate": {
         "properties": {

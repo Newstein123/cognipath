@@ -344,12 +344,18 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
     item = get_activity(req.activity_id)
     if not item.assessable:
         raise HTTPException(400, f"{item.id!r} has no rubric, so it cannot be assessed")
+    cap_for_help = {0: None, 1: 0.85, 2: 0.75}.get(req.help_used, 0.65)
     try:
-        result = assess(profile, item, req.response, judge)
+        result = assess(profile, item, req.response, judge, max_observed=cap_for_help)
     except Exception as exc:  # noqa: BLE001
         # Nothing is saved: a failed judgement must not look like a weak answer.
         raise HTTPException(502, f"Assessment failed, profile unchanged: "
                                  f"{type(exc).__name__}: {exc}") from None
+    if req.help_used:
+        n = req.help_used
+        result.explanation = (f"You used guided help {n} time{'s' if n != 1 else ''}, so this "
+                              "counts as assisted — try a new challenge without help to prove "
+                              "it independently.\n\n" + result.explanation)
     profile.save()
     save_evidence(result)
     return attempt_result(profile, item, result)
@@ -560,18 +566,30 @@ def lesson_result(learner_id: str, req: s.LessonResultRequest):
     return attempt_result(profile, item, result)
 
 
-@app.post("/api/learners/{learner_id}/hint", response_model=s.Hint)
-def hint(learner_id: str, req: s.HintRequest):
-    """A nudge for a challenge — grounded in the course material, never the answer."""
+@app.post("/api/learners/{learner_id}/help", response_model=s.Help)
+def challenge_help(learner_id: str, req: s.HelpRequest):
+    """Guided help during a challenge: nudge → key idea → similar example, or a reply to
+    the learner's own question. Helps them think; never gives the answer."""
+    from cognith_learning.guide import guide
+
     profile = load_profile(learner_id)
     item = get_activity(req.activity_id)
     cap = capability_or_404(item.capability_id)
-    hits = retrieve_for(profile, cap, item.prompt[:500])
-    q = ("Give ONE short hint for the question below: point to the idea or first step "
-         "that helps. Do NOT give the answer or do the steps.\n\nQUESTION:\n" + item.prompt)
-    res = answer(q, hits)
-    return s.Hint(answered=res.answered, hint=res.answer,
-                  sources=[h.chunk.citation for h in res.cited_hits])
+    hits = retrieve_for(profile, cap, f"{req.message} {item.prompt[:400]}")
+    if not req.level and not req.message.strip():
+        raise HTTPException(400, "Give a help level or a message")
+    try:
+        r = guide(item.prompt, [c.criterion for c in item.rubric], hits, level=req.level,
+                  message=req.message, history=[(t.role, t.text) for t in req.history])
+    except Exception:  # noqa: BLE001
+        r = None
+    if r is None:
+        return s.Help(answered=False, sources=[],
+                      reply="I can't find material on this in the course notes. Try rereading "
+                            "the lesson, or ask in a different way.")
+    cite = {h.chunk.id: h.chunk.citation for h in hits}
+    return s.Help(answered=True, reply=r.reply,
+                  sources=[cite[e] for e in r.excerpt_ids if e in cite])
 
 
 @app.post("/api/learners/{learner_id}/tutor", response_model=s.TutorAnswer)

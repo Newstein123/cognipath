@@ -261,3 +261,13 @@ def test_lesson_result_is_light_evidence(client):
     assert change["masteryAfter"] <= 0.6 and change["stateAfter"] == "developing"
     history = client.get(f"/api/learners/{learner}/evidence").json()
     assert history[-1]["criteria"][0]["criterion"] == "Understands: Request and response"
+
+
+def test_assisted_attempt_is_capped_and_says_so(client):
+    learner = onboard(client, "Ada")["learner"]["id"]
+    activity = client.get(f"/api/learners/{learner}/diagnostic").json()["activities"][0]["id"]
+    judge.verdict = "met"
+    r = client.post(f"/api/learners/{learner}/attempts",
+                    json={"activityId": activity, "response": "x", "helpUsed": 3}).json()
+    assert all(c["score"] <= 0.65 for c in r["changes"])
+    assert r["explanation"].startswith("You used guided help 3 times")

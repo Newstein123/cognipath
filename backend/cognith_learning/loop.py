@@ -415,6 +415,31 @@ class AdaptiveLoop:
                     minutes=items[0].minutes,
                 ))
 
+        # 2d. Still room? The next topic the learner has not started. Without this, a
+        # learner who claimed nothing at onboarding and then mastered one topic was told
+        # "nothing outstanding" with most of their path untouched. Prerequisite order;
+        # topics whose prerequisites are already demonstrated come first.
+        if len(steps) < limit:
+            for cap in self._untouched_in_order():
+                if len(steps) >= limit:
+                    break
+                prereqs = self.graph.prerequisites_of(cap.id)
+                done = [p for p in prereqs
+                        if (self.profile.row_for(p.id).mastery or 0.0) >= DEMONSTRATED_AT]
+                if done:
+                    why = (f"You've mastered {', '.join(p.name for p in done)}, and "
+                           f"{cap.name} builds on it — it's next on your path.")
+                elif prereqs:
+                    why = (f"Not started yet. It builds on "
+                           f"{', '.join(p.name for p in prereqs)}, which you're still working on.")
+                else:
+                    why = f"Not started yet — {cap.name} is a foundation later topics build on."
+                steps.append(NextStep(
+                    kind=StepKind.LEARN, title=f"Learn {cap.name}", why=why,
+                    command=f"python learn.py --student {student} --gap {cap.id}",
+                    capability_id=cap.id,
+                ))
+
         if not steps:
             stage = "nothing outstanding"
             steps.append(NextStep(
@@ -456,6 +481,22 @@ class AdaptiveLoop:
             ))
         return LoopState(stage="starting from scratch", summary=summary, steps=steps,
                          path=self.path, milestone=self.milestone)
+
+    def _untouched_in_order(self) -> list[Capability]:
+        """Teachable, in the current milestone, never rated and never assessed — ready
+        ones (all prerequisites demonstrated, or none) first, then by depth."""
+        order = list(self.graph.capabilities)
+
+        def ready(cid: str) -> bool:
+            return all((self.profile.row_for(p.id).mastery or 0.0) >= DEMONSTRATED_AT
+                       for p in self.graph.prerequisites_of(cid))
+
+        caps = [c for c in self.graph.capabilities.values()
+                if self._can_teach(c.id) and self._in_milestone(c.id)
+                and self.profile.row_for(c.id).status is MasteryStatus.UNKNOWN]
+        return sorted(caps, key=lambda c: (not ready(c.id),
+                                           len(self.graph.prerequisite_closure(c.id)),
+                                           order.index(c.id)))
 
     # --- narrative --------------------------------------------------------------------
     def position(self) -> str:

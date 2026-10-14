@@ -301,3 +301,18 @@ def test_missed_points_come_from_latest_attempt_only(client):
     gap = next(g for g in GapResolver(graph(), CapabilityProfile.load(learner, graph())).gaps()
                if g.capability_id == "http")
     assert gap.unmet == ("Understands: Idempotency",)
+
+
+def test_after_mastering_one_topic_the_next_is_recommended(client):
+    body = client.post("/api/learners", json={**ONBOARDING, "name": "One", "technologies": [],
+                                              "knows": "", "built": "", "level": "none"}).json()
+    learner = body["learner"]["id"]
+    first = client.get(f"/api/learners/{learner}/next").json()["steps"][0]
+    act = next(a for a in library().experiences.values()
+               if a.capability_id == first["capabilityId"] and a.assessable)
+    judge.verdict = "met"
+    for _ in range(3):  # enough evidence to demonstrate it
+        client.post(f"/api/learners/{learner}/attempts", json={"activityId": act.id, "response": "x"})
+    nxt = client.get(f"/api/learners/{learner}/next").json()
+    assert nxt["stage"] != "nothing outstanding"
+    assert any(s["kind"] == "learn" and s["capabilityId"] != first["capabilityId"] for s in nxt["steps"])

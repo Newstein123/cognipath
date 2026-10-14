@@ -1,0 +1,115 @@
+diagnostics:
+  - id: design-diag-001
+    capability: endpoint-design
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      In TaskFlow, Alice's task 42 is {"title": "Buy milk", "done": false, "due_date": "2026-10-20"}.
+      She taps the checkbox to mark it done. Which HTTP method and path should the app use,
+      what request body should it send, and what status code and response body should it get back?
+      A teammate suggests sending PUT /v1/tasks/42 with the body {"done": true} instead.
+      Explain what would go wrong with that.
+    rubric:
+      - id: design-d1-patch-path
+        criterion: 'Chooses PATCH on the single-task URL /v1/tasks/42 (or /tasks/42), not the collection and not a verb path like /markDone.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-d1-minimal-body
+        criterion: 'Gives a body containing only the changed field, e.g. {"done": true}, and says the other fields stay unchanged.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-d1-success-response
+        criterion: 'Expects 200 OK with the updated task in the body (or accepts 204 No Content as a valid alternative).'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-d1-put-replaces
+        criterion: 'Explains that PUT replaces the whole representation, so the omitted title/due_date would be cleared or the request rejected (400/422) because title is required.'
+        capability: endpoint-design
+        weight: 1.0
+  - id: design-diag-002
+    capability: endpoint-design
+    also_exercises: []
+    level: foundation
+    minutes: 8
+    probes: [application, reasoning]
+    prompt: |
+      A teammate built TaskFlow's task list as:
+        POST /getTasks   with body {"page": 3, "only_open": true}
+      and deletion as:
+        GET /deleteTask?id=42   which returns 200 {"status": "error"} when the task does not exist.
+      Redesign both endpoints the RESTful way. For the list, show the exact URL for the third page
+      of 20 open tasks sorted by due date, and describe the shape of the response. For deletion,
+      give the success status, and say what a client gets if it repeats the same delete.
+      Explain why the original designs are risky.
+    rubric:
+      - id: design-d2-get-with-query
+        criterion: 'Replaces POST /getTasks with GET /v1/tasks using query parameters, e.g. ?done=false&sort=due_date&limit=20&offset=40 (correct offset 40 for page 3 of 20).'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-d2-paginated-shape
+        criterion: 'Describes a paginated response with the list of tasks plus paging metadata (e.g. data array and pagination with limit, offset, total or next link), returned with 200.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-d2-delete-method
+        criterion: 'Replaces the GET with DELETE /v1/tasks/42 returning 204 No Content, and notes a repeat returns 404 while the server state is unchanged (idempotent).'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-d2-why-risky
+        criterion: 'Explains the risks, e.g. GET must be safe so crawlers/previews/retries could delete data, reading via POST is not safe to retry or cache, and an error inside a 200 hides failure from clients.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-d2-error-status
+        criterion: 'Says a missing task should produce a real 4xx status (404) with a consistent error body rather than 200 with an error inside.'
+        capability: endpoint-design
+        weight: 1.0
+exercises:
+  - chunk: endpoint-design.md#exercise-design-the-endpoints-for-task-comments
+    title: Design the endpoints for task comments
+    capabilities: [endpoint-design]
+    level: foundation
+    minutes: 10
+    rubric:
+      - id: design-e1-endpoint-set
+        criterion: 'Gives four endpoints with correct methods and noun-based paths, e.g. GET and POST /v1/tasks/{id}/comments, PATCH (or PUT) and DELETE /v1/comments/{id} (or a consistently nested equivalent).'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-e1-statuses-bodies
+        criterion: 'States correct success statuses and bodies - 200 with a page of comments, 201 Created with a Location header and the comment, 200 with the updated comment, 204 No Content for delete.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-e1-nesting-reason
+        criterion: 'Justifies the nested-vs-flat choice, e.g. nest one level to list/create under a task and use flat URLs for an individual comment, avoiding deep paths.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-e1-server-fields
+        criterion: 'Identifies server-controlled fields the client must not send (id, task_id taken from the path, author_id from the token, created_at) and explains the security or integrity reason.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-e1-pagination-delete-twice
+        criterion: 'Shows a paginated list shape using query parameters (e.g. ?sort=-created_at&limit=20&offset=0 returning data plus pagination) and says a second delete returns 404 while the state is unchanged.'
+        capability: endpoint-design
+        weight: 1.0
+  - chunk: endpoint-design.md#exercise-fix-bob-s-disappearing-due-dates
+    title: Fix Bob's disappearing due dates
+    capabilities: [endpoint-design]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: design-e2-diagnosis
+        criterion: 'Explains that PUT replaces the whole representation, so omitting due_date set it to null, and that the server behaved correctly - the bug is in the client.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-e2-two-fixes
+        criterion: 'Gives two correct alternatives - PATCH /v1/tasks/7 with {"done": true}, and PUT /v1/tasks/7 with the full task including the existing due_date - each with a 200 response showing due_date preserved.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-e2-retry-idempotency
+        criterion: 'Reasons correctly about retrying - PUT is idempotent so a retry is harmless; PATCH {"done": true} gives the same result though PATCH in general is not guaranteed idempotent.'
+        capability: endpoint-design
+        weight: 1.0
+      - id: design-e2-missing-required
+        criterion: 'States that PUT with only {"done": true} would be rejected with 400 or 422 because the required title is missing, ideally with the standard error body.'
+        capability: endpoint-design
+        weight: 1.0

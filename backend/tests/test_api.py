@@ -330,7 +330,7 @@ def test_courses_are_isolated(client):
         made[course] = body["learner"]["id"]
     caps = {c: {s["capabilityId"] for s in client.get(f"/api/learners/{lid}/profile").json()["skills"]}
             for c, lid in made.items()}
-    assert "http-basics" in caps["rest-api"] and "sets" in caps["mat221"]
+    assert "web-basics" in caps["rest-api"] and "sets" in caps["mat221"]
     assert not caps["rest-api"] & caps["mat221"]
     for c, lid in made.items():
         nxt = client.get(f"/api/learners/{lid}/next").json()["steps"]
@@ -370,6 +370,6 @@ def test_real_challenge_generator_uses_the_learners_course(client, monkeypatch):
 
     fake = SimpleNamespace(interactions=SimpleNamespace(create=create))
     monkeypatch.setattr("cognith_learning.generator.get_client", lambda: fake)
-    r = client.post(f"/api/learners/{lid}/challenges", json={"capabilityId": "http-basics"})
+    r = client.post(f"/api/learners/{lid}/challenges", json={"capabilityId": "web-basics"})
     assert r.status_code == 201, r.text
-    assert r.json()["capabilityId"] == "http-basics"
+    assert r.json()["capabilityId"] == "web-basics"

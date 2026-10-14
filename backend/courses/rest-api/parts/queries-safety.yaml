@@ -1,0 +1,105 @@
+diagnostics:
+  - id: query-diag-001
+    capability: queries-safety
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      TaskFlow's GET /v1/tasks endpoint is called like this:
+      GET /v1/tasks?owner_id=123 , and the server runs
+      SELECT id, title FROM tasks WHERE owner_id = $1 with $1 taken from the
+      owner_id query parameter. The query uses a placeholder, so a teammate says
+      "it's safe". Bob is user 456. Is the endpoint safe? Explain what Bob could
+      do, and how the server should decide whose tasks to return.
+    rubric:
+      - id: query-d1-not-safe
+        criterion: Says the endpoint is not safe even though it uses a placeholder, because the placeholder prevents injection but not reading other users' data.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-d1-attack
+        criterion: Describes Bob changing the parameter to owner_id=123 and receiving Alice's tasks.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-d1-owner-from-token
+        criterion: States that the owner id must come from the authenticated user (the verified token), not from anything the client sends.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-d1-drop-param
+        criterion: Proposes removing or ignoring the owner_id parameter and filtering WHERE owner_id = the logged-in user's id.
+        capability: queries-safety
+        weight: 0.5
+  - id: query-diag-002
+    capability: queries-safety
+    also_exercises: []
+    level: foundation
+    minutes: 8
+    probes: [application, reasoning]
+    prompt: |
+      TaskFlow's search endpoint GET /v1/tasks?q=... builds its SQL like this:
+      "SELECT id, title FROM tasks WHERE owner_id = 456 AND title ILIKE '%" + q + "%'"
+      Bob sends q = ' OR 1=1 --
+      Write out the SQL the database actually receives, explain what result Bob
+      gets and why, and rewrite the query so this attack cannot work.
+    rubric:
+      - id: query-d2-final-sql
+        criterion: Writes the resulting SQL showing the quote closing the string, OR 1=1 added, and the rest commented out by --.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-d2-all-rows
+        criterion: Explains that the WHERE condition becomes true for every row, so Bob receives all users' tasks.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-d2-root-cause
+        criterion: Identifies the root cause as user input concatenated into the SQL text, so the database cannot separate code from data.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-d2-parameterized
+        criterion: Rewrites the query with placeholders (e.g. title ILIKE '%' || $2 || '%') and passes q as a separate parameter.
+        capability: queries-safety
+        weight: 1.0
+exercises:
+  - chunk: queries-safety.md#exercise-review-the-search-endpoint
+    title: Review the search endpoint
+    capabilities: [queries-safety]
+    level: foundation
+    minutes: 10
+    rubric:
+      - id: query-e1-two-problems
+        criterion: Identifies both problems - the owner id is taken from the request (broken access control) and the values are concatenated into SQL (SQL injection).
+        capability: queries-safety
+        weight: 1.0
+      - id: query-e1-owner-attack
+        criterion: Gives a request such as GET /v1/tasks?owner=123&title= that lets Bob read Alice's tasks without SQL tricks.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-e1-injection-payload
+        criterion: Gives a title value such as ' OR 1=1 -- and writes the resulting SQL, explaining why it returns every task.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-e1-safe-rewrite
+        criterion: Rewrites the query with placeholders for both values, the owner id from the authenticated user and the title from the request as a parameter.
+        capability: queries-safety
+        weight: 1.0
+  - chunk: queries-safety.md#exercise-sign-up-and-account-deletion
+    title: Sign-up and account deletion
+    capabilities: [queries-safety]
+    level: foundation
+    minutes: 10
+    rubric:
+      - id: query-e2-race
+        criterion: Describes the race - both requests run the SELECT and find nothing before either INSERT runs, so both insert and two accounts exist.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-e2-unique-409
+        criterion: Proposes a UNIQUE constraint on users.email, attempting the INSERT and mapping the unique-violation error (or ON CONFLICT with no row returned) to 409 Conflict with a clear error body.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-e2-fk-blocks
+        criterion: Explains that with the default foreign key behaviour the DELETE of the user fails because tasks still reference him.
+        capability: queries-safety
+        weight: 1.0
+      - id: query-e2-two-designs
+        criterion: Gives two correct designs - deleting the tasks then the user inside one transaction (BEGIN/COMMIT, roll back on failure), and ON DELETE CASCADE on tasks.owner_id.
+        capability: queries-safety
+        weight: 1.0

@@ -1,0 +1,114 @@
+diagnostics:
+  - id: crud-diag-001
+    capability: crud-databases
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      A TaskFlow developer keeps all tasks in a list inside the server's memory
+      instead of a database. Alice creates the task "Buy milk" with POST /v1/tasks,
+      and then the server is redeployed. Afterwards, GET /v1/tasks/42 returns
+      404 Not Found. Explain what happened and why a database fixes it. Then name
+      the SQL statement you would use for POST /v1/tasks and for GET /v1/tasks/42,
+      and the success status code each endpoint should return.
+    rubric:
+      - id: crud-d1-memory-lost
+        criterion: Explains that in-memory data belongs to one server process and is lost on restart or redeploy (and is not shared between server copies).
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-d1-database-persists
+        criterion: States that a database stores data persistently (on disk) so it outlives the server process.
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-d1-sql-mapping
+        criterion: Maps POST /tasks to an INSERT into the tasks table and GET /tasks/42 to a SELECT filtered by id (WHERE id = 42 or a placeholder).
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-d1-status-codes
+        criterion: Gives 201 Created for the successful POST and 200 OK for the successful GET.
+        capability: crud-databases
+        weight: 1.0
+  - id: crud-diag-002
+    capability: crud-databases
+    also_exercises: []
+    level: foundation
+    minutes: 7
+    probes: [application, reasoning]
+    prompt: |
+      Alice (user 123) sends DELETE /v1/tasks/42 and gets 204 No Content. She
+      accidentally sends the exact same request again. The server runs
+      DELETE FROM tasks WHERE id = $1 AND owner_id = $2 both times.
+      What does the database report the second time, what status code should
+      TaskFlow return, and how does the server code decide that? Also explain
+      what would go wrong if a bug removed the WHERE clause from this statement.
+    rubric:
+      - id: crud-d2-zero-rows
+        criterion: Explains that the second DELETE matches no row, so the database reports 0 rows affected without raising an error.
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-d2-404
+        criterion: Says the server should return 404 Not Found (or justifies 204 as a documented idempotent choice) and that it decides by checking the affected row count.
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-d2-no-where
+        criterion: Explains that DELETE without WHERE deletes every row in the tasks table (all users' tasks), with no confirmation.
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-d2-owner-filter
+        criterion: Recognises the role of owner_id = $2 in restricting the delete to Alice's own tasks.
+        capability: crud-databases
+        weight: 0.5
+exercises:
+  - chunk: crud-databases.md#exercise-map-the-request-to-sql
+    title: Map the request to SQL
+    capabilities: [crud-databases]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: crud-e1-update-sql
+        criterion: Writes an UPDATE on tasks that sets only title and due_date, using placeholders, with WHERE id = task id AND owner_id = Bob's id.
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-e1-value-sources
+        criterion: States that the id comes from the URL (77), the owner id from the authenticated user (456), and the new values from the body ('Fix bike brakes', NULL).
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-e1-done-unchanged
+        criterion: Explains that done is untouched because PATCH only changes fields present in the body, and that due_date is cleared because null means "remove the value".
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-e1-status
+        criterion: Gives 200 OK with the updated task when Bob owns task 77, and 404 Not Found when it belongs to Alice because zero rows are updated.
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-e1-coalesce-bug
+        criterion: Explains that COALESCE($2, due_date) keeps the old due date when the value is NULL, so the client could never clear it (null and missing become the same).
+        capability: crud-databases
+        weight: 1.0
+  - chunk: crud-databases.md#exercise-design-the-list-endpoint
+    title: Design the list endpoint
+    capabilities: [crud-databases]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: crud-e2-select
+        criterion: Writes a SELECT on tasks filtered by owner_id = Alice's id with ORDER BY due_date ascending and LIMIT/OFFSET placeholders (50, 50).
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-e2-tie-breaker
+        criterion: Adds a second sort key such as id (or created_at) and explains that several tasks can share a due date, so one key does not fully determine the order.
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-e2-limit-cap
+        criterion: Says the server should cap the limit at a maximum (e.g. 100) or reject the request with 400, rather than passing 5000 to the database.
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-e2-no-order-bug
+        criterion: Explains that without ORDER BY the database guarantees no order, so pages can repeat or skip tasks.
+        capability: crud-databases
+        weight: 1.0
+      - id: crud-e2-empty-list
+        criterion: Returns 200 OK with an empty items list, explaining the collection exists even when it has no rows.
+        capability: crud-databases
+        weight: 1.0

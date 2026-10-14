@@ -1,0 +1,118 @@
+diagnostics:
+  - id: req-diag-001
+    capability: http-requests
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      In the TaskFlow app, Alice (user 123) does three things:
+        1. opens her task list,
+        2. adds a new task "Buy milk",
+        3. deletes task 42.
+      For each action, which HTTP method and path should the app use
+      (the base URL is https://api.taskflow.example/v1)? For which of the three
+      would the request carry a body, and what would be in it?
+    rubric:
+      - id: req-d1-get-list
+        criterion: Uses GET /tasks (or /v1/tasks) to view the task list and notes it needs no body.
+        capability: http-requests
+        weight: 1.0
+      - id: req-d1-post-create
+        criterion: Uses POST /tasks to create the task and says the body contains the new task's data, such as {"title":"Buy milk"} in JSON.
+        capability: http-requests
+        weight: 1.0
+      - id: req-d1-delete
+        criterion: Uses DELETE /tasks/42, identifying the task by the id in the path rather than in a body.
+        capability: http-requests
+        weight: 1.0
+      - id: req-d1-path-vs-method
+        criterion: Shows understanding that the path names the resource while the method names the action (for example, the same /tasks path is used with both GET and POST).
+        capability: http-requests
+        weight: 1.0
+  - id: req-diag-002
+    capability: http-requests
+    also_exercises: []
+    level: foundation
+    minutes: 8
+    probes: [application, reasoning]
+    prompt: |
+      Bob's phone loses signal just after sending a request, so the app never sees a response
+      and does not know whether the server received it. The app has a "retry automatically"
+      feature. Should it automatically retry (a) DELETE /v1/tasks/88 and (b) POST /v1/tasks
+      with {"title": "Call mum"}? Explain your reasoning using the ideas of safe and
+      idempotent methods, and say what could go wrong in the risky case.
+    rubric:
+      - id: req-d2-idempotent-def
+        criterion: Explains idempotent correctly - repeating the same request has the same intended effect on the server as sending it once.
+        capability: http-requests
+        weight: 1.0
+      - id: req-d2-delete-retry
+        criterion: Concludes that retrying the DELETE is harmless because DELETE is idempotent; the task ends up deleted either way, even if the second response is 404.
+        capability: http-requests
+        weight: 1.0
+      - id: req-d2-post-duplicate
+        criterion: Recognises that POST is not idempotent and that a retry may create a second "Call mum" task if the first request had succeeded.
+        capability: http-requests
+        weight: 1.0
+      - id: req-d2-safe-distinction
+        criterion: Distinguishes safe (read-only) from idempotent, noting that DELETE is idempotent but not safe.
+        capability: http-requests
+        weight: 0.5
+      - id: req-d2-mitigation
+        criterion: Suggests a way to make the POST retry safe, such as an idempotency key, or checking for the task before retrying.
+        capability: http-requests
+        weight: 0.5
+exercises:
+  - chunk: http-requests.md#exercise-pick-the-method-for-each-action
+    title: Pick the method for each action
+    capabilities: [http-requests]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: req-e1-methods-paths
+        criterion: Chooses GET /tasks (ideally with ?done=false), POST /tasks, PATCH /tasks/91, and DELETE /tasks/91 for the four actions.
+        capability: http-requests
+        weight: 1.0
+      - id: req-e1-bodies
+        criterion: Correctly states which requests carry a body - POST with the new task's title and due date, PATCH with only the new due_date - and that GET and DELETE carry none, with the filter in the query string.
+        capability: http-requests
+        weight: 1.0
+      - id: req-e1-properties
+        criterion: Labels safety and idempotency correctly - GET safe and idempotent, POST neither, PATCH not safe and not guaranteed idempotent, DELETE idempotent but not safe.
+        capability: http-requests
+        weight: 1.0
+      - id: req-e1-retry-post
+        criterion: Explains that retrying the POST could create a duplicate "Renew passport" task if the first request actually succeeded.
+        capability: http-requests
+        weight: 1.0
+      - id: req-e1-retry-delete
+        criterion: Explains that retrying the DELETE is harmless because the final state is the same (task 91 gone), even if the response changes to 404.
+        capability: http-requests
+        weight: 1.0
+  - chunk: http-requests.md#exercise-write-the-raw-request-and-fix-the-bug
+    title: Write the raw request and fix the bug
+    capabilities: [http-requests]
+    level: foundation
+    minutes: 10
+    rubric:
+      - id: req-e2-request-line
+        criterion: Writes a correct request line such as PATCH /v1/tasks/42 HTTP/1.1, with the path (not the full URL) as the target.
+        capability: http-requests
+        weight: 1.0
+      - id: req-e2-headers-body
+        criterion: Includes Host api.taskflow.example, Content-Type application/json and an Authorization Bearer header, then a blank line and a JSON body containing only the new title.
+        capability: http-requests
+        weight: 1.0
+      - id: req-e2-curl
+        criterion: Gives a working curl command using -X PATCH, -H for the Content-Type and Authorization headers, and -d with the JSON body.
+        capability: http-requests
+        weight: 1.0
+      - id: req-e2-put-explained
+        criterion: Explains that PUT replaces the whole resource, so a body with only the title is treated as the complete task and the due date is lost.
+        capability: http-requests
+        weight: 1.0
+      - id: req-e2-two-fixes
+        criterion: Gives two fixes - use PATCH with just the changed field, or use PUT with every field of the task included.
+        capability: http-requests
+        weight: 1.0

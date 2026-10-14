@@ -9,18 +9,20 @@ goals:
     name: Build a production-ready REST API
     keywords: [rest, api, backend, back-end, back end, endpoint, server, authentication,
                authorization, database, crud, web service]
-    focus: [http-basics, rest-design, databases-crud, authn-authz, validation-errors, api-testing]
+    focus: [web-basics, http-requests, status-codes, json-resources, endpoint-design,
+            crud-databases, queries-safety, authentication, authorization,
+            validation-errors, api-testing]
 
 technologies:
-  javascript: {name: JavaScript, aliases: [javascript, js, node, nodejs, express], signals: {http-basics: 0.45, rest-design: 0.35}}
-  python:     {name: Python,     aliases: [python, flask, django, fastapi],         signals: {http-basics: 0.45, rest-design: 0.35}}
-  sql:        {name: SQL,        aliases: [sql, mysql, postgres, postgresql, sqlite], signals: {databases-crud: 0.60}}
-  postman:    {name: Postman,    aliases: [postman, curl, insomnia],               signals: {http-basics: 0.50, api-testing: 0.35}}
-  html:       {name: HTML & CSS, aliases: [html, css],                             signals: {http-basics: 0.25}}
+  javascript: {name: JavaScript, aliases: [javascript, js, node, nodejs, express], signals: {http-requests: 0.45, endpoint-design: 0.35}}
+  python:     {name: Python,     aliases: [python, flask, django, fastapi],         signals: {http-requests: 0.45, endpoint-design: 0.35}}
+  sql:        {name: SQL,        aliases: [sql, mysql, postgres, postgresql, sqlite], signals: {crud-databases: 0.60}}
+  postman:    {name: Postman,    aliases: [postman, curl, insomnia],               signals: {http-requests: 0.50, api-testing: 0.35}}
+  html:       {name: HTML & CSS, aliases: [html, css],                             signals: {http-requests: 0.25}}
 
 concepts:
-  api:    {aliases: [api, apis, rest, restful, endpoint], signals: {rest-design: 0.55}}
-  login:  {aliases: [login, auth, authentication, jwt, token, password], signals: {authn-authz: 0.50}}
+  api:    {aliases: [api, apis, rest, restful, endpoint], signals: {endpoint-design: 0.55}}
+  login:  {aliases: [login, auth, authentication, jwt, token, password], signals: {authentication: 0.50}}
   tests:  {aliases: [test, tests, testing, unit test], signals: {api-testing: 0.50}}
 
 rules:

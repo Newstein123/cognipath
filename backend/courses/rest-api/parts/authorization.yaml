@@ -1,0 +1,127 @@
+diagnostics:
+  - id: authz-diag-001
+    capability: authorization
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      In the TaskFlow web app, the "Delete" button is only shown on tasks you own, so
+      Alice never sees a Delete button on Bob's task 77. A teammate concludes: "Users
+      can only delete their own tasks, so DELETE /v1/tasks/{id} doesn't need an
+      ownership check."
+
+      Is the teammate right? Explain what Alice could do, and what the server must do
+      when it receives DELETE /v1/tasks/77 with Alice's valid token.
+    rubric:
+      - id: authz-d1-client-bypass
+        criterion: Explains that the client is under the user's control, so Alice can send DELETE /v1/tasks/77 directly (curl, developer tools, a script) without any button
+        capability: authorization
+        weight: 1.5
+      - id: authz-d1-ui-not-security
+        criterion: States that hiding buttons is user experience, not access control; the decision must be made on the server
+        capability: authorization
+        weight: 1.0
+      - id: authz-d1-ownership-check
+        criterion: Describes a server-side check comparing task 77's owner_id with the authenticated user's id (or a query scoped by owner_id) before deleting
+        capability: authorization
+        weight: 1.5
+      - id: authz-d1-refusal-status
+        criterion: Says the request should be refused with 403 Forbidden or 404 Not Found (not 200/204), and that a valid token alone is not enough
+        capability: authorization
+        weight: 1.0
+  - id: authz-diag-002
+    capability: authorization
+    also_exercises: []
+    level: foundation
+    minutes: 8
+    probes: [application, reasoning, decision]
+    prompt: |
+      Alice (user 123) is logged in to TaskFlow. Her app calls:
+
+        GET /v1/users/123/tasks
+        Authorization: Bearer <Alice's valid token>
+
+      and she sees her tasks. Out of curiosity she changes the URL to
+      GET /v1/users/456/tasks, keeps the same token, and the API answers 200 OK with
+      Bob's private tasks.
+
+      A teammate proposes a fix: "Let's hide user IDs from the URLs and switch them
+      to random UUIDs so nobody can guess another user's ID."
+
+      What is this vulnerability, and is the teammate's fix enough? Explain what
+      TaskFlow must do instead and what Alice should receive after the fix.
+    rubric:
+      - id: authz-d2-names-bola
+        criterion: Identifies the flaw as broken object level authorization (BOLA / IDOR, OWASP API1) — authentication worked but nobody checked that user 123 may read user 456's data
+        capability: authorization
+        weight: 1.0
+      - id: authz-d2-hiding-not-access-control
+        criterion: Explains that hiding or randomising IDs is not access control
+        capability: authorization
+        weight: 2.0
+      - id: authz-d2-ids-leak
+        criterion: Gives a reason the ID approach fails, such as IDs leaking through links, logs, screenshots or other API responses, or UUIDs only making guessing harder while the request still succeeds once the ID is known
+        capability: authorization
+        weight: 1.0
+      - id: authz-d2-server-side-ownership-check
+        criterion: Requires a server-side ownership check on every request using the identity from the session/token
+        capability: authorization
+        weight: 2.0
+      - id: authz-d2-fixed-response
+        criterion: States that after the fix Alice's request for /users/456/tasks is refused with 403 Forbidden or 404 Not Found and returns none of Bob's data
+        capability: authorization
+        weight: 1.0
+exercises:
+  - chunk: authorization.md#exercise-investigate-the-task-sharing-bug-report
+    title: Investigate the task-sharing bug report
+    capabilities: [authorization]
+    level: foundation
+    minutes: 10
+    rubric:
+      - id: authz-e1-bola-leaked-id
+        criterion: Identifies broken object level authorization (BOLA/IDOR) and notes the attacker did not need to guess because the ID was shared in the link
+        capability: authorization
+        weight: 1.0
+      - id: authz-e1-missing-ownership
+        criterion: Points out that the UPDATE never checks that the task belongs to the authenticated user and proposes WHERE id = $x AND owner_id = <id from the token> (or load-then-compare)
+        capability: authorization
+        weight: 1.5
+      - id: authz-e1-mass-assignment
+        criterion: Points out that owner_id is taken from the request body (mass assignment) and must not be accepted from the client
+        capability: authorization
+        weight: 1.0
+      - id: authz-e1-status-and-methods
+        criterion: States the attacker should now get 404 Not Found or 403 Forbidden, and that DELETE (and every other method on the task) needs the same check
+        capability: authorization
+        weight: 1.0
+      - id: authz-e1-uuid-not-enough
+        criterion: Concludes that UUIDs would not have prevented this, because the ID was leaked and randomness is not a permission check
+        capability: authorization
+        weight: 1.0
+  - chunk: authorization.md#exercise-design-the-checks-for-a-new-admin-feature
+    title: Design the checks for a new admin feature
+    capabilities: [authorization]
+    level: foundation
+    minutes: 10
+    rubric:
+      - id: authz-e2-identity-source
+        criterion: Takes the user's identity and role from the verified token/session and server-side data, not from the URL, body or a client header
+        capability: authorization
+        weight: 1.0
+      - id: authz-e2-role-check
+        criterion: Requires a deny-by-default role check on GET /v1/admin/tasks so Alice (role user) gets 403 Forbidden
+        capability: authorization
+        weight: 1.0
+      - id: authz-e2-delete-rule
+        criterion: Allows DELETE /v1/users/{id} only when the path id equals the authenticated user's id or the caller is an admin, giving (c) 403/404, (d) success such as 204, (e) success
+        capability: authorization
+        weight: 1.5
+      - id: authz-e2-401-no-token
+        criterion: Gives 401 Unauthorized for the request with no token, distinguishing it from 403
+        capability: authorization
+        weight: 1.0
+      - id: authz-e2-owasp-categories
+        criterion: Names broken function level authorization (API5) for the admin endpoint and broken object level authorization (API1) for deleting another user's account
+        capability: authorization
+        weight: 1.0

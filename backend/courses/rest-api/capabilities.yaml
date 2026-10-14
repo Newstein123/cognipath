@@ -1,67 +1,105 @@
-# REST APIs from zero — the demo course. Six skills from the product vision, in the order
-# a beginner meets them. Same schema as every course pack.
+# REST APIs from zero — 11 lecture-sized units, one skill each, in syllabus order.
+# Material: knowledge/<doc-id>.md, adapted from MDN Web Docs and OWASP (see each file).
 
 domain: rest-apis
 
 areas:
-  foundations: Foundations
-  building:    Building the API
-  quality:     Security & quality
+  web:       The Web and HTTP
+  design:    Designing the API
+  data:      Storing Data
+  security:  Security
+  quality:   Quality
 
 capabilities:
-
-  - id: http-basics
-    name: HTTP Basics
-    statement: Can explain how a client and server communicate through HTTP requests and responses, and choose the right method and status code.
-    description: Request–response cycle, methods, status codes, headers.
-    area: foundations
+  - id: web-basics
+    name: How the Web Works
+    statement: Can explain how clients and servers communicate, what a URL is made of and what happens when an app requests data.
+    description: Unit 1.
+    area: web
     level: foundation
-    knowledge_docs: [http]
-
-  - id: rest-design
-    name: REST API Design
-    statement: Can design endpoints for a resource with the right paths, methods and status codes.
-    description: Resources, URLs, GET/POST/PUT/PATCH/DELETE, response design.
-    area: foundations
+    knowledge_docs: [web-basics]
+  - id: http-requests
+    name: HTTP Requests and Methods
+    statement: Can read and write an HTTP request and response and choose the right method, knowing which methods are safe and idempotent.
+    description: Unit 2.
+    area: web
     level: foundation
-    knowledge_docs: [rest-api]
-
-  - id: databases-crud
-    name: Databases and CRUD
-    statement: Can model a resource as a database table and map API operations to create, read, update and delete queries.
-    description: Tables, primary and foreign keys, CRUD SQL, parameterized queries, conflicts.
-    area: building
+    knowledge_docs: [http-requests]
+  - id: status-codes
+    name: Status Codes and Responses
+    statement: Can choose the correct status code for a response and explain what it tells the client.
+    description: Unit 3.
+    area: web
     level: foundation
-    knowledge_docs: [databases-crud]
-
-  - id: authn-authz
-    name: Authentication and Authorization
-    statement: Can explain the difference between authentication and authorization and enforce server-side permission checks on every protected resource.
-    description: Who you are vs what you may do; 401 vs 403; object-level authorization (OWASP API1).
-    area: quality
+    knowledge_docs: [status-codes]
+  - id: json-resources
+    name: JSON and Resources
+    statement: Can represent resources as valid JSON and identify them with clear, conventional URLs.
+    description: Unit 4.
+    area: design
+    level: foundation
+    knowledge_docs: [json-resources]
+  - id: endpoint-design
+    name: Designing REST Endpoints
+    statement: Can design the endpoints for a resource with the right methods, paths, bodies and status codes, including PUT vs PATCH and pagination.
+    description: Unit 5.
+    area: design
+    level: foundation
+    knowledge_docs: [endpoint-design]
+  - id: crud-databases
+    name: Tables and CRUD
+    statement: Can model a resource as a database table and write the create, read, update and delete queries behind each endpoint.
+    description: Unit 6.
+    area: data
+    level: foundation
+    knowledge_docs: [crud-databases]
+  - id: queries-safety
+    name: Relationships, Queries and SQL Injection
+    statement: Can query related data safely, using foreign keys, constraints and parameterized queries instead of building SQL from input.
+    description: Unit 7.
+    area: data
     level: intermediate
-    knowledge_docs: [auth]
-
+    knowledge_docs: [queries-safety]
+  - id: authentication
+    name: "Authentication: Who Are You?"
+    statement: Can explain how an API verifies who a user is with passwords, sessions or tokens, and when to return 401.
+    description: Unit 8.
+    area: security
+    level: intermediate
+    knowledge_docs: [authentication]
+  - id: authorization
+    name: "Authorization: What May You Do?"
+    statement: Can enforce server-side permission checks so users can only access and change resources they are allowed to.
+    description: Unit 9 — includes broken object level authorization (OWASP API1).
+    area: security
+    level: intermediate
+    knowledge_docs: [authorization]
   - id: validation-errors
-    name: Validation and Error Handling
-    statement: Can validate input on the server and return clear, correct error responses for invalid input, missing resources and unexpected failures.
-    description: Never trust input; 400/422/404/409/500; problem details.
-    area: building
+    name: Validation and Error Responses
+    statement: Can validate input on the server and return clear, correct error responses without leaking internals.
+    description: Unit 10.
+    area: quality
     level: foundation
     knowledge_docs: [validation-errors]
-
   - id: api-testing
-    name: API Testing
-    statement: Can design tests for an API's normal behaviour and its failure cases, including validation, missing resources and access control.
-    description: Happy path and failure cases; arrange–act–assert; isolation.
+    name: Testing Your API
+    statement: Can design tests that cover an API's normal behaviour and its failure cases, including validation and access control.
+    description: Unit 11.
     area: quality
     level: intermediate
     knowledge_docs: [api-testing]
 
 edges:
-  - {from: http-basics,       relation: prerequisite_for, to: rest-design}
-  - {from: rest-design,       relation: prerequisite_for, to: databases-crud}
-  - {from: rest-design,       relation: prerequisite_for, to: validation-errors}
-  - {from: databases-crud,    relation: prerequisite_for, to: authn-authz}
+  - {from: web-basics,        relation: prerequisite_for, to: http-requests}
+  - {from: http-requests,     relation: prerequisite_for, to: status-codes}
+  - {from: http-requests,     relation: prerequisite_for, to: json-resources}
+  - {from: status-codes,      relation: prerequisite_for, to: endpoint-design}
+  - {from: json-resources,    relation: prerequisite_for, to: endpoint-design}
+  - {from: endpoint-design,   relation: prerequisite_for, to: crud-databases}
+  - {from: crud-databases,    relation: prerequisite_for, to: queries-safety}
+  - {from: endpoint-design,   relation: prerequisite_for, to: authentication}
+  - {from: authentication,    relation: prerequisite_for, to: authorization}
+  - {from: queries-safety,    relation: supports,         to: authorization}
+  - {from: endpoint-design,   relation: prerequisite_for, to: validation-errors}
   - {from: validation-errors, relation: prerequisite_for, to: api-testing}
-  - {from: authn-authz,       relation: supports,         to: api-testing}
+  - {from: authorization,     relation: supports,         to: api-testing}

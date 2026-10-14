@@ -5,11 +5,16 @@ milestones:
     name: Ready to build a secure task API
     summary: >
       Can design, store, protect, validate and test a small REST API — the capstone is a
-      secure task-management API.
+      secure TaskFlow API.
     requires:
-      - {capability: http-basics,       target: 0.70}
-      - {capability: rest-design,       target: 0.70}
-      - {capability: databases-crud,    target: 0.65}
-      - {capability: authn-authz,       target: 0.70}
+      - {capability: web-basics,        target: 0.70}
+      - {capability: http-requests,     target: 0.70}
+      - {capability: status-codes,      target: 0.70}
+      - {capability: json-resources,    target: 0.65}
+      - {capability: endpoint-design,   target: 0.70}
+      - {capability: crud-databases,    target: 0.65}
+      - {capability: queries-safety,    target: 0.65}
+      - {capability: authentication,    target: 0.65}
+      - {capability: authorization,     target: 0.70}
       - {capability: validation-errors, target: 0.65}
       - {capability: api-testing,       target: 0.60}

@@ -75,8 +75,9 @@ class Section(BaseModel):
     title: str = Field(description="3–7 words.")
     probe: QuizQuestion = Field(description="Asked BEFORE teaching: does the learner already "
                                 "know this? Plain, everyday wording, no jargon.")
-    explanation: str = Field(description="Markdown, at most ~110 words. Bold key terms.")
-    example: str = Field(description="A worked example with numbered steps, at most ~100 words.")
+    explanation: str = Field(description="Markdown, at most ~170 words. Bold key terms.")
+    example: str = Field(description="A worked example with numbered steps and any literal "
+                                     "request/JSON/SQL/maths it needs, at most ~180 words.")
     diagram: Diagram
     check: QuizQuestion = Field(description="Asked AFTER teaching: apply the idea in a "
                                 "situation different from the probe and the example.")
@@ -99,9 +100,12 @@ Rules, in priority order:
 
 1. Use ONLY the numbered excerpts. Every fact, definition and example must come from \
 them. If they cannot support a lesson, set answerable=false and return nothing else.
-2. Each section: `explanation` is short, clear markdown (at most ~110 words; bold the \
-key terms; a bullet list is fine). `example` is a concrete worked example with numbered \
-steps (at most ~100 words) — reuse the excerpts' own examples where possible.
+2. Each section: `explanation` is clear markdown (at most ~170 words; bold the key terms; \
+explain WHY, not just WHAT — a list of definitions is not an explanation). `example` is a \
+concrete worked example with numbered steps (at most ~180 words), including any literal \
+HTTP exchange, JSON, SQL or working it needs in fenced code blocks. REUSE the excerpts' own \
+worked examples — same scenario, same names and values — rather than inventing new ones; \
+they are what the learner's course actually teaches.
 3. `diagram`: add one when a picture makes the idea clearer, otherwise type "none".
    - venn: exactly 2 `sets`; fill `only_first`, `only_second`, `both` and `outside` with \
 the example's elements; set `shade` to the operation the section teaches (union, \

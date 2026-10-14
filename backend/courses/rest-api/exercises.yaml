@@ -1,348 +1,657 @@
 exercises:
-- chunk: api-testing.md#exercise-write-the-test-cases
-  title: Write the test cases for PUT /tasks/{id}
+- chunk: api-testing.md#exercise-find-the-gaps-in-a-test-suite
+  title: Find the gaps in a test suite
   capabilities:
   - api-testing
   level: foundation
   minutes: 10
   rubric:
-  - id: test-ex1-success-case
-    criterion: Includes a successful update by the owner with a valid body, expecting a 2xx status and
-      checking that the returned or stored task has the new values
+  - id: test-e1-status-only
+    criterion: Explains that asserting only 204 is insufficient because it does not prove the row was
+      deleted, and adds a database check that task 42 is gone.
     capability: api-testing
     weight: 1.0
-  - id: test-ex1-validation-case
-    criterion: Includes an invalid-input case (such as a missing or too-long title), expecting 400 or
-      422 with an error that identifies the problem field
+  - id: test-e1-not-found
+    criterion: Adds a test for deleting a non-existent id expecting 404 (and no other rows affected).
     capability: api-testing
     weight: 1.0
-  - id: test-ex1-missing-and-no-token
-    criterion: Includes a request for a task id that does not exist expecting 404, and a request with
-      no token expecting 401
+  - id: test-e1-authentication
+    criterion: Adds tests for no token and/or an expired token expecting 401, with task 42 still present
+      afterwards.
     capability: api-testing
     weight: 1.0
-  - id: test-ex1-other-user
-    criterion: Includes a case where a different logged-in user tries to update the owner's task, expecting
-      403 or 404
-    capability: api-testing
-    weight: 1.5
-  - id: test-ex1-state-unchanged
-    criterion: For the failure cases, states that the stored task must be unchanged afterwards, not just
-      that an error status is returned
+  - id: test-e1-authorization
+    criterion: Adds a test where Alice's token deletes Bob's task, expecting 403 or 404, and explains
+      Bob is needed because IDOR can only be detected with a second user's object; checks Bob's row still
+      exists.
     capability: api-testing
     weight: 1.0
-- chunk: api-testing.md#exercise-fix-the-flaky-tests
-  title: Fix the flaky tests
+  - id: test-e1-aaa-structure
+    criterion: Gives each test a clear arrange, act and assert, with each test creating its own data.
+    capability: api-testing
+    weight: 1.0
+- chunk: api-testing.md#exercise-design-tests-for-patch-tasks-id
+  title: Design tests for PATCH /tasks/{id}
   capabilities:
   - api-testing
   level: foundation
-  minutes: 8
+  minutes: 10
   rubric:
-  - id: test-ex2-diagnoses-dependency
-    criterion: Explains that Test B fails alone because it relies on the task created by Test A, so task
-      1 does not exist (or is not Alice's) when B runs by itself
-    capability: api-testing
-    weight: 1.5
-  - id: test-ex2-names-principle
-    criterion: Names the principle being broken, that tests must be isolated and not depend on each other's
-      data or order
+  - id: test-e2-boundaries
+    criterion: Includes boundary tests for title - empty or missing-length cases, 200 characters accepted,
+      201 characters rejected with 422 (or 400).
     capability: api-testing
     weight: 1.0
-  - id: test-ex2-rewrite-arrange
-    criterion: Rewrites the setup so Test B creates Alice, Bob and Alice's task itself and uses the returned
-      task id instead of a hard-coded 1
-    capability: api-testing
-    weight: 1.5
-  - id: test-ex2-rewrite-act-assert
-    criterion: The rewritten test sends one GET for Alice's task with Bob's token and asserts a refusal
-      (403, or 404 if that is the API's convention)
+  - id: test-e2-failure-coverage
+    criterion: Covers wrong type for done, an unknown field, a missing task (404) and a missing token
+      (401) with correct expected statuses.
     capability: api-testing
     weight: 1.0
-- chunk: auth.md#exercise-find-the-broken-access-control
-  title: Find the broken access control
+  - id: test-e2-authorization
+    criterion: Includes Alice patching Bob's task 77 expecting 403 or 404 and verifies Bob's row is unchanged.
+    capability: api-testing
+    weight: 1.0
+  - id: test-e2-db-checks
+    criterion: States database checks for rows - updated fields on success, row unchanged on every rejected
+      request.
+    capability: api-testing
+    weight: 1.0
+  - id: test-e2-isolation-pyramid
+    criterion: Explains isolation (each test arranges its own data from a clean state, no order dependence)
+      and places a pure 200-character rule check at the unit-test level.
+    capability: api-testing
+    weight: 1.0
+- chunk: authentication.md#exercise-review-the-taskflow-login-design
+  title: Review the TaskFlow login design
   capabilities:
-  - authn-authz
+  - authentication
   level: foundation
-  minutes: 8
+  minutes: 10
   rubric:
-  - id: auth-e1-missing-object-check
-    criterion: Explains that authentication worked (the token was valid) but there is no object-level
-      authorization check, so any logged-in user can read any user's tasks (BOLA / IDOR)
-    capability: authn-authz
-    weight: 1.5
-  - id: auth-e1-identity-from-token
-    criterion: Says the server must compare the requested user id or task owner with the authenticated
-      user's id taken from the verified token, never trusting the id in the URL alone
-    capability: authn-authz
-    weight: 2.0
-  - id: auth-e1-concrete-check
-    criterion: Describes a concrete check, such as rejecting when the URL id differs from the token's
-      user id or querying with both the id and the authenticated user's id
-    capability: authn-authz
+  - id: authn-e1-post-body
+    criterion: Rejects credentials in the URL (logs, history) and replaces GET with POST /login carrying
+      email and password in the request body
+    capability: authentication
     weight: 1.0
-  - id: auth-e1-status-code
-    criterion: Gives 403 Forbidden or 404 Not Found as the response instead of 200, with no task data
-      returned
-    capability: authn-authz
+  - id: authn-e1-password-hashing
+    criterion: Replaces unsalted SHA-256 with a slow salted password hash such as Argon2id or bcrypt and
+      explains why fast hashes are unsafe
+    capability: authentication
     weight: 1.0
-  - id: auth-e1-uuid-not-fix
-    criterion: Rejects random UUIDs as the fix, noting they may make guessing harder but are not a permission
-      check because IDs can still leak
-    capability: authn-authz
-    weight: 1.5
-- chunk: auth.md#exercise-authentication-or-authorization
-  title: Authentication or authorization?
+  - id: authn-e1-generic-error
+    criterion: Identifies that different errors for "email not found" and "wrong password" reveal which
+      emails have accounts, and proposes one generic 401 message for all login failures
+    capability: authentication
+    weight: 1.0
+  - id: authn-e1-jwt-contents
+    criterion: Removes the password hash (and unnecessary personal data) from the JWT because the payload
+      is readable, and adds a short expiry (exp)
+    capability: authentication
+    weight: 1.0
+- chunk: authentication.md#exercise-sessions-or-tokens-after-logout
+  title: Sessions or tokens after logout
   capabilities:
-  - authn-authz
-  level: foundation
-  minutes: 5
-  rubric:
-  - id: auth-e2-no-header
-    criterion: Classifies the request with no Authorization header as an authentication problem with status
-      401
-    capability: authn-authz
-    weight: 1.0
-  - id: auth-e2-admin-only
-    criterion: Classifies the regular user calling the admin-only delete as an authorization problem with
-      status 403
-    capability: authn-authz
-    weight: 1.0
-  - id: auth-e2-expired-token
-    criterion: Classifies the expired token as an authentication problem with status 401, because the
-      credential is no longer valid
-    capability: authn-authz
-    weight: 1.0
-  - id: auth-e2-other-grade
-    criterion: Classifies reading another student's grade record as an authorization problem, answering
-      403 or 404 and not returning the record
-    capability: authn-authz
-    weight: 1.0
-- chunk: databases-crud.md#exercise-back-the-task-api-with-a-table
-  title: Back the task API with a table
-  capabilities:
-  - databases-crud
+  - authentication
   level: foundation
   minutes: 8
   rubric:
-  - id: crud-ex1-insert
-    criterion: For POST /tasks writes an INSERT into tasks with owner_id and title as placeholders (owner_id
-      taken from the logged-in user) and gives 201 Created.
-    capability: databases-crud
+  - id: authn-e2-session-storage
+    criterion: Explains that with sessions the server stores a session record and looks up the random
+      ID on each request
+    capability: authentication
     weight: 1.0
-  - id: crud-ex1-select-update
-    criterion: For GET /tasks/{id} writes a SELECT filtered by id (200 OK) and for PATCH writes an UPDATE
-      ... SET done = ... WHERE id = ... (200 OK or 204).
-    capability: databases-crud
+  - id: authn-e2-session-logout
+    criterion: Concludes that if logout deleted the session on the server, the copied cookie now gets
+      401 Unauthorized
+    capability: authentication
     weight: 1.0
-  - id: crud-ex1-delete
-    criterion: For DELETE /tasks/{id} writes a DELETE with a WHERE id = ... clause and gives 204 No Content.
-    capability: databases-crud
+  - id: authn-e2-jwt-still-valid
+    criterion: Explains that the server only verifies the JWT's signature and exp, so the copied 24-hour
+      token still works after logout until it expires
+    capability: authentication
+    weight: 1.5
+  - id: authn-e2-mitigation
+    criterion: Recommends a sensible mitigation for (b), such as short-lived access tokens, a server-side
+      deny-list or revocation, or switching to server-side sessions
+    capability: authentication
     weight: 1.0
-  - id: crud-ex1-not-found
-    criterion: Gives 404 Not Found for a missing task in endpoints 2-4 and explains it is detected by
-      zero rows returned or zero rows affected.
-    capability: databases-crud
-    weight: 1.0
-  - id: crud-ex1-owner-filter
-    criterion: Includes owner_id in the WHERE clauses (or explains why) so a user cannot read, change
-      or delete another user's task, and uses placeholders rather than pasted-in values.
-    capability: databases-crud
-    weight: 1.0
-- chunk: databases-crud.md#exercise-spot-the-bugs-in-a-signup-endpoint
-  title: Spot the bugs in a signup endpoint
+- chunk: authorization.md#exercise-investigate-the-task-sharing-bug-report
+  title: Investigate the task-sharing bug report
   capabilities:
-  - databases-crud
+  - authorization
   level: foundation
-  minutes: 6
+  minutes: 10
   rubric:
-  - id: crud-ex2-injection
-    criterion: Identifies SQL injection from string concatenation and explains that crafted input can
-      change what the query does.
-    capability: databases-crud
+  - id: authz-e1-bola-leaked-id
+    criterion: Identifies broken object level authorization (BOLA/IDOR) and notes the attacker did not
+      need to guess because the ID was shared in the link
+    capability: authorization
     weight: 1.0
-  - id: crud-ex2-parameterized
-    criterion: Recommends a parameterized query with the email passed as a separate value.
-    capability: databases-crud
+  - id: authz-e1-missing-ownership
+    criterion: Points out that the UPDATE never checks that the task belongs to the authenticated user
+      and proposes WHERE id = $x AND owner_id = <id from the token> (or load-then-compare)
+    capability: authorization
+    weight: 1.5
+  - id: authz-e1-mass-assignment
+    criterion: Points out that owner_id is taken from the request body (mass assignment) and must not
+      be accepted from the client
+    capability: authorization
     weight: 1.0
-  - id: crud-ex2-409
-    criterion: States that a duplicate signup should return 409 Conflict instead of 500.
-    capability: databases-crud
+  - id: authz-e1-status-and-methods
+    criterion: States the attacker should now get 404 Not Found or 403 Forbidden, and that DELETE (and
+      every other method on the task) needs the same check
+    capability: authorization
     weight: 1.0
-  - id: crud-ex2-detect
-    criterion: Explains the server should catch the unique-constraint violation raised by the INSERT and
-      translate it into the 409 response.
-    capability: databases-crud
+  - id: authz-e1-uuid-not-enough
+    criterion: Concludes that UUIDs would not have prevented this, because the ID was leaked and randomness
+      is not a permission check
+    capability: authorization
     weight: 1.0
-- chunk: http.md#exercise-read-a-failing-request
-  title: Read a failing request
+- chunk: authorization.md#exercise-design-the-checks-for-a-new-admin-feature
+  title: Design the checks for a new admin feature
   capabilities:
-  - http-basics
+  - authorization
   level: foundation
-  minutes: 6
+  minutes: 10
   rubric:
-  - id: ex-fail-retry-unsafe
-    criterion: Says blind automatic retries are not safe here, because the server may have created the
-      order before failing, so a retry can create a duplicate
-    capability: http-basics
-    weight: 1.5
-  - id: ex-fail-400-means-fix-request
-    criterion: Explains that a 400 would mean the request itself is wrong, so retrying the same request
-      unchanged would just fail again and the client must fix it first
-    capability: http-basics
-    weight: 1.5
-  - id: ex-fail-500-server-fault
-    criterion: Recognises that 500 signals a server-side failure, which is why retrying is tempting in
-      the first place
-    capability: http-basics
+  - id: authz-e2-identity-source
+    criterion: Takes the user's identity and role from the verified token/session and server-side data,
+      not from the URL, body or a client header
+    capability: authorization
     weight: 1.0
-  - id: ex-fail-post-not-idempotent
-    criterion: Names non-idempotency of POST as the property that makes the retry risky
-    capability: http-basics
+  - id: authz-e2-role-check
+    criterion: Requires a deny-by-default role check on GET /v1/admin/tasks so Alice (role user) gets
+      403 Forbidden
+    capability: authorization
+    weight: 1.0
+  - id: authz-e2-delete-rule
+    criterion: Allows DELETE /v1/users/{id} only when the path id equals the authenticated user's id or
+      the caller is an admin, giving (c) 403/404, (d) success such as 204, (e) success
+    capability: authorization
     weight: 1.5
-- chunk: http.md#exercise-choose-the-status-code
+  - id: authz-e2-401-no-token
+    criterion: Gives 401 Unauthorized for the request with no token, distinguishing it from 403
+    capability: authorization
+    weight: 1.0
+  - id: authz-e2-owasp-categories
+    criterion: Names broken function level authorization (API5) for the admin endpoint and broken object
+      level authorization (API1) for deleting another user's account
+    capability: authorization
+    weight: 1.0
+- chunk: crud-databases.md#exercise-map-the-request-to-sql
+  title: Map the request to SQL
+  capabilities:
+  - crud-databases
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: crud-e1-update-sql
+    criterion: Writes an UPDATE on tasks that sets only title and due_date, using placeholders, with WHERE
+      id = task id AND owner_id = Bob's id.
+    capability: crud-databases
+    weight: 1.0
+  - id: crud-e1-value-sources
+    criterion: States that the id comes from the URL (77), the owner id from the authenticated user (456),
+      and the new values from the body ('Fix bike brakes', NULL).
+    capability: crud-databases
+    weight: 1.0
+  - id: crud-e1-done-unchanged
+    criterion: Explains that done is untouched because PATCH only changes fields present in the body,
+      and that due_date is cleared because null means "remove the value".
+    capability: crud-databases
+    weight: 1.0
+  - id: crud-e1-status
+    criterion: Gives 200 OK with the updated task when Bob owns task 77, and 404 Not Found when it belongs
+      to Alice because zero rows are updated.
+    capability: crud-databases
+    weight: 1.0
+  - id: crud-e1-coalesce-bug
+    criterion: Explains that COALESCE($2, due_date) keeps the old due date when the value is NULL, so
+      the client could never clear it (null and missing become the same).
+    capability: crud-databases
+    weight: 1.0
+- chunk: crud-databases.md#exercise-design-the-list-endpoint
+  title: Design the list endpoint
+  capabilities:
+  - crud-databases
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: crud-e2-select
+    criterion: Writes a SELECT on tasks filtered by owner_id = Alice's id with ORDER BY due_date ascending
+      and LIMIT/OFFSET placeholders (50, 50).
+    capability: crud-databases
+    weight: 1.0
+  - id: crud-e2-tie-breaker
+    criterion: Adds a second sort key such as id (or created_at) and explains that several tasks can share
+      a due date, so one key does not fully determine the order.
+    capability: crud-databases
+    weight: 1.0
+  - id: crud-e2-limit-cap
+    criterion: Says the server should cap the limit at a maximum (e.g. 100) or reject the request with
+      400, rather than passing 5000 to the database.
+    capability: crud-databases
+    weight: 1.0
+  - id: crud-e2-no-order-bug
+    criterion: Explains that without ORDER BY the database guarantees no order, so pages can repeat or
+      skip tasks.
+    capability: crud-databases
+    weight: 1.0
+  - id: crud-e2-empty-list
+    criterion: Returns 200 OK with an empty items list, explaining the collection exists even when it
+      has no rows.
+    capability: crud-databases
+    weight: 1.0
+- chunk: endpoint-design.md#exercise-design-the-endpoints-for-task-comments
+  title: Design the endpoints for task comments
+  capabilities:
+  - endpoint-design
+  level: foundation
+  minutes: 10
+  rubric:
+  - id: design-e1-endpoint-set
+    criterion: Gives four endpoints with correct methods and noun-based paths, e.g. GET and POST /v1/tasks/{id}/comments,
+      PATCH (or PUT) and DELETE /v1/comments/{id} (or a consistently nested equivalent).
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-e1-statuses-bodies
+    criterion: States correct success statuses and bodies - 200 with a page of comments, 201 Created with
+      a Location header and the comment, 200 with the updated comment, 204 No Content for delete.
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-e1-nesting-reason
+    criterion: Justifies the nested-vs-flat choice, e.g. nest one level to list/create under a task and
+      use flat URLs for an individual comment, avoiding deep paths.
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-e1-server-fields
+    criterion: Identifies server-controlled fields the client must not send (id, task_id taken from the
+      path, author_id from the token, created_at) and explains the security or integrity reason.
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-e1-pagination-delete-twice
+    criterion: Shows a paginated list shape using query parameters (e.g. ?sort=-created_at&limit=20&offset=0
+      returning data plus pagination) and says a second delete returns 404 while the state is unchanged.
+    capability: endpoint-design
+    weight: 1.0
+- chunk: endpoint-design.md#exercise-fix-bob-s-disappearing-due-dates
+  title: Fix Bob's disappearing due dates
+  capabilities:
+  - endpoint-design
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: design-e2-diagnosis
+    criterion: Explains that PUT replaces the whole representation, so omitting due_date set it to null,
+      and that the server behaved correctly - the bug is in the client.
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-e2-two-fixes
+    criterion: 'Gives two correct alternatives - PATCH /v1/tasks/7 with {"done": true}, and PUT /v1/tasks/7
+      with the full task including the existing due_date - each with a 200 response showing due_date preserved.'
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-e2-retry-idempotency
+    criterion: 'Reasons correctly about retrying - PUT is idempotent so a retry is harmless; PATCH {"done":
+      true} gives the same result though PATCH in general is not guaranteed idempotent.'
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-e2-missing-required
+    criterion: 'States that PUT with only {"done": true} would be rejected with 400 or 422 because the
+      required title is missing, ideally with the standard error body.'
+    capability: endpoint-design
+    weight: 1.0
+- chunk: http-requests.md#exercise-pick-the-method-for-each-action
+  title: Pick the method for each action
+  capabilities:
+  - http-requests
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: req-e1-methods-paths
+    criterion: Chooses GET /tasks (ideally with ?done=false), POST /tasks, PATCH /tasks/91, and DELETE
+      /tasks/91 for the four actions.
+    capability: http-requests
+    weight: 1.0
+  - id: req-e1-bodies
+    criterion: Correctly states which requests carry a body - POST with the new task's title and due date,
+      PATCH with only the new due_date - and that GET and DELETE carry none, with the filter in the query
+      string.
+    capability: http-requests
+    weight: 1.0
+  - id: req-e1-properties
+    criterion: Labels safety and idempotency correctly - GET safe and idempotent, POST neither, PATCH
+      not safe and not guaranteed idempotent, DELETE idempotent but not safe.
+    capability: http-requests
+    weight: 1.0
+  - id: req-e1-retry-post
+    criterion: Explains that retrying the POST could create a duplicate "Renew passport" task if the first
+      request actually succeeded.
+    capability: http-requests
+    weight: 1.0
+  - id: req-e1-retry-delete
+    criterion: Explains that retrying the DELETE is harmless because the final state is the same (task
+      91 gone), even if the response changes to 404.
+    capability: http-requests
+    weight: 1.0
+- chunk: http-requests.md#exercise-write-the-raw-request-and-fix-the-bug
+  title: Write the raw request and fix the bug
+  capabilities:
+  - http-requests
+  level: foundation
+  minutes: 10
+  rubric:
+  - id: req-e2-request-line
+    criterion: Writes a correct request line such as PATCH /v1/tasks/42 HTTP/1.1, with the path (not the
+      full URL) as the target.
+    capability: http-requests
+    weight: 1.0
+  - id: req-e2-headers-body
+    criterion: Includes Host api.taskflow.example, Content-Type application/json and an Authorization
+      Bearer header, then a blank line and a JSON body containing only the new title.
+    capability: http-requests
+    weight: 1.0
+  - id: req-e2-curl
+    criterion: Gives a working curl command using -X PATCH, -H for the Content-Type and Authorization
+      headers, and -d with the JSON body.
+    capability: http-requests
+    weight: 1.0
+  - id: req-e2-put-explained
+    criterion: Explains that PUT replaces the whole resource, so a body with only the title is treated
+      as the complete task and the due date is lost.
+    capability: http-requests
+    weight: 1.0
+  - id: req-e2-two-fixes
+    criterion: Gives two fixes - use PATCH with just the changed field, or use PUT with every field of
+      the task included.
+    capability: http-requests
+    weight: 1.0
+- chunk: json-resources.md#exercise-design-the-taskflow-urls
+  title: Design the TaskFlow URLs
+  capabilities:
+  - json-resources
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: json-e1-verbs-replaced
+    criterion: Replaces verb paths (getAllTasks, tasks/create) with methods on nouns, e.g. GET /tasks
+      and POST /tasks
+    capability: json-resources
+    weight: 1.0
+  - id: json-e1-naming
+    criterion: Fixes casing and singular naming (/Task/42 becomes /tasks/42)
+    capability: json-resources
+    weight: 1.0
+  - id: json-e1-filter-query
+    criterion: Replaces /tasks/completed with a query parameter such as /tasks?done=true
+    capability: json-resources
+    weight: 1.0
+  - id: json-e1-shallow-nesting
+    criterion: Simplifies the deep/redundant nested path to /tasks/42, noting the item id is enough and
+      "details" is not a resource
+    capability: json-resources
+    weight: 1.0
+  - id: json-e1-combined-request
+    criterion: Writes a request like GET /users/123/tasks?done=false&sort=due_date and explains path =
+      which resource (ownership), query = filter/sort
+    capability: json-resources
+    weight: 1.0
+- chunk: json-resources.md#exercise-repair-and-explain-a-json-body
+  title: Repair and explain a JSON body
+  capabilities:
+  - json-resources
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: json-e2-syntax-errors
+    criterion: Lists the syntax errors (unquoted key, single quotes, unquoted date, trailing comma)
+    capability: json-resources
+    weight: 1.0
+  - id: json-e2-value-types
+    criterion: Notes that "no" should be the boolean false and the date should be a string such as "2026-12-01"
+    capability: json-resources
+    weight: 1.0
+  - id: json-e2-headers
+    criterion: Adds Content-Type application/json (and optionally Accept and Authorization) to the corrected
+      request
+    capability: json-resources
+    weight: 1.0
+  - id: json-e2-owner-id-security
+    criterion: Flags that the client should not set owner_id (Bob claiming user 123) and that the server
+      derives the owner from the authenticated user
+    capability: json-resources
+    weight: 1.0
+  - id: json-e2-representation
+    criterion: Describes a returned JSON representation that includes server-set fields (id, owner_id,
+      done default, created_at) and identifies them as server-generated
+    capability: json-resources
+    weight: 1.0
+- chunk: queries-safety.md#exercise-review-the-search-endpoint
+  title: Review the search endpoint
+  capabilities:
+  - queries-safety
+  level: foundation
+  minutes: 10
+  rubric:
+  - id: query-e1-two-problems
+    criterion: Identifies both problems - the owner id is taken from the request (broken access control)
+      and the values are concatenated into SQL (SQL injection).
+    capability: queries-safety
+    weight: 1.0
+  - id: query-e1-owner-attack
+    criterion: Gives a request such as GET /v1/tasks?owner=123&title= that lets Bob read Alice's tasks
+      without SQL tricks.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-e1-injection-payload
+    criterion: Gives a title value such as ' OR 1=1 -- and writes the resulting SQL, explaining why it
+      returns every task.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-e1-safe-rewrite
+    criterion: Rewrites the query with placeholders for both values, the owner id from the authenticated
+      user and the title from the request as a parameter.
+    capability: queries-safety
+    weight: 1.0
+- chunk: queries-safety.md#exercise-sign-up-and-account-deletion
+  title: Sign-up and account deletion
+  capabilities:
+  - queries-safety
+  level: foundation
+  minutes: 10
+  rubric:
+  - id: query-e2-race
+    criterion: Describes the race - both requests run the SELECT and find nothing before either INSERT
+      runs, so both insert and two accounts exist.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-e2-unique-409
+    criterion: Proposes a UNIQUE constraint on users.email, attempting the INSERT and mapping the unique-violation
+      error (or ON CONFLICT with no row returned) to 409 Conflict with a clear error body.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-e2-fk-blocks
+    criterion: Explains that with the default foreign key behaviour the DELETE of the user fails because
+      tasks still reference him.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-e2-two-designs
+    criterion: Gives two correct designs - deleting the tasks then the user inside one transaction (BEGIN/COMMIT,
+      roll back on failure), and ON DELETE CASCADE on tasks.owner_id.
+    capability: queries-safety
+    weight: 1.0
+- chunk: status-codes.md#exercise-choose-the-status-code
   title: Choose the status code
   capabilities:
-  - http-basics
-  level: foundation
-  minutes: 6
-  rubric:
-  - id: ex-code-201-created
-    criterion: Gives 201 Created for the saved new book, explaining that a new resource was created
-    capability: http-basics
-    weight: 1.0
-  - id: ex-code-401-not-logged-in
-    criterion: Gives 401 Unauthorized for the visitor who is not logged in, because the server does not
-      know who they are
-    capability: http-basics
-    weight: 1.0
-  - id: ex-code-403-not-allowed
-    criterion: Gives 403 Forbidden for the logged-in student, because they are known but lack permission
-      to delete
-    capability: http-basics
-    weight: 1.0
-  - id: ex-code-404-missing
-    criterion: Gives 404 Not Found for the request for book 9999, because that resource does not exist
-    capability: http-basics
-    weight: 1.0
-  - id: ex-code-why-not-401
-    criterion: Explains that 401 is wrong for the student because logging in again would not help - the
-      problem is permission, not identity
-    capability: http-basics
-    weight: 1.0
-- chunk: rest-api.md#exercise-critique-an-endpoint
-  title: Critique an endpoint
-  capabilities:
-  - rest-design
-  level: intermediate
-  minutes: 8
-  rubric:
-  - id: ex-crit-verb-in-path
-    criterion: Identifies the verb in the path (getUsersByStatus) and proposes a noun resource such as
-      /users
-    capability: rest-design
-    weight: 1.0
-  - id: ex-crit-post-for-read
-    criterion: Identifies that POST is used for a read-only lookup and proposes GET with a query parameter,
-      such as GET /users?status=active
-    capability: rest-design
-    weight: 1.0
-  - id: ex-crit-success-flag
-    criterion: Identifies that a success flag inside a 200 body duplicates the status code and proposes
-      relying on HTTP status codes for success and failure
-    capability: rest-design
-    weight: 1.0
-  - id: ex-crit-no-pagination
-    criterion: Identifies that returning all 40,000 users is a problem and proposes pagination such as
-      a limit with a cursor or offset
-    capability: rest-design
-    weight: 1.0
-  - id: ex-crit-prioritises
-    criterion: Picks one change to make first and justifies it by its impact, for example pagination because
-      of load and latency, or GET because it unlocks caching and correct semantics
-    capability: rest-design
-    weight: 1.0
-- chunk: rest-api.md#exercise-design-a-profile-api
-  title: Design a profile API
-  capabilities:
-  - rest-design
+  - status-codes
   level: foundation
   minutes: 8
   rubric:
-  - id: ex-prof-paths
-    criterion: Uses a noun collection and item path such as /profiles and /profiles/{id} (or /students/{id}/profile)
-      with no verbs in the path
-    capability: rest-design
+  - id: status-e1-patch-200
+    criterion: Gives 200 OK for the successful PATCH that returns the updated task
+    capability: status-codes
     weight: 1.0
-  - id: ex-prof-get-post-delete
-    criterion: Uses GET to retrieve, POST to create (on the collection), and DELETE to delete, with success
-      codes of 200 OK for GET, 201 Created for POST, and 204 No Content (or 200 OK) for DELETE
-    capability: rest-design
-    weight: 1.5
-  - id: ex-prof-put-vs-patch
-    criterion: Uses PUT for the full replacement and PATCH for updating only the email, with 200 OK (or
-      204 No Content) on success
-    capability: rest-design
-    weight: 1.5
-  - id: ex-prof-404
-    criterion: Says a missing profile should return 404 Not Found
-    capability: rest-design
+  - id: status-e1-validation-422
+    criterion: Gives 422 (or 400 with justification) for the meaningless due_date value inside otherwise
+      valid JSON, explaining the JSON parsed but the value is invalid
+    capability: status-codes
     weight: 1.0
-  - id: ex-prof-why-status-codes
-    criterion: Explains that a real status code lets clients and tools detect the failure without parsing
-      the body, whereas 200 with an error message hides it
-    capability: rest-design
+  - id: status-e1-forbidden-403
+    criterion: Gives 403 for Bob reading Alice's task (or 404 to hide existence, with explanation), not
+      401
+    capability: status-codes
     weight: 1.0
-- chunk: validation-errors.md#exercise-fix-the-error-responses
+  - id: status-e1-rate-limit-429
+    criterion: Gives 429 Too Many Requests for the rate-limited script and mentions Retry-After
+    capability: status-codes
+    weight: 1.0
+  - id: status-e1-class-contrast
+    criterion: Gives 503 for the maintenance case and explains that situation 2 is 4xx (client must change
+      the request) while 5 is 5xx (server failed; retrying later can work)
+    capability: status-codes
+    weight: 1.0
+- chunk: status-codes.md#exercise-fix-the-error-responses
   title: Fix the error responses
   capabilities:
-  - validation-errors
+  - status-codes
   level: foundation
   minutes: 8
   rubric:
-  - id: valid-e1-not-200-for-error
-    criterion: Explains that returning 200 OK for a failed request is wrong, because the status code tells
-      clients and tools whether it worked and 200 claims success
-    capability: validation-errors
+  - id: status-e2-explains-harm
+    criterion: Explains concrete harms of always returning 200, covering at least two of mobile app error
+      handling, monitoring/success metrics, and retry logic
+    capability: status-codes
     weight: 1.0
-  - id: valid-e1-missing-title-4xx
-    criterion: Says a missing title should get 400 Bad Request or 422 Unprocessable Content, since the
-      client must fix the request
-    capability: validation-errors
+  - id: status-e2-not-logged-in-401
+    criterion: Rewrites "not logged in" as 401 Unauthorized, ideally with a WWW-Authenticate header
+    capability: status-codes
     weight: 1.0
-  - id: valid-e1-useful-error-body
-    criterion: Replaces {"error":"bad"} with a consistent, specific error body that names the title field
-      and the rule it broke (required, 1-200 characters), for example in a Problem Details shape
-    capability: validation-errors
+  - id: status-e2-not-found-404
+    criterion: Rewrites "task not found" as 404 Not Found
+    capability: status-codes
     weight: 1.0
-  - id: valid-e1-keep-500-hide-trace
-    criterion: Keeps 500 for the database outage but removes the stack trace and internal details (database
-      driver, internal IP address and port) from the response, logging them on the server instead and
-      returning a generic message
-    capability: validation-errors
-    weight: 1.5
-- chunk: validation-errors.md#exercise-pick-the-right-response
-  title: Pick the right response
+  - id: status-e2-timeout-5xx
+    criterion: Rewrites "database timeout" as a 5xx (503 with Retry-After, or 500) without leaking internal
+      details
+    capability: status-codes
+    weight: 1.0
+  - id: status-e2-consistent-body
+    criterion: Uses one consistent error body format (e.g. machine-readable error code plus human message)
+      across all three responses
+    capability: status-codes
+    weight: 1.0
+- chunk: validation-errors.md#exercise-respond-to-three-bad-requests
+  title: Respond to three bad requests
   capabilities:
   - validation-errors
   level: foundation
-  minutes: 6
+  minutes: 10
   rubric:
-  - id: valid-e2-404-vs-empty-list
-    criterion: Gives 404 for GET /tasks/999 and 200 with an empty list for GET /tasks with no tasks, and
-      explains the difference between a missing resource and an empty collection
-    capability: validation-errors
-    weight: 1.5
-  - id: valid-e2-malformed-json-400
-    criterion: Gives 400 Bad Request for the cut-off body, because it is not valid JSON
+  - id: valid-e1-boolean-type
+    criterion: For request 1 returns 422 (or 400 consistently) because "no" is a string, not a JSON boolean,
+      and points at the done field.
     capability: validation-errors
     weight: 1.0
-  - id: valid-e2-invalid-value-4xx
-    criterion: Gives 422 Unprocessable Content or 400 Bad Request for status "maybe", explaining that
-      the JSON is well-formed but the value is not one of the allowed values
+  - id: valid-e1-malformed
+    criterion: For request 2 returns 400 because the body is not valid JSON and fields cannot be checked.
     capability: validation-errors
     weight: 1.0
-  - id: valid-e2-duplicate-409
-    criterion: Gives 409 Conflict for the already-taken username, because the request conflicts with existing
-      data
+  - id: valid-e1-multiple-errors
+    criterion: For request 3 returns one response listing both the title-length error and the invalid
+      date (month 13), each tied to its field.
     capability: validation-errors
+    weight: 1.0
+  - id: valid-e1-problem-details
+    criterion: Writes response bodies in a consistent Problem Details style (type, title, status, detail,
+      and an errors array where appropriate) with helpful, non-leaky messages.
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e1-no-silent-fix
+    criterion: Explains that truncating the title or ignoring the date silently changes the user's data
+      and hides the mistake; the request should be rejected so the client can correct it.
+    capability: validation-errors
+    weight: 1.0
+- chunk: validation-errors.md#exercise-review-an-error-handling-design
+  title: Review an error-handling design
+  capabilities:
+  - validation-errors
+  level: foundation
+  minutes: 10
+  rubric:
+  - id: valid-e2-empty-list
+    criterion: Identifies that an empty filter result should be 200 with an empty list [], not 404.
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e2-server-error
+    criterion: Identifies that a database failure is a server error (500, not 400) and that the response
+      must not expose the connection string or internal address; details go to server logs.
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e2-method-not-allowed
+    criterion: Identifies that DELETE /tasks should return 405 Method Not Allowed with an Allow header
+      listing GET, POST.
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e2-validation-status
+    criterion: Identifies that validation failures must use a 4xx status (422 or 400) rather than 200,
+      with a structured body naming the field.
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e2-security-risk
+    criterion: Explains a concrete security risk, such as leaked hostnames, database type or paths helping
+      an attacker map the system.
+    capability: validation-errors
+    weight: 1.0
+- chunk: web-basics.md#exercise-trace-a-taskflow-request
+  title: Trace a TaskFlow request
+  capabilities:
+  - web-basics
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: web-e1-url-parts
+    criterion: Names the scheme, host, path, query and fragment of the URL correctly.
+    capability: web-basics
+    weight: 1.0
+  - id: web-e1-what-is-sent
+    criterion: States that the request line carries the path and query (/v1/tasks?done=false), the host
+      goes in the Host header, and the fragment (#top) is not sent.
+    capability: web-basics
+    weight: 1.0
+  - id: web-e1-steps
+    criterion: Gives a sensible ordered sequence - DNS lookup, connect, send request, server queries data,
+      response with status and JSON body, app displays tasks.
+    capability: web-basics
+    weight: 1.0
+  - id: web-e1-analogy
+    criterion: Maps at least three steps correctly onto the restaurant analogy (for example order = request,
+      kitchen = server processing, waiter bringing the plate = response).
+    capability: web-basics
+    weight: 1.0
+- chunk: web-basics.md#exercise-why-did-the-second-request-fail
+  title: Why did the second request fail
+  capabilities:
+  - web-basics
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: web-e2-stateless
+    criterion: Explains that HTTP is stateless, so the login request and the tasks request are independent
+      and the server has no memory linking them.
+    capability: web-basics
+    weight: 1.0
+  - id: web-e2-fix
+    criterion: Says the job must keep the token from the login response and send it with every later request,
+      for example in an Authorization header.
+    capability: web-basics
+    weight: 1.0
+  - id: web-e2-benefit
+    criterion: Gives a valid benefit of statelessness, such as any of several servers being able to handle
+      any request, making scaling easier.
+    capability: web-basics
+    weight: 1.0
+  - id: web-e2-client-kind
+    criterion: Identifies the job as a server-to-server client and justifies it (a program on a server
+      calling the API with no browser or human involved).
+    capability: web-basics
     weight: 1.0

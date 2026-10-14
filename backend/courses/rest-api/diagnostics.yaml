@@ -17,402 +17,708 @@ items:
   level: foundation
   minutes: 6
   probes:
-  - decomposition
+  - application
   - reasoning
-  prompt: 'You have built an endpoint, GET /tasks/{id}, in a to-do app''s API. Each task belongs
+  prompt: 'A teammate says: "I tested POST /tasks in the browser as Alice and it created the
 
-    to the user who created it, and users log in to get a token. You opened the URL in
+    task, so it works. We don''t need automated tests." Their only check was that the
 
-    your browser for one of your own tasks and it returned the task correctly.
+    page showed "Task created". What would you say to them? Describe what an automated
 
+    test for creating a task should check, and name at least two failure cases it
 
-    Before calling this endpoint done, what else would you test? List the situations you
-
-    would check, what you would expect the API to do in each, and explain why trying it
-
-    once in the browser is not enough.
+    should also cover.
 
     '
   rubric:
-  - id: test-d1-beyond-happy-path
-    criterion: Explains that one successful manual try only shows one case and does not prove the endpoint
-      handles other situations or keeps working after later changes
+  - id: test-d1-browser-not-proof
+    criterion: Explains that one manual happy-path try is not proof - it covers one case once and will
+      not catch later regressions.
     capability: api-testing
     weight: 1.0
-  - id: test-d1-missing-resource
-    criterion: Includes a case where the requested task id does not exist and expects a not-found response
-      (404) rather than a crash or an empty success
+  - id: test-d1-assert-status-body
+    criterion: Says the test should assert the status code (201) and the response body (e.g. title, done
+      defaulting to false).
     capability: api-testing
     weight: 1.0
-  - id: test-d1-no-token
-    criterion: Includes a case where the request is sent without being logged in (no token or an invalid
-      one) and expects it to be rejected, ideally with 401
+  - id: test-d1-side-effect
+    criterion: Says the test should check the database side effect - a row exists with the right title
+      and owner_id 123.
     capability: api-testing
     weight: 1.0
-  - id: test-d1-other-users-task
-    criterion: Includes a case where a logged-in user asks for a task owned by someone else and expects
-      it to be refused (403 or 404), not returned
+  - id: test-d1-failure-cases
+    criterion: Names at least two relevant failure cases (e.g. missing title, 201-character title, no
+      token, expired token, invalid due date) with expected 4xx outcomes.
     capability: api-testing
-    weight: 1.5
-  - id: test-d1-asserts-more-than-status
-    criterion: Says what to check in the response beyond whether it "works", such as the status code and
-      the returned fields or error message
-    capability: api-testing
-    weight: 0.5
+    weight: 1.0
 - id: test-diag-002
   capability: api-testing
   also_exercises: []
-  level: intermediate
+  level: foundation
   minutes: 8
   probes:
   - application
   - reasoning
-  prompt: 'A task API has DELETE /tasks/{id}. Every task has an owner, and requests carry a
+  prompt: 'Bob (user 456) owns task 77. You want to prove that Alice (user 123) cannot read,
 
-    login token in the Authorization header. A bug report says: "I could delete another
+    change or delete it. Describe the test(s) you would write using arrange-act-assert:
 
-    user''s task just by changing the number in the URL."
+    what you set up, which requests you send, what responses you expect, and what you
 
-
-    After the fix, you want an automated test that would catch this bug if it ever came
-
-    back. Write that test step by step, split into its setup, the request it sends, and
-
-    the checks it makes. Be specific about which users and tasks exist, which status
-
-    code you expect, and what you check afterwards. Then explain why your test would
-
-    still pass reliably if it were run on its own or in a different order.
+    check afterwards. Why is checking the status code alone not enough here?
 
     '
   rubric:
-  - id: test-d2-two-users-setup
-    criterion: Sets up two distinct users and a task owned by one of them inside the test itself, rather
-      than assuming existing data or a hard-coded id
+  - id: test-d2-two-users
+    criterion: Arranges two users and a task owned by Bob, and uses Alice's valid token against Bob's
+      task id (swapping the object id).
     capability: api-testing
-    weight: 1.5
-  - id: test-d2-single-act
-    criterion: The action is a single DELETE request for the other user's task, sent with the non-owner's
-      token
+    weight: 1.0
+  - id: test-d2-all-methods
+    criterion: Covers more than one method - at least GET plus PATCH or DELETE (ideally GET, PATCH and
+      DELETE).
     capability: api-testing
     weight: 1.0
   - id: test-d2-expected-status
-    criterion: Expects the request to be refused with 403 or 404 (and says a 2xx success would mean the
-      bug is back)
+    criterion: Expects a refusal status of 403 or 404 (per the API's documented choice) and states it
+      must never be 200/204 or include Bob's data.
     capability: api-testing
     weight: 1.0
-  - id: test-d2-side-effect-check
-    criterion: Checks the side effect, confirming afterwards that the owner's task still exists and is
-      unchanged
-    capability: api-testing
-    weight: 1.5
-  - id: test-d2-isolation
-    criterion: Explains that the test is reliable because it creates its own data and does not depend
-      on other tests or their order
+  - id: test-d2-row-unchanged
+    criterion: Checks the database afterwards that Bob's task still exists with its original owner, title
+      and done value, explaining a handler might change data before refusing.
     capability: api-testing
     weight: 1.0
-- id: auth-diag-001
-  capability: authn-authz
+  - id: test-d2-control
+    criterion: Mentions a control or isolation point, such as confirming Bob can still access task 77
+      or that each test sets up its own data.
+    capability: api-testing
+    weight: 1.0
+- id: authn-diag-001
+  capability: authentication
   also_exercises: []
   level: foundation
   minutes: 6
   probes:
-  - reasoning
   - application
-  prompt: "Many apps make you log in before you can use them, and even after you log in,\nsome things\
-    \ are still off-limits to you.\n\nIn your own words, explain the difference between \"authentication\"\
-    \ and\n\"authorization\". Use an everyday example from outside of computers (a building,\na hotel,\
-    \ a club, anything you like) to show the difference.\n\nThen imagine an API. Which HTTP status code\
-    \ fits each situation, and why?\n  a) The request arrives and the user is not logged in at all.\n\
-    \  b) The user is logged in, but is trying to do something they are not allowed to do.\n"
+  - reasoning
+  prompt: 'Alice has just logged in to TaskFlow with POST /v1/login. A minute later her app
+
+    sends GET /v1/tasks to fetch her task list.
+
+
+    How does the server know this second request comes from Alice? Describe what the
+
+    login response gives her app, what her app must send with GET /v1/tasks (name the
+
+    header), and what the server should reply if that credential is missing or has
+
+    expired.
+
+    '
   rubric:
-  - id: auth-d1-authn-identity
-    criterion: Explains authentication as proving or verifying who someone is (identity), e.g. logging
-      in with a password or showing a badge
-    capability: authn-authz
+  - id: authn-d1-login-returns-credential
+    criterion: States that a successful login returns a credential such as a session cookie (Set-Cookie)
+      or a token
+    capability: authentication
     weight: 1.0
-  - id: auth-d1-authz-permission
-    criterion: Explains authorization as deciding what an already-identified person is allowed to do or
-      access (permissions), and makes clear it is a separate question from identity
-    capability: authn-authz
+  - id: authn-d1-every-request
+    criterion: Explains that the credential must be sent on every later request because HTTP is stateless
+      (the server does not remember the earlier login by itself)
+    capability: authentication
     weight: 1.5
-  - id: auth-d1-analogy
-    criterion: Gives an everyday example where the two steps are clearly distinguishable, such as a badge
-      proving identity while door rules decide which rooms it opens
-    capability: authn-authz
+  - id: authn-d1-names-header
+    criterion: Names the correct header, either Cookie for a session or Authorization with the Bearer
+      scheme for a token
+    capability: authentication
     weight: 1.0
-  - id: auth-d1-401
-    criterion: Assigns 401 (Unauthorized) to the not-logged-in case, i.e. missing or invalid credentials
-    capability: authn-authz
+  - id: authn-d1-401
+    criterion: Says a missing, invalid or expired credential gets 401 Unauthorized (not 403 or 200), ideally
+      mentioning WWW-Authenticate
+    capability: authentication
     weight: 1.0
-  - id: auth-d1-403
-    criterion: Assigns 403 (Forbidden) to the logged-in-but-not-allowed case, and does not swap 401 and
-      403
-    capability: authn-authz
-    weight: 1.0
-- id: auth-diag-002
-  capability: authn-authz
+- id: authn-diag-002
+  capability: authentication
   also_exercises: []
   level: foundation
   minutes: 8
   probes:
+  - application
   - reasoning
   - decision
-  - application
-  prompt: "A school app has an API. A student logs in and opens their own profile at:\n\n  GET /users/123\n\
-    \nThe page shows their name, email and grades. Out of curiosity, the student edits\nthe address bar\
-    \ to:\n\n  GET /users/456\n\nand the API returns another student's name, email and grades.\n\nA teammate\
-    \ says: \"Easy fix: we should hide the user ID from the URL, or switch to\nrandom IDs so nobody can\
-    \ guess them.\"\n\nWhat is actually going wrong here? Is your teammate's fix enough, and why or why\n\
-    not? What should the server do instead, and what should the student see when they\nrequest /users/456?\n"
+  prompt: "TaskFlow's database was copied by an attacker. The users table looks like this:\n\n  id  |\
+    \ email             | password_hash\n  123 | alice@example.com | 9028ea0d15decaa35b2da21c0290af3b1a5ba0a30a591906f89b5074e209ea72\n\
+    \nThe hash is plain, unsalted SHA-256 of the password. A teammate says \"it's fine,\nhashes can't\
+    \ be reversed\". The same teammate also wants to put the user's email\nand password hash inside the\
+    \ JWT payload \"so the server doesn't need a database\nlookup\".\n\nDo you agree with each idea? Explain\
+    \ what is risky and what TaskFlow should do\ninstead.\n"
   rubric:
-  - id: auth-d2-names-authz-gap
-    criterion: Identifies that the user was authenticated (logged in) but the server never checked whether
-      that user is allowed to see user 456's data, i.e. a missing authorization check
-    capability: authn-authz
+  - id: authn-d2-fast-hash
+    criterion: Explains that fast hashes like SHA-256 let attackers guess passwords very quickly, so "can't
+      be reversed" does not make them safe for passwords
+    capability: authentication
     weight: 1.5
-  - id: auth-d2-hiding-not-fix
-    criterion: States that hiding or randomising the ID is not a fix on its own, because IDs can leak,
-      be shared, logged or guessed, and making something hard to find is not the same as checking permission
-    capability: authn-authz
+  - id: authn-d2-salt
+    criterion: Explains the role of a unique random salt per user (identical passwords no longer share
+      a hash; precomputed tables stop working)
+    capability: authentication
+    weight: 1.0
+  - id: authn-d2-slow-algorithm
+    criterion: Recommends a slow, purpose-built password hashing algorithm such as Argon2id (or bcrypt/scrypt)
+    capability: authentication
+    weight: 1.0
+  - id: authn-d2-jwt-readable
+    criterion: Explains that a JWT payload is only encoded and signed, not encrypted, so anyone holding
+      it can read it; secrets like password hashes must never go in it
+    capability: authentication
+    weight: 1.5
+- id: authz-diag-001
+  capability: authorization
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - application
+  - reasoning
+  prompt: 'In the TaskFlow web app, the "Delete" button is only shown on tasks you own, so
+
+    Alice never sees a Delete button on Bob''s task 77. A teammate concludes: "Users
+
+    can only delete their own tasks, so DELETE /v1/tasks/{id} doesn''t need an
+
+    ownership check."
+
+
+    Is the teammate right? Explain what Alice could do, and what the server must do
+
+    when it receives DELETE /v1/tasks/77 with Alice''s valid token.
+
+    '
+  rubric:
+  - id: authz-d1-client-bypass
+    criterion: Explains that the client is under the user's control, so Alice can send DELETE /v1/tasks/77
+      directly (curl, developer tools, a script) without any button
+    capability: authorization
+    weight: 1.5
+  - id: authz-d1-ui-not-security
+    criterion: States that hiding buttons is user experience, not access control; the decision must be
+      made on the server
+    capability: authorization
+    weight: 1.0
+  - id: authz-d1-ownership-check
+    criterion: Describes a server-side check comparing task 77's owner_id with the authenticated user's
+      id (or a query scoped by owner_id) before deleting
+    capability: authorization
+    weight: 1.5
+  - id: authz-d1-refusal-status
+    criterion: Says the request should be refused with 403 Forbidden or 404 Not Found (not 200/204), and
+      that a valid token alone is not enough
+    capability: authorization
+    weight: 1.0
+- id: authz-diag-002
+  capability: authorization
+  also_exercises: []
+  level: foundation
+  minutes: 8
+  probes:
+  - application
+  - reasoning
+  - decision
+  prompt: "Alice (user 123) is logged in to TaskFlow. Her app calls:\n\n  GET /v1/users/123/tasks\n  Authorization:\
+    \ Bearer <Alice's valid token>\n\nand she sees her tasks. Out of curiosity she changes the URL to\n\
+    GET /v1/users/456/tasks, keeps the same token, and the API answers 200 OK with\nBob's private tasks.\n\
+    \nA teammate proposes a fix: \"Let's hide user IDs from the URLs and switch them\nto random UUIDs\
+    \ so nobody can guess another user's ID.\"\n\nWhat is this vulnerability, and is the teammate's fix\
+    \ enough? Explain what\nTaskFlow must do instead and what Alice should receive after the fix.\n"
+  rubric:
+  - id: authz-d2-names-bola
+    criterion: Identifies the flaw as broken object level authorization (BOLA / IDOR, OWASP API1) — authentication
+      worked but nobody checked that user 123 may read user 456's data
+    capability: authorization
+    weight: 1.0
+  - id: authz-d2-hiding-not-access-control
+    criterion: Explains that hiding or randomising IDs is not access control
+    capability: authorization
     weight: 2.0
-  - id: auth-d2-server-ownership-check
-    criterion: Proposes a server-side check on every request that compares the requested resource's owner
-      with the authenticated user's identity taken from the session or token, not from the URL or the
-      client
-    capability: authn-authz
+  - id: authz-d2-ids-leak
+    criterion: Gives a reason the ID approach fails, such as IDs leaking through links, logs, screenshots
+      or other API responses, or UUIDs only making guessing harder while the request still succeeds once
+      the ID is known
+    capability: authorization
+    weight: 1.0
+  - id: authz-d2-server-side-ownership-check
+    criterion: Requires a server-side ownership check on every request using the identity from the session/token
+    capability: authorization
     weight: 2.0
-  - id: auth-d2-status-code
-    criterion: Says the request should be refused with 403 Forbidden or 404 Not Found and the other student's
-      data must not be returned
-    capability: authn-authz
+  - id: authz-d2-fixed-response
+    criterion: States that after the fix Alice's request for /users/456/tasks is refused with 403 Forbidden
+      or 404 Not Found and returns none of Bob's data
+    capability: authorization
     weight: 1.0
 - id: crud-diag-001
-  capability: databases-crud
-  also_exercises: []
-  level: foundation
-  minutes: 7
-  probes:
-  - application
-  - reasoning
-  prompt: "You are building a small API for a personal reading list. Each book is stored\nas a row in\
-    \ a database table called `books` (columns: id, title, author).\n\nThe API has three endpoints:\n\
-    \  1. POST /books         - add a book to the list\n  2. GET /books          - list all books\n  3.\
-    \ DELETE /books/{id}  - remove one book\n\nFor each endpoint, say which database operation it performs\
-    \ (create, read,\nupdate or delete — and the SQL keyword if you know it) and which HTTP status\ncode\
-    \ it should return when it succeeds.\n\nThen: a client sends DELETE /books/99, but there is no book\
-    \ with id 99.\nWhat should the API respond, and how would the server find out the book\nwasn't there?\n"
-  rubric:
-  - id: crud-d1-create
-    criterion: Maps POST /books to a create operation (INSERT) and gives 201 Created as the success status.
-    capability: databases-crud
-    weight: 1.0
-  - id: crud-d1-read
-    criterion: Maps GET /books to a read operation (SELECT) and gives 200 OK as the success status.
-    capability: databases-crud
-    weight: 1.0
-  - id: crud-d1-delete
-    criterion: Maps DELETE /books/{id} to a delete operation (DELETE ... WHERE id = ...) and gives 204
-      No Content (or 200 with a body) as the success status.
-    capability: databases-crud
-    weight: 1.0
-  - id: crud-d1-missing-404
-    criterion: Says a delete of a non-existent book should return 404 Not Found.
-    capability: databases-crud
-    weight: 1.0
-  - id: crud-d1-detect-missing
-    criterion: Explains that the server detects the missing book because the query matched no rows (zero
-      rows affected or nothing returned), rather than relying on a database error.
-    capability: databases-crud
-    weight: 1.0
-- id: crud-diag-002
-  capability: databases-crud
-  also_exercises: []
-  level: foundation
-  minutes: 8
-  probes:
-  - reasoning
-  - application
-  prompt: "A teammate wrote the signup endpoint POST /users like this (Python):\n\n    sql = \"INSERT\
-    \ INTO users (email) VALUES ('\" + body[\"email\"] + \"')\"\n    cur.execute(sql)\n    return 201\n\
-    \nThe `email` column in the `users` table is declared UNIQUE.\n\n1. What is dangerous about how this\
-    \ query is built? Describe what a malicious\n   user could do, and show how you would write the query\
-    \ instead.\n2. When the same email signs up twice, clients currently get\n   500 Internal Server Error.\
-    \ Why does that happen, what status code should\n   the API return instead, and how should the server\
-    \ decide to return it?\n"
-  rubric:
-  - id: crud-d2-injection
-    criterion: Identifies that concatenating user input into the SQL string allows SQL injection, where
-      crafted input changes the meaning of the query.
-    capability: databases-crud
-    weight: 1.0
-  - id: crud-d2-parameterized
-    criterion: Proposes a parameterized query (placeholder such as %s or $1 with the value passed separately)
-      so input is treated only as data.
-    capability: databases-crud
-    weight: 1.0
-  - id: crud-d2-constraint-error
-    criterion: Explains that the duplicate insert fails because the database's unique constraint rejects
-      it, and the unhandled error surfaces as a 500.
-    capability: databases-crud
-    weight: 1.0
-  - id: crud-d2-409
-    criterion: Says a duplicate signup should return 409 Conflict (not 500), ideally with a clear message
-      like "email already registered".
-    capability: databases-crud
-    weight: 1.0
-  - id: crud-d2-catch-specific
-    criterion: Describes catching the specific unique-violation error from the insert (rather than only
-      checking with a SELECT first) to decide on the 409.
-    capability: databases-crud
-    weight: 0.5
-- id: http-diag-001
-  capability: http-basics
+  capability: crud-databases
   also_exercises: []
   level: foundation
   minutes: 6
   probes:
   - application
   - reasoning
-  prompt: "You open a mobile app and tap \"My profile\". A moment later your name and photo\nappear on\
-    \ screen.\n\nIn a few sentences, describe what happened between the app and the server:\n  - What\
-    \ does the app send to the server, and roughly what does it contain?\n  - What does the server send\
-    \ back?\n  - If your profile had been deleted and no longer exists, what should the\n    server send\
-    \ back instead, and how would the app know something went wrong?\n"
+  prompt: 'A TaskFlow developer keeps all tasks in a list inside the server''s memory
+
+    instead of a database. Alice creates the task "Buy milk" with POST /v1/tasks,
+
+    and then the server is redeployed. Afterwards, GET /v1/tasks/42 returns
+
+    404 Not Found. Explain what happened and why a database fixes it. Then name
+
+    the SQL statement you would use for POST /v1/tasks and for GET /v1/tasks/42,
+
+    and the success status code each endpoint should return.
+
+    '
   rubric:
-  - id: http-d1-client-sends-request
-    criterion: Says the app (the client) sends a request to the server asking for the profile, ideally
-      naming GET as the method
-    capability: http-basics
+  - id: crud-d1-memory-lost
+    criterion: Explains that in-memory data belongs to one server process and is lost on restart or redeploy
+      (and is not shared between server copies).
+    capability: crud-databases
     weight: 1.0
-  - id: http-d1-request-identifies-resource
-    criterion: Mentions that the request identifies which profile is wanted, for example through a path
-      or URL such as /users/42 or /profile
-    capability: http-basics
+  - id: crud-d1-database-persists
+    criterion: States that a database stores data persistently (on disk) so it outlives the server process.
+    capability: crud-databases
     weight: 1.0
-  - id: http-d1-response-has-status-and-data
-    criterion: Says the server returns a response containing a success status (such as 200 OK) and the
-      profile data, for example as JSON
-    capability: http-basics
+  - id: crud-d1-sql-mapping
+    criterion: Maps POST /tasks to an INSERT into the tasks table and GET /tasks/42 to a SELECT filtered
+      by id (WHERE id = 42 or a placeholder).
+    capability: crud-databases
     weight: 1.0
-  - id: http-d1-not-found-404
-    criterion: Says that for a missing profile the server should return 404 Not Found, and that the app
-      learns of the failure from that status code
-    capability: http-basics
-    weight: 1.5
-- id: http-diag-002
-  capability: http-basics
+  - id: crud-d1-status-codes
+    criterion: Gives 201 Created for the successful POST and 200 OK for the successful GET.
+    capability: crud-databases
+    weight: 1.0
+- id: crud-diag-002
+  capability: crud-databases
   also_exercises: []
   level: foundation
   minutes: 7
   probes:
-  - reasoning
   - application
-  - decision
-  prompt: "A shopping app has a \"Place order\" button that sends `POST /orders`. On a slow\nconnection,\
-    \ the app gets no answer and automatically sends the same request again.\nThe customer ends up charged\
-    \ for two orders.\n\n1. Why did retrying cause a duplicate, when retrying `GET /orders/5` would not\n\
-    \   have caused any harm?\n2. Later, a customer who is logged in tries to view someone else's order\
-    \ and is\n   refused. A visitor who is not logged in tries the same thing. Which status code\n   should\
-    \ each of them get, and why are they different?\n3. If the server crashes with a bug while saving\
-    \ an order, which status code\n   family (2xx, 4xx or 5xx) should the response come from, and why?\n"
+  - reasoning
+  prompt: 'Alice (user 123) sends DELETE /v1/tasks/42 and gets 204 No Content. She
+
+    accidentally sends the exact same request again. The server runs
+
+    DELETE FROM tasks WHERE id = $1 AND owner_id = $2 both times.
+
+    What does the database report the second time, what status code should
+
+    TaskFlow return, and how does the server code decide that? Also explain
+
+    what would go wrong if a bug removed the WHERE clause from this statement.
+
+    '
   rubric:
-  - id: http-d2-post-not-idempotent
-    criterion: Explains that POST creates something each time it is sent (it is not idempotent), so sending
-      it twice can create two orders
-    capability: http-basics
-    weight: 1.5
-  - id: http-d2-get-safe
-    criterion: Explains that GET only reads data and does not change anything on the server, so repeating
-      it is harmless
-    capability: http-basics
+  - id: crud-d2-zero-rows
+    criterion: Explains that the second DELETE matches no row, so the database reports 0 rows affected
+      without raising an error.
+    capability: crud-databases
     weight: 1.0
-  - id: http-d2-401-vs-403
-    criterion: Gives 403 Forbidden for the logged-in customer and 401 Unauthorized for the visitor who
-      is not logged in, with the reason (authenticated but not allowed vs not authenticated)
-    capability: http-basics
-    weight: 1.5
-  - id: http-d2-server-error-5xx
-    criterion: Says a crash or bug on the server should produce a 5xx code such as 500 Internal Server
-      Error, because the fault is on the server, not in the client's request
-    capability: http-basics
+  - id: crud-d2-404
+    criterion: Says the server should return 404 Not Found (or justifies 204 as a documented idempotent
+      choice) and that it decides by checking the affected row count.
+    capability: crud-databases
     weight: 1.0
-- id: rest-diag-001
-  capability: rest-design
-  also_exercises:
-  - http-basics
+  - id: crud-d2-no-where
+    criterion: Explains that DELETE without WHERE deletes every row in the tasks table (all users' tasks),
+      with no confirmation.
+    capability: crud-databases
+    weight: 1.0
+  - id: crud-d2-owner-filter
+    criterion: Recognises the role of owner_id = $2 in restricting the delete to Alice's own tasks.
+    capability: crud-databases
+    weight: 0.5
+- id: design-diag-001
+  capability: endpoint-design
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - application
+  - reasoning
+  prompt: 'In TaskFlow, Alice''s task 42 is {"title": "Buy milk", "done": false, "due_date": "2026-10-20"}.
+
+    She taps the checkbox to mark it done. Which HTTP method and path should the app use,
+
+    what request body should it send, and what status code and response body should it get back?
+
+    A teammate suggests sending PUT /v1/tasks/42 with the body {"done": true} instead.
+
+    Explain what would go wrong with that.
+
+    '
+  rubric:
+  - id: design-d1-patch-path
+    criterion: Chooses PATCH on the single-task URL /v1/tasks/42 (or /tasks/42), not the collection and
+      not a verb path like /markDone.
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-d1-minimal-body
+    criterion: 'Gives a body containing only the changed field, e.g. {"done": true}, and says the other
+      fields stay unchanged.'
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-d1-success-response
+    criterion: Expects 200 OK with the updated task in the body (or accepts 204 No Content as a valid
+      alternative).
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-d1-put-replaces
+    criterion: Explains that PUT replaces the whole representation, so the omitted title/due_date would
+      be cleared or the request rejected (400/422) because title is required.
+    capability: endpoint-design
+    weight: 1.0
+- id: design-diag-002
+  capability: endpoint-design
+  also_exercises: []
   level: foundation
   minutes: 8
   probes:
   - application
-  - decision
   - reasoning
-  prompt: "You are building the backend for a small recipe-sharing app. Users need to:\n  - see a list\
-    \ of all recipes\n  - see one recipe\n  - add a new recipe\n  - delete a recipe\n\nFor each action,\
-    \ write the HTTP method and the URL path you would use (for\nexample `GET /something`). Then answer:\n\
-    \  - What status code should the server return when a new recipe is successfully\n    added?\n  -\
-    \ What should it return when someone asks for a recipe that does not exist?\nBriefly explain one reason\
-    \ why a path like `/getAllRecipes` is a poor choice.\n"
+  prompt: "A teammate built TaskFlow's task list as:\n  POST /getTasks   with body {\"page\": 3, \"only_open\"\
+    : true}\nand deletion as:\n  GET /deleteTask?id=42   which returns 200 {\"status\": \"error\"} when\
+    \ the task does not exist.\nRedesign both endpoints the RESTful way. For the list, show the exact\
+    \ URL for the third page\nof 20 open tasks sorted by due date, and describe the shape of the response.\
+    \ For deletion,\ngive the success status, and say what a client gets if it repeats the same delete.\n\
+    Explain why the original designs are risky.\n"
   rubric:
-  - id: rest-d1-noun-paths
-    criterion: Uses noun-based resource paths such as /recipes and /recipes/{id} rather than verbs in
-      the path
-    capability: rest-design
-    weight: 1.5
-  - id: rest-d1-correct-methods
-    criterion: Pairs each action with a fitting method - GET for listing and fetching one, POST for adding,
-      DELETE for deleting
-    capability: rest-design
-    weight: 1.5
-  - id: rest-d1-201-created
-    criterion: Gives 201 Created as the status for a successfully added recipe
-    capability: http-basics
+  - id: design-d2-get-with-query
+    criterion: Replaces POST /getTasks with GET /v1/tasks using query parameters, e.g. ?done=false&sort=due_date&limit=20&offset=40
+      (correct offset 40 for page 3 of 20).
+    capability: endpoint-design
     weight: 1.0
-  - id: rest-d1-404-missing
-    criterion: Gives 404 Not Found for a recipe that does not exist
-    capability: http-basics
+  - id: design-d2-paginated-shape
+    criterion: Describes a paginated response with the list of tasks plus paging metadata (e.g. data array
+      and pagination with limit, offset, total or next link), returned with 200.
+    capability: endpoint-design
     weight: 1.0
-  - id: rest-d1-verb-in-path
-    criterion: Explains that the action belongs in the HTTP method, so putting a verb like "get" in the
-      path duplicates or conflicts with the method
-    capability: rest-design
+  - id: design-d2-delete-method
+    criterion: Replaces the GET with DELETE /v1/tasks/42 returning 204 No Content, and notes a repeat
+      returns 404 while the server state is unchanged (idempotent).
+    capability: endpoint-design
     weight: 1.0
-- id: rest-diag-002
-  capability: rest-design
-  also_exercises:
-  - http-basics
+  - id: design-d2-why-risky
+    criterion: Explains the risks, e.g. GET must be safe so crawlers/previews/retries could delete data,
+      reading via POST is not safe to retry or cache, and an error inside a 200 hides failure from clients.
+    capability: endpoint-design
+    weight: 1.0
+  - id: design-d2-error-status
+    criterion: Says a missing task should produce a real 4xx status (404) with a consistent error body
+      rather than 200 with an error inside.
+    capability: endpoint-design
+    weight: 1.0
+- id: req-diag-001
+  capability: http-requests
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - application
+  - reasoning
+  prompt: "In the TaskFlow app, Alice (user 123) does three things:\n  1. opens her task list,\n  2. adds\
+    \ a new task \"Buy milk\",\n  3. deletes task 42.\nFor each action, which HTTP method and path should\
+    \ the app use\n(the base URL is https://api.taskflow.example/v1)? For which of the three\nwould the\
+    \ request carry a body, and what would be in it?\n"
+  rubric:
+  - id: req-d1-get-list
+    criterion: Uses GET /tasks (or /v1/tasks) to view the task list and notes it needs no body.
+    capability: http-requests
+    weight: 1.0
+  - id: req-d1-post-create
+    criterion: Uses POST /tasks to create the task and says the body contains the new task's data, such
+      as {"title":"Buy milk"} in JSON.
+    capability: http-requests
+    weight: 1.0
+  - id: req-d1-delete
+    criterion: Uses DELETE /tasks/42, identifying the task by the id in the path rather than in a body.
+    capability: http-requests
+    weight: 1.0
+  - id: req-d1-path-vs-method
+    criterion: Shows understanding that the path names the resource while the method names the action
+      (for example, the same /tasks path is used with both GET and POST).
+    capability: http-requests
+    weight: 1.0
+- id: req-diag-002
+  capability: http-requests
+  also_exercises: []
   level: foundation
   minutes: 8
   probes:
+  - application
   - reasoning
-  - decision
-  - trade-offs
-  prompt: "A to-do app stores this task:\n\n  { \"id\": 3, \"title\": \"Write report\", \"done\": false,\
-    \ \"due\": \"2026-11-01\" }\n\nA user taps a checkbox to mark the task as done. Two teammates disagree:\n\
-    \  - Ana wants the app to send `PUT /tasks/3` with the body `{ \"done\": true }`.\n  - Ben wants it\
-    \ to send `PATCH /tasks/3` with the body `{ \"done\": true }`.\n\nWho is right, and why? Describe\
-    \ what the task might look like after Ana's request\nif the server follows PUT correctly. Then say\
-    \ which of the two methods is\nguaranteed to be safe to retry if the network fails, and why.\n"
+  prompt: 'Bob''s phone loses signal just after sending a request, so the app never sees a response
+
+    and does not know whether the server received it. The app has a "retry automatically"
+
+    feature. Should it automatically retry (a) DELETE /v1/tasks/88 and (b) POST /v1/tasks
+
+    with {"title": "Call mum"}? Explain your reasoning using the ideas of safe and
+
+    idempotent methods, and say what could go wrong in the risky case.
+
+    '
   rubric:
-  - id: rest-d2-patch-partial
-    criterion: Says PATCH is the right choice because it applies a partial change, leaving title and due
-      date untouched
-    capability: rest-design
-    weight: 1.5
-  - id: rest-d2-put-replaces
-    criterion: Explains that PUT replaces the whole resource, so sending only done could wipe or drop
-      the title and due date
-    capability: rest-design
-    weight: 1.5
-  - id: rest-d2-put-idempotent
-    criterion: Identifies PUT as idempotent - sending the same PUT again leaves the resource in the same
-      state - while PATCH is not guaranteed to be
-    capability: http-basics
+  - id: req-d2-idempotent-def
+    criterion: Explains idempotent correctly - repeating the same request has the same intended effect
+      on the server as sending it once.
+    capability: http-requests
     weight: 1.0
-  - id: rest-d2-fix-put
-    criterion: Notes that PUT could work if the client sent the complete task (title, done and due), not
-      just the changed field
-    capability: rest-design
+  - id: req-d2-delete-retry
+    criterion: Concludes that retrying the DELETE is harmless because DELETE is idempotent; the task ends
+      up deleted either way, even if the second response is 404.
+    capability: http-requests
+    weight: 1.0
+  - id: req-d2-post-duplicate
+    criterion: Recognises that POST is not idempotent and that a retry may create a second "Call mum"
+      task if the first request had succeeded.
+    capability: http-requests
+    weight: 1.0
+  - id: req-d2-safe-distinction
+    criterion: Distinguishes safe (read-only) from idempotent, noting that DELETE is idempotent but not
+      safe.
+    capability: http-requests
+    weight: 0.5
+  - id: req-d2-mitigation
+    criterion: Suggests a way to make the POST retry safe, such as an idempotency key, or checking for
+      the task before retrying.
+    capability: http-requests
+    weight: 0.5
+- id: json-diag-001
+  capability: json-resources
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - application
+  - reasoning
+  prompt: "A TaskFlow client sends this body to POST /v1/tasks and the server rejects it:\n\n  {'title':\
+    \ 'Buy milk', done: \"false\", }\n\nWhat is wrong with this JSON? Write a corrected version, and say\
+    \ which HTTP header\nthe client should send so the server knows the body is JSON.\n"
+  rubric:
+  - id: json-d1-double-quotes
+    criterion: Identifies that single quotes are invalid and keys and strings must use double quotes
+    capability: json-resources
+    weight: 1.0
+  - id: json-d1-unquoted-key
+    criterion: Identifies the unquoted key (done) as invalid JSON
+    capability: json-resources
+    weight: 1.0
+  - id: json-d1-trailing-comma-and-type
+    criterion: Identifies the trailing comma and/or that "false" is a string where the boolean false is
+      expected
+    capability: json-resources
+    weight: 1.0
+  - id: json-d1-content-type
+    criterion: Names Content-Type application/json as the header that declares the body format
+    capability: json-resources
+    weight: 1.0
+- id: json-diag-002
+  capability: json-resources
+  also_exercises: []
+  level: foundation
+  minutes: 7
+  probes:
+  - application
+  - reasoning
+  prompt: 'The TaskFlow team needs URLs for: (1) listing all of Alice''s (user 123) tasks,
+
+    (2) fetching task 42, and (3) listing only tasks that are not done yet. A teammate
+
+    proposes GET /getUserTasks?user=123, GET /task/42 and GET /tasks/notDone. Suggest
+
+    better URLs and explain the rules you are following, including when to use a path
+
+    segment versus a query parameter.
+
+    '
+  rubric:
+  - id: json-d2-no-verbs-plural
+    criterion: Removes verbs from paths and uses plural lowercase nouns (e.g. /tasks/42 instead of /task/42)
+    capability: json-resources
+    weight: 1.0
+  - id: json-d2-nested-ownership
+    criterion: Proposes /users/123/tasks (or /tasks?owner_id=123 with justification) for Alice's tasks,
+      explaining nesting expresses ownership
+    capability: json-resources
+    weight: 1.0
+  - id: json-d2-query-filter
+    criterion: Uses a query parameter such as /tasks?done=false for the filter and explains filters are
+      not separate resources
+    capability: json-resources
+    weight: 1.0
+  - id: json-d2-collection-vs-item
+    criterion: Distinguishes a collection (/tasks) from a single item identified by its id (/tasks/42)
+    capability: json-resources
+    weight: 1.0
+- id: query-diag-001
+  capability: queries-safety
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - application
+  - reasoning
+  prompt: 'TaskFlow''s GET /v1/tasks endpoint is called like this:
+
+    GET /v1/tasks?owner_id=123 , and the server runs
+
+    SELECT id, title FROM tasks WHERE owner_id = $1 with $1 taken from the
+
+    owner_id query parameter. The query uses a placeholder, so a teammate says
+
+    "it''s safe". Bob is user 456. Is the endpoint safe? Explain what Bob could
+
+    do, and how the server should decide whose tasks to return.
+
+    '
+  rubric:
+  - id: query-d1-not-safe
+    criterion: Says the endpoint is not safe even though it uses a placeholder, because the placeholder
+      prevents injection but not reading other users' data.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-d1-attack
+    criterion: Describes Bob changing the parameter to owner_id=123 and receiving Alice's tasks.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-d1-owner-from-token
+    criterion: States that the owner id must come from the authenticated user (the verified token), not
+      from anything the client sends.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-d1-drop-param
+    criterion: Proposes removing or ignoring the owner_id parameter and filtering WHERE owner_id = the
+      logged-in user's id.
+    capability: queries-safety
+    weight: 0.5
+- id: query-diag-002
+  capability: queries-safety
+  also_exercises: []
+  level: foundation
+  minutes: 8
+  probes:
+  - application
+  - reasoning
+  prompt: 'TaskFlow''s search endpoint GET /v1/tasks?q=... builds its SQL like this:
+
+    "SELECT id, title FROM tasks WHERE owner_id = 456 AND title ILIKE ''%" + q + "%''"
+
+    Bob sends q = '' OR 1=1 --
+
+    Write out the SQL the database actually receives, explain what result Bob
+
+    gets and why, and rewrite the query so this attack cannot work.
+
+    '
+  rubric:
+  - id: query-d2-final-sql
+    criterion: Writes the resulting SQL showing the quote closing the string, OR 1=1 added, and the rest
+      commented out by --.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-d2-all-rows
+    criterion: Explains that the WHERE condition becomes true for every row, so Bob receives all users'
+      tasks.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-d2-root-cause
+    criterion: Identifies the root cause as user input concatenated into the SQL text, so the database
+      cannot separate code from data.
+    capability: queries-safety
+    weight: 1.0
+  - id: query-d2-parameterized
+    criterion: Rewrites the query with placeholders (e.g. title ILIKE '%' || $2 || '%') and passes q as
+      a separate parameter.
+    capability: queries-safety
+    weight: 1.0
+- id: status-diag-001
+  capability: status-codes
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - application
+  - reasoning
+  prompt: 'In the TaskFlow app, Alice sends POST /v1/tasks with {"title": "Pay rent"} and the
+
+    task is saved with id 43. Later, the app sends GET /v1/tasks/999, but no task 999
+
+    exists. Which status code should TaskFlow return for each request, and why? For the
+
+    first one, is there anything else the response should include to help the client?
+
+    '
+  rubric:
+  - id: status-d1-created-201
+    criterion: Chooses 201 Created for the successful POST that created a task (200 accepted only if the
+      answer explains why 201 is more precise)
+    capability: status-codes
+    weight: 1.0
+  - id: status-d1-location-header
+    criterion: Mentions a Location header pointing to the new task's URL (e.g. /v1/tasks/43) and/or returning
+      the created task in the body
+    capability: status-codes
+    weight: 1.0
+  - id: status-d1-not-found-404
+    criterion: Chooses 404 Not Found for the missing task and explains that the resource does not exist
+    capability: status-codes
+    weight: 1.0
+  - id: status-d1-client-vs-server
+    criterion: Recognises that the 404 is a client-side (4xx) outcome, not a server failure (5xx)
+    capability: status-codes
+    weight: 1.0
+- id: status-diag-002
+  capability: status-codes
+  also_exercises: []
+  level: foundation
+  minutes: 7
+  probes:
+  - application
+  - reasoning
+  prompt: 'Task 42 in TaskFlow belongs to Alice (user 123). Three requests arrive:
+
+    (a) DELETE /v1/tasks/42 with no Authorization header;
+
+    (b) DELETE /v1/tasks/42 from Bob (user 456) with a valid token;
+
+    (c) POST /v1/tasks from Alice where the server crashes with an unhandled database error.
+
+    A colleague suggests returning 200 OK with {"error": "..."} in all three cases to
+
+    "keep things simple". Which status code would you use for each, and what is wrong
+
+    with the colleague''s idea?
+
+    '
+  rubric:
+  - id: status-d2-unauthenticated-401
+    criterion: Gives 401 for (a) because no valid credentials were sent, so the server doesn't know who
+      the caller is
+    capability: status-codes
+    weight: 1.0
+  - id: status-d2-forbidden-403
+    criterion: Gives 403 for (b) because Bob is authenticated but not allowed to delete Alice's task (404
+      to hide existence is also acceptable if explained)
+    capability: status-codes
+    weight: 1.0
+  - id: status-d2-server-500
+    criterion: Gives 500 (or 503 if framed as temporary unavailability) for (c) and says it's the server's
+      fault, not the client's
+    capability: status-codes
+    weight: 1.0
+  - id: status-d2-no-200-error
+    criterion: Explains that 200 with an error body is wrong because clients, libraries, monitoring or
+      retry logic rely on the status code and would treat the failure as success
+    capability: status-codes
     weight: 1.0
 - id: valid-diag-001
   capability: validation-errors
@@ -422,73 +728,147 @@ items:
   probes:
   - application
   - reasoning
-  prompt: "You are building the server for a sign-up form. The app sends a request to\nPOST /users with\
-    \ this JSON body:\n\n  {\"email\": \"not-an-email\", \"age\": -5}\n\nThe mobile app is supposed to\
-    \ check these fields before sending, but this request\ngot through anyway.\n\nWhat should the server\
-    \ do with this request, and what should it send back (status\ncode and what the response body should\
-    \ say)? A teammate suggests just saving it,\nbecause \"the app already checks the input\". Explain\
-    \ why that is or is not a good idea.\n"
+  prompt: 'The TaskFlow web form already refuses to submit a task with an empty title, so a
+
+    teammate proposes removing the title check from the server''s POST /tasks handler
+
+    "to avoid duplicate code". Alice''s teammate also wants the server to quietly cut any
+
+    title longer than 200 characters down to 200 instead of returning an error.
+
+    Do you agree with either idea? Explain what the server should do and why.
+
+    '
   rubric:
-  - id: valid-d1-reject-not-save
-    criterion: Says the server should validate the input and reject the request without saving it, rather
-      than storing it or silently correcting the values (e.g. changing -5 to 0)
+  - id: valid-d1-server-must-validate
+    criterion: Explains that client-side checks can be bypassed (e.g. by curl or a script calling the
+      API directly), so the server must still validate the title.
     capability: validation-errors
     weight: 1.0
-  - id: valid-d1-client-error-code
-    criterion: Chooses a 4xx client-error status, specifically 400 Bad Request or 422 Unprocessable Content,
-      and does not use 200 or 500
+  - id: valid-d1-client-checks-purpose
+    criterion: States that browser/form checks are still useful for user experience (fast feedback) but
+      do not protect the server.
     capability: validation-errors
     weight: 1.0
-  - id: valid-d1-field-level-message
-    criterion: Says the response body should name each invalid field and why it is wrong (email is not
-      a valid email format; age cannot be negative)
+  - id: valid-d1-reject-not-fix
+    criterion: Rejects silent truncation, explaining that the user would lose data without knowing, and
+      that the server should reject the request with an error instead.
     capability: validation-errors
     weight: 1.0
-  - id: valid-d1-server-must-check
-    criterion: Explains that client-side checks can be bypassed (e.g. someone calls the API directly or
-      the app has a bug), so the server cannot trust them and must validate itself
+  - id: valid-d1-status-and-message
+    criterion: Names a suitable 4xx status (422, or 400 if the API uses 400 for validation) and a message
+      that names the field and the 1-200 character rule.
     capability: validation-errors
-    weight: 1.5
+    weight: 1.0
 - id: valid-diag-002
   capability: validation-errors
   also_exercises: []
   level: foundation
   minutes: 8
   probes:
-  - reasoning
-  - decision
   - application
-  prompt: "You are reviewing a to-do API before it goes live and notice two behaviours.\n\n1. When the\
-    \ database is unreachable, GET /tasks/7 returns\n   500 Internal Server Error with this body:\n\n\
-    \     Traceback (most recent call last):\n       File \"/srv/app/db.py\", line 41, in get_task\n \
-    \    psycopg.OperationalError: connection to server at \"10.0.3.7\", port 5432 failed\n\n2. When a\
-    \ brand-new user with no tasks calls GET /tasks, the API returns\n   404 Not Found.\n\nFor each behaviour,\
-    \ say what is wrong (if anything) and what the API should do\ninstead. Include the status code and\
-    \ what the response body should contain.\n"
+  - reasoning
+  prompt: "Today is 2026-10-14. For each TaskFlow request below, give the status code you would\nreturn\
+    \ and a one-line reason, then sketch the JSON error body for case 2.\n  1. POST /tasks with body {\"\
+    title\": \"Gym\", \"done\": true,}  (note the trailing comma)\n  2. POST /tasks with body {\"title\"\
+    : \"Gym\", \"due_date\": \"2024-05-01\", \"owner_id\": 456}\n  3. GET /tasks/88888 where no task 88888\
+    \ exists\n  4. The database crashes while handling a valid POST /tasks\nFor case 4, say what should\
+    \ and should not appear in the response.\n"
   rubric:
-  - id: valid-d2-500-is-right-code
-    criterion: Recognises that 500 (a 5xx code) is an appropriate status for a database outage, because
-      the failure is on the server and not the client's fault
+  - id: valid-d2-malformed-400
+    criterion: Gives 400 for case 1 because the JSON cannot be parsed (malformed syntax), distinguishing
+      it from invalid values.
     capability: validation-errors
     weight: 1.0
-  - id: valid-d2-no-leaked-internals
-    criterion: Identifies that sending the stack trace is the problem, because it exposes internal details
-      (file paths, database type, internal IP address and port) that can help an attacker and mean nothing
-      to users
-    capability: validation-errors
-    weight: 1.5
-  - id: valid-d2-log-and-generic-body
-    criterion: Proposes logging the full error on the server and returning a short generic error message
-      to the client, optionally with a request or error ID for support
+  - id: valid-d2-semantic-errors
+    criterion: For case 2 gives 422 (or 400, consistently) and identifies both problems - the past due_date
+      and the disallowed owner_id field - reporting them together, ideally per field.
     capability: validation-errors
     weight: 1.0
-  - id: valid-d2-empty-list-200
-    criterion: Says GET /tasks with no tasks should return 200 OK with an empty list, because an empty
-      collection is a normal result, not a missing resource
+  - id: valid-d2-not-found
+    criterion: Gives 404 for case 3 because the specific task does not exist.
     capability: validation-errors
-    weight: 1.5
-  - id: valid-d2-404-for-specific-missing
-    criterion: Distinguishes this from asking for one specific resource that does not exist (e.g. GET
-      /tasks/999), which is where 404 is correct
+    weight: 1.0
+  - id: valid-d2-500-no-leak
+    criterion: Gives 500 for case 4 with a generic message, stating that stack traces, SQL errors or connection
+      details must not be sent and should be logged on the server instead.
     capability: validation-errors
+    weight: 1.0
+  - id: valid-d2-structured-body
+    criterion: Sketches a consistent structured error body (e.g. Problem Details with type, title, status,
+      detail and an errors list) rather than a bare string.
+    capability: validation-errors
+    weight: 1.0
+- id: web-diag-001
+  capability: web-basics
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - application
+  - reasoning
+  prompt: 'Alice opens the TaskFlow app on her phone and her list of tasks appears a second later.
+
+    The tasks are stored on TaskFlow''s server, not on her phone.
+
+    In a few sentences, explain what happened between her tapping the app and the list
+
+    appearing. Who started the conversation, what was sent, and what came back?
+
+    You may use an everyday analogy if it helps.
+
+    '
+  rubric:
+  - id: web-d1-client-starts
+    criterion: Identifies the phone app as the client that starts the exchange by sending a request, and
+      the TaskFlow server as the side that responds.
+    capability: web-basics
+    weight: 1.0
+  - id: web-d1-request-response
+    criterion: Describes a request going to the server and a response coming back as one complete round
+      trip (the request-response cycle).
+    capability: web-basics
+    weight: 1.0
+  - id: web-d1-server-work
+    criterion: Mentions that the server does work between request and response, such as looking up Alice's
+      tasks in its database.
+    capability: web-basics
+    weight: 1.0
+  - id: web-d1-data-not-page
+    criterion: Recognises that the app receives data (for example JSON) that it displays itself, rather
+      than a ready-made web page.
+    capability: web-basics
+    weight: 1.0
+- id: web-diag-002
+  capability: web-basics
+  also_exercises: []
+  level: foundation
+  minutes: 7
+  probes:
+  - application
+  - reasoning
+  prompt: "Bob's app needs this URL: https://api.taskflow.example/v1/tasks?done=false#list\n(a) How does\
+    \ his phone find out which computer to contact for api.taskflow.example?\n(b) Which parts of the URL\
+    \ are actually sent to the server, and what does each mean?\n(c) Bob signed in a minute ago, yet his\
+    \ next request without a token is rejected with\n    401 Unauthorized. Why does the server not remember\
+    \ him?\n"
+  rubric:
+  - id: web-d2-dns
+    criterion: Explains that a DNS lookup translates the host name into an IP address so the client can
+      connect, and that DNS does not itself carry the request.
+    capability: web-basics
+    weight: 1.0
+  - id: web-d2-url-parts
+    criterion: Correctly identifies the scheme (https), host (api.taskflow.example), path (/v1/tasks)
+      and query (done=false) and what each is for.
+    capability: web-basics
+    weight: 1.0
+  - id: web-d2-fragment
+    criterion: States that the fragment (#list) is not sent to the server.
+    capability: web-basics
+    weight: 1.0
+  - id: web-d2-stateless
+    criterion: Explains that HTTP is stateless, so each request must carry its own credentials (for example
+      an Authorization token) because the server does not remember the earlier login.
+    capability: web-basics
     weight: 1.0

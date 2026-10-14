@@ -1,0 +1,113 @@
+diagnostics:
+  - id: authn-diag-001
+    capability: authentication
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      Alice has just logged in to TaskFlow with POST /v1/login. A minute later her app
+      sends GET /v1/tasks to fetch her task list.
+
+      How does the server know this second request comes from Alice? Describe what the
+      login response gives her app, what her app must send with GET /v1/tasks (name the
+      header), and what the server should reply if that credential is missing or has
+      expired.
+    rubric:
+      - id: authn-d1-login-returns-credential
+        criterion: States that a successful login returns a credential such as a session cookie (Set-Cookie) or a token
+        capability: authentication
+        weight: 1.0
+      - id: authn-d1-every-request
+        criterion: Explains that the credential must be sent on every later request because HTTP is stateless (the server does not remember the earlier login by itself)
+        capability: authentication
+        weight: 1.5
+      - id: authn-d1-names-header
+        criterion: Names the correct header, either Cookie for a session or Authorization with the Bearer scheme for a token
+        capability: authentication
+        weight: 1.0
+      - id: authn-d1-401
+        criterion: Says a missing, invalid or expired credential gets 401 Unauthorized (not 403 or 200), ideally mentioning WWW-Authenticate
+        capability: authentication
+        weight: 1.0
+  - id: authn-diag-002
+    capability: authentication
+    also_exercises: []
+    level: foundation
+    minutes: 8
+    probes: [application, reasoning, decision]
+    prompt: |
+      TaskFlow's database was copied by an attacker. The users table looks like this:
+
+        id  | email             | password_hash
+        123 | alice@example.com | 9028ea0d15decaa35b2da21c0290af3b1a5ba0a30a591906f89b5074e209ea72
+
+      The hash is plain, unsalted SHA-256 of the password. A teammate says "it's fine,
+      hashes can't be reversed". The same teammate also wants to put the user's email
+      and password hash inside the JWT payload "so the server doesn't need a database
+      lookup".
+
+      Do you agree with each idea? Explain what is risky and what TaskFlow should do
+      instead.
+    rubric:
+      - id: authn-d2-fast-hash
+        criterion: Explains that fast hashes like SHA-256 let attackers guess passwords very quickly, so "can't be reversed" does not make them safe for passwords
+        capability: authentication
+        weight: 1.5
+      - id: authn-d2-salt
+        criterion: Explains the role of a unique random salt per user (identical passwords no longer share a hash; precomputed tables stop working)
+        capability: authentication
+        weight: 1.0
+      - id: authn-d2-slow-algorithm
+        criterion: Recommends a slow, purpose-built password hashing algorithm such as Argon2id (or bcrypt/scrypt)
+        capability: authentication
+        weight: 1.0
+      - id: authn-d2-jwt-readable
+        criterion: Explains that a JWT payload is only encoded and signed, not encrypted, so anyone holding it can read it; secrets like password hashes must never go in it
+        capability: authentication
+        weight: 1.5
+exercises:
+  - chunk: authentication.md#exercise-review-the-taskflow-login-design
+    title: Review the TaskFlow login design
+    capabilities: [authentication]
+    level: foundation
+    minutes: 10
+    rubric:
+      - id: authn-e1-post-body
+        criterion: Rejects credentials in the URL (logs, history) and replaces GET with POST /login carrying email and password in the request body
+        capability: authentication
+        weight: 1.0
+      - id: authn-e1-password-hashing
+        criterion: Replaces unsalted SHA-256 with a slow salted password hash such as Argon2id or bcrypt and explains why fast hashes are unsafe
+        capability: authentication
+        weight: 1.0
+      - id: authn-e1-generic-error
+        criterion: Identifies that different errors for "email not found" and "wrong password" reveal which emails have accounts, and proposes one generic 401 message for all login failures
+        capability: authentication
+        weight: 1.0
+      - id: authn-e1-jwt-contents
+        criterion: Removes the password hash (and unnecessary personal data) from the JWT because the payload is readable, and adds a short expiry (exp)
+        capability: authentication
+        weight: 1.0
+  - chunk: authentication.md#exercise-sessions-or-tokens-after-logout
+    title: Sessions or tokens after logout
+    capabilities: [authentication]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: authn-e2-session-storage
+        criterion: Explains that with sessions the server stores a session record and looks up the random ID on each request
+        capability: authentication
+        weight: 1.0
+      - id: authn-e2-session-logout
+        criterion: Concludes that if logout deleted the session on the server, the copied cookie now gets 401 Unauthorized
+        capability: authentication
+        weight: 1.0
+      - id: authn-e2-jwt-still-valid
+        criterion: Explains that the server only verifies the JWT's signature and exp, so the copied 24-hour token still works after logout until it expires
+        capability: authentication
+        weight: 1.5
+      - id: authn-e2-mitigation
+        criterion: Recommends a sensible mitigation for (b), such as short-lived access tokens, a server-side deny-list or revocation, or switching to server-side sessions
+        capability: authentication
+        weight: 1.0

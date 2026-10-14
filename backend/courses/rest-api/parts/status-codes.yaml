@@ -1,0 +1,113 @@
+diagnostics:
+  - id: status-diag-001
+    capability: status-codes
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      In the TaskFlow app, Alice sends POST /v1/tasks with {"title": "Pay rent"} and the
+      task is saved with id 43. Later, the app sends GET /v1/tasks/999, but no task 999
+      exists. Which status code should TaskFlow return for each request, and why? For the
+      first one, is there anything else the response should include to help the client?
+    rubric:
+      - id: status-d1-created-201
+        criterion: Chooses 201 Created for the successful POST that created a task (200 accepted only if the answer explains why 201 is more precise)
+        capability: status-codes
+        weight: 1.0
+      - id: status-d1-location-header
+        criterion: Mentions a Location header pointing to the new task's URL (e.g. /v1/tasks/43) and/or returning the created task in the body
+        capability: status-codes
+        weight: 1.0
+      - id: status-d1-not-found-404
+        criterion: Chooses 404 Not Found for the missing task and explains that the resource does not exist
+        capability: status-codes
+        weight: 1.0
+      - id: status-d1-client-vs-server
+        criterion: Recognises that the 404 is a client-side (4xx) outcome, not a server failure (5xx)
+        capability: status-codes
+        weight: 1.0
+  - id: status-diag-002
+    capability: status-codes
+    also_exercises: []
+    level: foundation
+    minutes: 7
+    probes: [application, reasoning]
+    prompt: |
+      Task 42 in TaskFlow belongs to Alice (user 123). Three requests arrive:
+      (a) DELETE /v1/tasks/42 with no Authorization header;
+      (b) DELETE /v1/tasks/42 from Bob (user 456) with a valid token;
+      (c) POST /v1/tasks from Alice where the server crashes with an unhandled database error.
+      A colleague suggests returning 200 OK with {"error": "..."} in all three cases to
+      "keep things simple". Which status code would you use for each, and what is wrong
+      with the colleague's idea?
+    rubric:
+      - id: status-d2-unauthenticated-401
+        criterion: Gives 401 for (a) because no valid credentials were sent, so the server doesn't know who the caller is
+        capability: status-codes
+        weight: 1.0
+      - id: status-d2-forbidden-403
+        criterion: Gives 403 for (b) because Bob is authenticated but not allowed to delete Alice's task (404 to hide existence is also acceptable if explained)
+        capability: status-codes
+        weight: 1.0
+      - id: status-d2-server-500
+        criterion: Gives 500 (or 503 if framed as temporary unavailability) for (c) and says it's the server's fault, not the client's
+        capability: status-codes
+        weight: 1.0
+      - id: status-d2-no-200-error
+        criterion: Explains that 200 with an error body is wrong because clients, libraries, monitoring or retry logic rely on the status code and would treat the failure as success
+        capability: status-codes
+        weight: 1.0
+exercises:
+  - chunk: status-codes.md#exercise-choose-the-status-code
+    title: Choose the status code
+    capabilities: [status-codes]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: status-e1-patch-200
+        criterion: Gives 200 OK for the successful PATCH that returns the updated task
+        capability: status-codes
+        weight: 1.0
+      - id: status-e1-validation-422
+        criterion: Gives 422 (or 400 with justification) for the meaningless due_date value inside otherwise valid JSON, explaining the JSON parsed but the value is invalid
+        capability: status-codes
+        weight: 1.0
+      - id: status-e1-forbidden-403
+        criterion: Gives 403 for Bob reading Alice's task (or 404 to hide existence, with explanation), not 401
+        capability: status-codes
+        weight: 1.0
+      - id: status-e1-rate-limit-429
+        criterion: Gives 429 Too Many Requests for the rate-limited script and mentions Retry-After
+        capability: status-codes
+        weight: 1.0
+      - id: status-e1-class-contrast
+        criterion: Gives 503 for the maintenance case and explains that situation 2 is 4xx (client must change the request) while 5 is 5xx (server failed; retrying later can work)
+        capability: status-codes
+        weight: 1.0
+  - chunk: status-codes.md#exercise-fix-the-error-responses
+    title: Fix the error responses
+    capabilities: [status-codes]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: status-e2-explains-harm
+        criterion: Explains concrete harms of always returning 200, covering at least two of mobile app error handling, monitoring/success metrics, and retry logic
+        capability: status-codes
+        weight: 1.0
+      - id: status-e2-not-logged-in-401
+        criterion: Rewrites "not logged in" as 401 Unauthorized, ideally with a WWW-Authenticate header
+        capability: status-codes
+        weight: 1.0
+      - id: status-e2-not-found-404
+        criterion: Rewrites "task not found" as 404 Not Found
+        capability: status-codes
+        weight: 1.0
+      - id: status-e2-timeout-5xx
+        criterion: Rewrites "database timeout" as a 5xx (503 with Retry-After, or 500) without leaking internal details
+        capability: status-codes
+        weight: 1.0
+      - id: status-e2-consistent-body
+        criterion: Uses one consistent error body format (e.g. machine-readable error code plus human message) across all three responses
+        capability: status-codes
+        weight: 1.0

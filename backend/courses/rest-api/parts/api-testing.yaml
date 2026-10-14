@@ -4,122 +4,112 @@ diagnostics:
     also_exercises: []
     level: foundation
     minutes: 6
-    probes: [decomposition, reasoning]
+    probes: [application, reasoning]
     prompt: |
-      You have built an endpoint, GET /tasks/{id}, in a to-do app's API. Each task belongs
-      to the user who created it, and users log in to get a token. You opened the URL in
-      your browser for one of your own tasks and it returned the task correctly.
-
-      Before calling this endpoint done, what else would you test? List the situations you
-      would check, what you would expect the API to do in each, and explain why trying it
-      once in the browser is not enough.
+      A teammate says: "I tested POST /tasks in the browser as Alice and it created the
+      task, so it works. We don't need automated tests." Their only check was that the
+      page showed "Task created". What would you say to them? Describe what an automated
+      test for creating a task should check, and name at least two failure cases it
+      should also cover.
     rubric:
-      - id: test-d1-beyond-happy-path
-        criterion: Explains that one successful manual try only shows one case and does not prove the endpoint handles other situations or keeps working after later changes
+      - id: test-d1-browser-not-proof
+        criterion: Explains that one manual happy-path try is not proof - it covers one case once and will not catch later regressions.
         capability: api-testing
         weight: 1.0
-      - id: test-d1-missing-resource
-        criterion: Includes a case where the requested task id does not exist and expects a not-found response (404) rather than a crash or an empty success
+      - id: test-d1-assert-status-body
+        criterion: Says the test should assert the status code (201) and the response body (e.g. title, done defaulting to false).
         capability: api-testing
         weight: 1.0
-      - id: test-d1-no-token
-        criterion: Includes a case where the request is sent without being logged in (no token or an invalid one) and expects it to be rejected, ideally with 401
+      - id: test-d1-side-effect
+        criterion: Says the test should check the database side effect - a row exists with the right title and owner_id 123.
         capability: api-testing
         weight: 1.0
-      - id: test-d1-other-users-task
-        criterion: Includes a case where a logged-in user asks for a task owned by someone else and expects it to be refused (403 or 404), not returned
+      - id: test-d1-failure-cases
+        criterion: Names at least two relevant failure cases (e.g. missing title, 201-character title, no token, expired token, invalid due date) with expected 4xx outcomes.
         capability: api-testing
-        weight: 1.5
-      - id: test-d1-asserts-more-than-status
-        criterion: Says what to check in the response beyond whether it "works", such as the status code and the returned fields or error message
-        capability: api-testing
-        weight: 0.5
-
+        weight: 1.0
   - id: test-diag-002
     capability: api-testing
     also_exercises: []
-    level: intermediate
+    level: foundation
     minutes: 8
     probes: [application, reasoning]
     prompt: |
-      A task API has DELETE /tasks/{id}. Every task has an owner, and requests carry a
-      login token in the Authorization header. A bug report says: "I could delete another
-      user's task just by changing the number in the URL."
-
-      After the fix, you want an automated test that would catch this bug if it ever came
-      back. Write that test step by step, split into its setup, the request it sends, and
-      the checks it makes. Be specific about which users and tasks exist, which status
-      code you expect, and what you check afterwards. Then explain why your test would
-      still pass reliably if it were run on its own or in a different order.
+      Bob (user 456) owns task 77. You want to prove that Alice (user 123) cannot read,
+      change or delete it. Describe the test(s) you would write using arrange-act-assert:
+      what you set up, which requests you send, what responses you expect, and what you
+      check afterwards. Why is checking the status code alone not enough here?
     rubric:
-      - id: test-d2-two-users-setup
-        criterion: Sets up two distinct users and a task owned by one of them inside the test itself, rather than assuming existing data or a hard-coded id
+      - id: test-d2-two-users
+        criterion: Arranges two users and a task owned by Bob, and uses Alice's valid token against Bob's task id (swapping the object id).
         capability: api-testing
-        weight: 1.5
-      - id: test-d2-single-act
-        criterion: The action is a single DELETE request for the other user's task, sent with the non-owner's token
+        weight: 1.0
+      - id: test-d2-all-methods
+        criterion: Covers more than one method - at least GET plus PATCH or DELETE (ideally GET, PATCH and DELETE).
         capability: api-testing
         weight: 1.0
       - id: test-d2-expected-status
-        criterion: Expects the request to be refused with 403 or 404 (and says a 2xx success would mean the bug is back)
+        criterion: Expects a refusal status of 403 or 404 (per the API's documented choice) and states it must never be 200/204 or include Bob's data.
         capability: api-testing
         weight: 1.0
-      - id: test-d2-side-effect-check
-        criterion: Checks the side effect, confirming afterwards that the owner's task still exists and is unchanged
-        capability: api-testing
-        weight: 1.5
-      - id: test-d2-isolation
-        criterion: Explains that the test is reliable because it creates its own data and does not depend on other tests or their order
+      - id: test-d2-row-unchanged
+        criterion: Checks the database afterwards that Bob's task still exists with its original owner, title and done value, explaining a handler might change data before refusing.
         capability: api-testing
         weight: 1.0
-
+      - id: test-d2-control
+        criterion: Mentions a control or isolation point, such as confirming Bob can still access task 77 or that each test sets up its own data.
+        capability: api-testing
+        weight: 1.0
 exercises:
-  - chunk: api-testing.md#exercise-write-the-test-cases
-    title: Write the test cases for PUT /tasks/{id}
+  - chunk: api-testing.md#exercise-find-the-gaps-in-a-test-suite
+    title: Find the gaps in a test suite
     capabilities: [api-testing]
     level: foundation
     minutes: 10
     rubric:
-      - id: test-ex1-success-case
-        criterion: Includes a successful update by the owner with a valid body, expecting a 2xx status and checking that the returned or stored task has the new values
+      - id: test-e1-status-only
+        criterion: Explains that asserting only 204 is insufficient because it does not prove the row was deleted, and adds a database check that task 42 is gone.
         capability: api-testing
         weight: 1.0
-      - id: test-ex1-validation-case
-        criterion: Includes an invalid-input case (such as a missing or too-long title), expecting 400 or 422 with an error that identifies the problem field
+      - id: test-e1-not-found
+        criterion: Adds a test for deleting a non-existent id expecting 404 (and no other rows affected).
         capability: api-testing
         weight: 1.0
-      - id: test-ex1-missing-and-no-token
-        criterion: Includes a request for a task id that does not exist expecting 404, and a request with no token expecting 401
+      - id: test-e1-authentication
+        criterion: Adds tests for no token and/or an expired token expecting 401, with task 42 still present afterwards.
         capability: api-testing
         weight: 1.0
-      - id: test-ex1-other-user
-        criterion: Includes a case where a different logged-in user tries to update the owner's task, expecting 403 or 404
-        capability: api-testing
-        weight: 1.5
-      - id: test-ex1-state-unchanged
-        criterion: For the failure cases, states that the stored task must be unchanged afterwards, not just that an error status is returned
+      - id: test-e1-authorization
+        criterion: Adds a test where Alice's token deletes Bob's task, expecting 403 or 404, and explains Bob is needed because IDOR can only be detected with a second user's object; checks Bob's row still exists.
         capability: api-testing
         weight: 1.0
-
-  - chunk: api-testing.md#exercise-fix-the-flaky-tests
-    title: Fix the flaky tests
+      - id: test-e1-aaa-structure
+        criterion: Gives each test a clear arrange, act and assert, with each test creating its own data.
+        capability: api-testing
+        weight: 1.0
+  - chunk: api-testing.md#exercise-design-tests-for-patch-tasks-id
+    title: Design tests for PATCH /tasks/{id}
     capabilities: [api-testing]
     level: foundation
-    minutes: 8
+    minutes: 10
     rubric:
-      - id: test-ex2-diagnoses-dependency
-        criterion: Explains that Test B fails alone because it relies on the task created by Test A, so task 1 does not exist (or is not Alice's) when B runs by itself
-        capability: api-testing
-        weight: 1.5
-      - id: test-ex2-names-principle
-        criterion: Names the principle being broken, that tests must be isolated and not depend on each other's data or order
+      - id: test-e2-boundaries
+        criterion: Includes boundary tests for title - empty or missing-length cases, 200 characters accepted, 201 characters rejected with 422 (or 400).
         capability: api-testing
         weight: 1.0
-      - id: test-ex2-rewrite-arrange
-        criterion: Rewrites the setup so Test B creates Alice, Bob and Alice's task itself and uses the returned task id instead of a hard-coded 1
+      - id: test-e2-failure-coverage
+        criterion: Covers wrong type for done, an unknown field, a missing task (404) and a missing token (401) with correct expected statuses.
         capability: api-testing
-        weight: 1.5
-      - id: test-ex2-rewrite-act-assert
-        criterion: The rewritten test sends one GET for Alice's task with Bob's token and asserts a refusal (403, or 404 if that is the API's convention)
+        weight: 1.0
+      - id: test-e2-authorization
+        criterion: Includes Alice patching Bob's task 77 expecting 403 or 404 and verifies Bob's row is unchanged.
+        capability: api-testing
+        weight: 1.0
+      - id: test-e2-db-checks
+        criterion: States database checks for rows - updated fields on success, row unchanged on every rejected request.
+        capability: api-testing
+        weight: 1.0
+      - id: test-e2-isolation-pyramid
+        criterion: Explains isolation (each test arranges its own data from a clean state, no order dependence) and places a pure 200-character rule check at the unit-test level.
         capability: api-testing
         weight: 1.0

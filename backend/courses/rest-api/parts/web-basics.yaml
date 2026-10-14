@@ -1,0 +1,104 @@
+diagnostics:
+  - id: web-diag-001
+    capability: web-basics
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      Alice opens the TaskFlow app on her phone and her list of tasks appears a second later.
+      The tasks are stored on TaskFlow's server, not on her phone.
+      In a few sentences, explain what happened between her tapping the app and the list
+      appearing. Who started the conversation, what was sent, and what came back?
+      You may use an everyday analogy if it helps.
+    rubric:
+      - id: web-d1-client-starts
+        criterion: Identifies the phone app as the client that starts the exchange by sending a request, and the TaskFlow server as the side that responds.
+        capability: web-basics
+        weight: 1.0
+      - id: web-d1-request-response
+        criterion: Describes a request going to the server and a response coming back as one complete round trip (the request-response cycle).
+        capability: web-basics
+        weight: 1.0
+      - id: web-d1-server-work
+        criterion: Mentions that the server does work between request and response, such as looking up Alice's tasks in its database.
+        capability: web-basics
+        weight: 1.0
+      - id: web-d1-data-not-page
+        criterion: Recognises that the app receives data (for example JSON) that it displays itself, rather than a ready-made web page.
+        capability: web-basics
+        weight: 1.0
+  - id: web-diag-002
+    capability: web-basics
+    also_exercises: []
+    level: foundation
+    minutes: 7
+    probes: [application, reasoning]
+    prompt: |
+      Bob's app needs this URL: https://api.taskflow.example/v1/tasks?done=false#list
+      (a) How does his phone find out which computer to contact for api.taskflow.example?
+      (b) Which parts of the URL are actually sent to the server, and what does each mean?
+      (c) Bob signed in a minute ago, yet his next request without a token is rejected with
+          401 Unauthorized. Why does the server not remember him?
+    rubric:
+      - id: web-d2-dns
+        criterion: Explains that a DNS lookup translates the host name into an IP address so the client can connect, and that DNS does not itself carry the request.
+        capability: web-basics
+        weight: 1.0
+      - id: web-d2-url-parts
+        criterion: Correctly identifies the scheme (https), host (api.taskflow.example), path (/v1/tasks) and query (done=false) and what each is for.
+        capability: web-basics
+        weight: 1.0
+      - id: web-d2-fragment
+        criterion: States that the fragment (#list) is not sent to the server.
+        capability: web-basics
+        weight: 1.0
+      - id: web-d2-stateless
+        criterion: Explains that HTTP is stateless, so each request must carry its own credentials (for example an Authorization token) because the server does not remember the earlier login.
+        capability: web-basics
+        weight: 1.0
+exercises:
+  - chunk: web-basics.md#exercise-trace-a-taskflow-request
+    title: Trace a TaskFlow request
+    capabilities: [web-basics]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: web-e1-url-parts
+        criterion: Names the scheme, host, path, query and fragment of the URL correctly.
+        capability: web-basics
+        weight: 1.0
+      - id: web-e1-what-is-sent
+        criterion: States that the request line carries the path and query (/v1/tasks?done=false), the host goes in the Host header, and the fragment (#top) is not sent.
+        capability: web-basics
+        weight: 1.0
+      - id: web-e1-steps
+        criterion: Gives a sensible ordered sequence - DNS lookup, connect, send request, server queries data, response with status and JSON body, app displays tasks.
+        capability: web-basics
+        weight: 1.0
+      - id: web-e1-analogy
+        criterion: Maps at least three steps correctly onto the restaurant analogy (for example order = request, kitchen = server processing, waiter bringing the plate = response).
+        capability: web-basics
+        weight: 1.0
+  - chunk: web-basics.md#exercise-why-did-the-second-request-fail
+    title: Why did the second request fail
+    capabilities: [web-basics]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: web-e2-stateless
+        criterion: Explains that HTTP is stateless, so the login request and the tasks request are independent and the server has no memory linking them.
+        capability: web-basics
+        weight: 1.0
+      - id: web-e2-fix
+        criterion: Says the job must keep the token from the login response and send it with every later request, for example in an Authorization header.
+        capability: web-basics
+        weight: 1.0
+      - id: web-e2-benefit
+        criterion: Gives a valid benefit of statelessness, such as any of several servers being able to handle any request, making scaling easier.
+        capability: web-basics
+        weight: 1.0
+      - id: web-e2-client-kind
+        criterion: Identifies the job as a server-to-server client and justifies it (a program on a server calling the API with no browser or human involved).
+        capability: web-basics
+        weight: 1.0

@@ -1,0 +1,113 @@
+diagnostics:
+  - id: json-diag-001
+    capability: json-resources
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      A TaskFlow client sends this body to POST /v1/tasks and the server rejects it:
+
+        {'title': 'Buy milk', done: "false", }
+
+      What is wrong with this JSON? Write a corrected version, and say which HTTP header
+      the client should send so the server knows the body is JSON.
+    rubric:
+      - id: json-d1-double-quotes
+        criterion: Identifies that single quotes are invalid and keys and strings must use double quotes
+        capability: json-resources
+        weight: 1.0
+      - id: json-d1-unquoted-key
+        criterion: Identifies the unquoted key (done) as invalid JSON
+        capability: json-resources
+        weight: 1.0
+      - id: json-d1-trailing-comma-and-type
+        criterion: Identifies the trailing comma and/or that "false" is a string where the boolean false is expected
+        capability: json-resources
+        weight: 1.0
+      - id: json-d1-content-type
+        criterion: Names Content-Type application/json as the header that declares the body format
+        capability: json-resources
+        weight: 1.0
+  - id: json-diag-002
+    capability: json-resources
+    also_exercises: []
+    level: foundation
+    minutes: 7
+    probes: [application, reasoning]
+    prompt: |
+      The TaskFlow team needs URLs for: (1) listing all of Alice's (user 123) tasks,
+      (2) fetching task 42, and (3) listing only tasks that are not done yet. A teammate
+      proposes GET /getUserTasks?user=123, GET /task/42 and GET /tasks/notDone. Suggest
+      better URLs and explain the rules you are following, including when to use a path
+      segment versus a query parameter.
+    rubric:
+      - id: json-d2-no-verbs-plural
+        criterion: Removes verbs from paths and uses plural lowercase nouns (e.g. /tasks/42 instead of /task/42)
+        capability: json-resources
+        weight: 1.0
+      - id: json-d2-nested-ownership
+        criterion: Proposes /users/123/tasks (or /tasks?owner_id=123 with justification) for Alice's tasks, explaining nesting expresses ownership
+        capability: json-resources
+        weight: 1.0
+      - id: json-d2-query-filter
+        criterion: Uses a query parameter such as /tasks?done=false for the filter and explains filters are not separate resources
+        capability: json-resources
+        weight: 1.0
+      - id: json-d2-collection-vs-item
+        criterion: Distinguishes a collection (/tasks) from a single item identified by its id (/tasks/42)
+        capability: json-resources
+        weight: 1.0
+exercises:
+  - chunk: json-resources.md#exercise-design-the-taskflow-urls
+    title: Design the TaskFlow URLs
+    capabilities: [json-resources]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: json-e1-verbs-replaced
+        criterion: Replaces verb paths (getAllTasks, tasks/create) with methods on nouns, e.g. GET /tasks and POST /tasks
+        capability: json-resources
+        weight: 1.0
+      - id: json-e1-naming
+        criterion: Fixes casing and singular naming (/Task/42 becomes /tasks/42)
+        capability: json-resources
+        weight: 1.0
+      - id: json-e1-filter-query
+        criterion: Replaces /tasks/completed with a query parameter such as /tasks?done=true
+        capability: json-resources
+        weight: 1.0
+      - id: json-e1-shallow-nesting
+        criterion: Simplifies the deep/redundant nested path to /tasks/42, noting the item id is enough and "details" is not a resource
+        capability: json-resources
+        weight: 1.0
+      - id: json-e1-combined-request
+        criterion: Writes a request like GET /users/123/tasks?done=false&sort=due_date and explains path = which resource (ownership), query = filter/sort
+        capability: json-resources
+        weight: 1.0
+  - chunk: json-resources.md#exercise-repair-and-explain-a-json-body
+    title: Repair and explain a JSON body
+    capabilities: [json-resources]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: json-e2-syntax-errors
+        criterion: Lists the syntax errors (unquoted key, single quotes, unquoted date, trailing comma)
+        capability: json-resources
+        weight: 1.0
+      - id: json-e2-value-types
+        criterion: Notes that "no" should be the boolean false and the date should be a string such as "2026-12-01"
+        capability: json-resources
+        weight: 1.0
+      - id: json-e2-headers
+        criterion: Adds Content-Type application/json (and optionally Accept and Authorization) to the corrected request
+        capability: json-resources
+        weight: 1.0
+      - id: json-e2-owner-id-security
+        criterion: Flags that the client should not set owner_id (Bob claiming user 123) and that the server derives the owner from the authenticated user
+        capability: json-resources
+        weight: 1.0
+      - id: json-e2-representation
+        criterion: Describes a returned JSON representation that includes server-set fields (id, owner_id, done default, created_at) and identifies them as server-generated
+        capability: json-resources
+        weight: 1.0

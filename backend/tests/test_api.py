@@ -286,3 +286,18 @@ def test_learner_context_bands(client):
     assessed = next(r for r in profile.all_rows() if r.mastery is not None)
     ctx = learner_context(profile, assessed.capability_id)
     assert ctx.band == "struggling" and "MISSED" in ctx.prompt
+
+
+def test_missed_points_come_from_latest_attempt_only(client):
+    learner = onboard(client, "Ada")["learner"]["id"]
+    body = lambda v: {"capabilityId": "http", "concepts": [
+        {"title": "Status codes", "verdict": v}, {"title": "Idempotency", "verdict": "unmet"}]}
+    client.post(f"/api/learners/{learner}/lessons/result", json=body("unmet"))
+    client.post(f"/api/learners/{learner}/lessons/result", json=body("met"))
+    from api.main import graph
+    from cognith_learning.knowledge import GapResolver
+    from cognith_student.profile import CapabilityProfile
+
+    gap = next(g for g in GapResolver(graph(), CapabilityProfile.load(learner, graph())).gaps()
+               if g.capability_id == "http")
+    assert gap.unmet == ("Understands: Idempotency",)

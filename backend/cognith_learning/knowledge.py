@@ -144,18 +144,26 @@ class GapResolver:
         criteria = {c.id: c
                     for e in library.experiences.values() for c in e.rubric}
 
-        out: dict[str, list[tuple[str, str]]] = {}
-        for entry in log:
+        # Only the MOST RECENT attempt that touched each capability. Accumulating every
+        # miss in history meant a learner who later got union and intersection right was
+        # still "missing" them, so a remedial lesson re-taught what they had since shown.
+        # Repeated blind spots are tracked separately (history.persistent_misses) and
+        # reach the learning engine through learner_context.
+        latest: dict[str, dict] = {}
+        for entry in log:  # chronological: append-only log
             ev = entry["evidence"]
             for r in ev.get("results", []):
-                if r["verdict"] == Verdict.MET.value:
-                    continue
                 c = criteria.get(r["criterionId"])
-                if c is None:
+                if c is not None:
+                    latest[c.capability_id] = ev
+
+        out: dict[str, list[tuple[str, str]]] = {}
+        for cap_id, ev in latest.items():
+            for r in ev.get("results", []):
+                c = criteria.get(r["criterionId"])
+                if c is None or c.capability_id != cap_id or r["verdict"] == Verdict.MET.value:
                     continue
-                out.setdefault(c.capability_id, []).append(
-                    (c.criterion, ev["experienceId"], c.id)
-                )
+                out.setdefault(cap_id, []).append((c.criterion, ev["experienceId"], c.id))
 
         # Criteria missed MORE THAN ONCE lead. A criterion missed once is a slip; missed
         # again after the learner was told exactly what was wrong is a blind spot. The

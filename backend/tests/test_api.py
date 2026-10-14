@@ -406,3 +406,23 @@ def test_coverage_is_recorded_per_concept_and_gates_mastery(client):
     assert unit["part"] == 2
     steps = client.get(f"/api/learners/{lid}/next").json()["steps"]
     assert any("Part 2 of" in s["title"] for s in steps if s["capabilityId"] == "authorization")
+
+
+def test_an_unclear_concept_is_remembered_after_later_concepts(client):
+    """'We'll come back to it' must be true: a concept left unclear stays a miss even after
+    later concepts are saved, until a later check shows it."""
+    from api.main import graph
+    from cognith_learning.knowledge import GapResolver
+    from cognith_student.profile import CapabilityProfile
+
+    lid = onboard(client, "Ada")["learner"]["id"]
+    save = lambda title, v: client.post(f"/api/learners/{lid}/lessons/result", json={
+        "capabilityId": "http", "concepts": [{"title": title, "verdict": v}]})
+    gap = lambda: next(g for g in GapResolver(graph(), CapabilityProfile.load(lid, graph())).gaps()
+                       if g.capability_id == "http")
+    save("Status codes", "unmet")
+    save("Methods", "met")
+    save("Headers", "met")
+    assert "Understands: Status codes" in gap().unmet
+    save("Status codes", "met")
+    assert "Understands: Status codes" not in gap().unmet

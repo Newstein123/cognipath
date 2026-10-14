@@ -149,12 +149,24 @@ class GapResolver:
         # still "missing" them, so a remedial lesson re-taught what they had since shown.
         # Repeated blind spots are tracked separately (history.persistent_misses) and
         # reach the learning engine through learner_context.
+        # Two kinds of evidence, two rules:
+        #   assessments (diagnosis, practice, challenges) — the most recent one per
+        #     capability speaks for the whole skill, so its misses are the misses;
+        #   lesson checks ("checks-…", one concept each) — each concept keeps its own
+        #     latest outcome, so finishing concept 3 does not erase that concept 1 is
+        #     still unclear. A concept leaves the list once a later check shows it.
         latest: dict[str, dict] = {}
+        concept_state: dict[tuple[str, str], tuple[str, str, str]] = {}
         for entry in log:  # chronological: append-only log
             ev = entry["evidence"]
+            lesson = ev["experienceId"].startswith("checks-")
             for r in ev.get("results", []):
                 c = criteria.get(r["criterionId"])
-                if c is not None:
+                if c is None:
+                    continue
+                if lesson:
+                    concept_state[(c.capability_id, c.criterion)] = (r["verdict"], ev["experienceId"], c.id)
+                else:
                     latest[c.capability_id] = ev
 
         out: dict[str, list[tuple[str, str]]] = {}
@@ -164,6 +176,9 @@ class GapResolver:
                 if c is None or c.capability_id != cap_id or r["verdict"] == Verdict.MET.value:
                     continue
                 out.setdefault(cap_id, []).append((c.criterion, ev["experienceId"], c.id))
+        for (cap_id, text), (verdict, exp_id, cid) in concept_state.items():
+            if verdict == Verdict.UNMET.value:
+                out.setdefault(cap_id, []).append((text, exp_id, cid))
 
         # Criteria missed MORE THAN ONCE lead. A criterion missed once is a slip; missed
         # again after the learner was told exactly what was wrong is a blind spot. The

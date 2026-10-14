@@ -140,7 +140,10 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
   function onRecheck(choice: number) {
     if (!re?.check) return;
     if (choice === re.check.answerIndex) { say("That's it — it clicked the second time."); finishConcept("partial", "second"); }
-    else { say("Still tricky — we'll come back to it. The tutor below can help."); finishConcept("unmet", "unclear"); }
+    else {
+      say("Still tricky — that's saved as not shown yet. Cognith will bring it back for review before the unit challenge; the tutor below can help right now.");
+      finishConcept("unmet", "unclear");
+    }
   }
 
   function next() {

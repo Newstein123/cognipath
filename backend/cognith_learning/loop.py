@@ -338,8 +338,8 @@ class AdaptiveLoop:
                 backlog.append((cap, "no corpus material and no exercise"))
                 continue
 
-            missing = gap.unmet[0] if gap.unmet else None
-            detail = f' Specifically: "{missing}".' if missing else ""
+            missing = gap.unmet[0].removeprefix("Understands: ") if gap.unmet else None
+            detail = f' Still not shown: "{missing}".' if missing else ""
             if gap.persistent:
                 # A criterion missed more than once is what a lesson should target. Say
                 # so, because "you keep missing this" is more actionable than "you scored

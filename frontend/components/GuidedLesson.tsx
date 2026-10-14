@@ -17,7 +17,7 @@ type Phase =
   | "recheck"      // after the different explanation
   | "done";
 
-interface Outcome { title: string; verdict: Verdict; note: string }
+interface Outcome { conceptId?: string | null; title: string; verdict: Verdict; note: string }
 
 /** A concept at a time, the way a tutor would: ask first, teach only what's needed,
  *  check straight away, explain differently when an answer reveals a misconception.
@@ -56,7 +56,7 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
   function say(line: string) { setLog((l) => [...l, line]); }
 
   function finishConcept(verdict: Verdict, note: string) {
-    setOutcomes((o) => [...o, { title: sec.title, verdict, note }]);
+    setOutcomes((o) => [...o, { conceptId: sec.conceptId, title: sec.title, verdict, note }]);
     setPhase("done");
   }
 
@@ -69,10 +69,10 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
       });
       setRe({ explanation: r.explanation, check: r.check });
       setPhase(r.check ? "recheck" : "done");
-      if (!r.check) setOutcomes((o) => [...o, { title: sec.title, verdict: "unmet", note: "still unclear" }]);
+      if (!r.check) setOutcomes((o) => [...o, { conceptId: sec.conceptId, title: sec.title, verdict: "unmet", note: "still unclear" }]);
     } catch {
       setRe({ explanation: "I couldn't load a different explanation. Read the example again, or ask the tutor below.", check: null });
-      setOutcomes((o) => [...o, { title: sec.title, verdict: "unmet", note: "still unclear" }]);
+      setOutcomes((o) => [...o, { conceptId: sec.conceptId, title: sec.title, verdict: "unmet", note: "still unclear" }]);
       setPhase("done");
     }
   }

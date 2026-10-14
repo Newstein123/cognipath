@@ -308,6 +308,8 @@ class QuizQuestion(Model):
 
 class LessonSection(Model):
     """One concept: probe (already known?) → explanation, example, diagram → check."""
+    #: The unit-plan concept this section teaches (null outside a unit part).
+    concept_id: str | None = None
     title: str
     probe: QuizQuestion
     explanation: str
@@ -349,6 +351,8 @@ class FollowUp(Model):
 
 
 class ConceptVerdict(Model):
+    #: The unit-plan concept, so coverage is recorded against the material.
+    concept_id: str | None = None
     title: str
     #: met = knew it or got it after teaching; partial = got it after re-explaining;
     #: unmet = still wrong after re-explaining.
@@ -380,8 +384,27 @@ class Help(Model):
     sources: list[str]
 
 
+class UnitConcept(Model):
+    id: str
+    title: str
+    part: int
+    #: met | partial | unmet once taught; null = not covered yet.
+    status: str | None
+
+
+class UnitInfo(Model):
+    """Where this lesson sits in the unit: every concept in the material, and coverage."""
+    part: int            # 1-based part this lesson teaches (0 = not a unit part)
+    parts: int
+    covered: int
+    total: int
+    concepts: list[UnitConcept]
+
+
 class LessonRequest(Model):
     capability_id: str
+    #: 1-based part of the unit to teach. Omit for the next uncovered part.
+    part: int | None = None
     #: The activity the learner just answered: teach only what THAT answer missed.
     from_activity_id: str | None = None
     #: The whole topic from the start, even when there is evidence to focus on.
@@ -417,6 +440,8 @@ class Lesson(Model):
     #: posted to /lessons/result as light evidence (capped below mastery).
     hook: str | None = None
     sections: list[LessonSection] | None = None
+    #: The unit plan and this learner's coverage of it.
+    unit: UnitInfo | None = None
     #: Why it was or was not answered: score_floor | model | citation_check | api_error | no_corpus
     gate: str
 

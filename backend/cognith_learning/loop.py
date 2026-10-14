@@ -350,8 +350,8 @@ class AdaptiveLoop:
             if teachable:
                 steps.append(NextStep(
                     kind=StepKind.LEARN,
-                    title=f"Read up on {cap.name}",
-                    why=f"You demonstrated {gap.mastery:.0%} here.{detail}",
+                    title=self._gap_title(cap),
+                    why=f"You demonstrated {gap.mastery:.0%} here.{detail}" + self._unit_note(cap.id),
                     command=f"python learn.py --student {student} --gap {cap.id}",
                     capability_id=cap.id,
                 ))
@@ -415,6 +415,27 @@ class AdaptiveLoop:
                     minutes=items[0].minutes,
                 ))
 
+        # 2c'. Units started but not fully covered: continue them. A skill is not done
+        # until every concept in its material has been taught (cognith_learning/units.py),
+        # even if an answer was strong.
+        if len(steps) < limit:
+            for cap in self.graph.capabilities.values():
+                if len(steps) >= limit:
+                    break
+                if any(st.capability_id == cap.id for st in steps) or not self._can_teach(cap.id):
+                    continue
+                up = self._unit(cap.id)
+                if up and up.done and not up.complete:
+                    n = up.next_part()
+                    steps.append(NextStep(
+                        kind=StepKind.LEARN,
+                        title=f"Continue {cap.name} — Part {n + 1} of {len(up.plan.parts)}",
+                        why=(f"You've covered {up.done} of {up.total} ideas in this unit. "
+                             f"The rest of the material comes before a skill counts as done."),
+                        command=f"python learn.py --student {student} --gap {cap.id}",
+                        capability_id=cap.id,
+                    ))
+
         # 2d. Still room? The next topic the learner has not started. Without this, a
         # learner who claimed nothing at onboarding and then mastered one topic was told
         # "nothing outstanding" with most of their path untouched. Prerequisite order;
@@ -435,7 +456,7 @@ class AdaptiveLoop:
                 else:
                     why = f"Not started yet — {cap.name} is a foundation later topics build on."
                 steps.append(NextStep(
-                    kind=StepKind.LEARN, title=f"Learn {cap.name}", why=why,
+                    kind=StepKind.LEARN, title=self._learn_title(cap), why=why,
                     command=f"python learn.py --student {student} --gap {cap.id}",
                     capability_id=cap.id,
                 ))
@@ -475,12 +496,39 @@ class AdaptiveLoop:
                     f"comes after those." if prereqs else
                     f"{cap.name} is a foundation: later topics build on it.")
             steps.append(NextStep(
-                kind=StepKind.LEARN, title=f"Learn {cap.name}", why=why,
+                kind=StepKind.LEARN, title=self._learn_title(cap), why=why,
                 command=f"python learn.py --student {self.profile.student.id} --gap {cap.id}",
                 capability_id=cap.id,
             ))
         return LoopState(stage="starting from scratch", summary=summary, steps=steps,
                          path=self.path, milestone=self.milestone)
+
+    def _unit(self, capability_id: str):
+        try:
+            from .units import progress
+
+            return progress(self.profile.student.id, capability_id)
+        except Exception:  # noqa: BLE001 — no index / no material: no unit plan
+            return None
+
+    def _gap_title(self, cap: Capability) -> str:
+        up = self._unit(cap.id)
+        if up and not up.complete:
+            n = up.next_part()
+            return f"Continue {cap.name} — Part {n + 1} of {len(up.plan.parts)}"
+        return f"Read up on {cap.name}"
+
+    def _unit_note(self, capability_id: str) -> str:
+        up = self._unit(capability_id)
+        if up and not up.complete:
+            return f" You've covered {up.done} of {up.total} ideas in this unit."
+        return ""
+
+    def _learn_title(self, cap: Capability) -> str:
+        up = self._unit(cap.id)
+        if up and len(up.plan.parts) > 1:
+            return f"Learn {cap.name} — Part 1 of {len(up.plan.parts)}"
+        return f"Learn {cap.name}"
 
     def _untouched_in_order(self) -> list[Capability]:
         """Teachable, in the current milestone, never rated and never assessed — ready

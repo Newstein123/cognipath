@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { activityHref, api, param, type AttemptResult, type Lesson, type Step } from "@/lib/api";
+import { activityHref, api, param, type AttemptResult, type Lesson, type Step, type UnitInfo } from "@/lib/api";
 import { GuidedLesson, LessonOutcome } from "@/components/GuidedLesson";
+import { UnitProgress } from "@/components/UnitProgress";
 import { TutorBox } from "@/components/TutorBox";
 import { ErrorBox, Loading, Markdown, Sources, StepCard } from "@/components/ui";
 
@@ -28,20 +29,29 @@ function LessonView() {
   const [generating, setGenerating] = useState(false);
   const [finished, setFinished] = useState(false);
   const [outcome, setOutcome] = useState<AttemptResult | null>(null);
+  // Coverage after finishing a part (decides "continue" vs the challenge).
+  const [unitAfter, setUnitAfter] = useState<UnitInfo | null>(null);
+  const [partReq, setPartReq] = useState<number | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    api.lesson(id, cap, { fromActivityId: retryParam, full }).then(setLesson).catch((e) => setError(e.message));
+    setLesson(null); setFinished(false); setOutcome(null); setUnitAfter(null);
+    api.lesson(id, cap, { fromActivityId: retryParam, full, part: partReq }).then(setLesson).catch((e) => setError(e.message));
     api.next(id, 6).then((n) => {
       const doable = n.steps.filter((s) => s.activityId && s.capabilityId === cap);
       setPractice(doable[0] ?? null);
     }).catch(() => {});
-  }, [id, cap, retryParam, full]);
+  }, [id, cap, retryParam, full, partReq]);
 
   const retry = retryParam ?? lesson?.retryActivityId ?? null;
   const name = lesson?.name ?? cap;
   const guided = !!lesson?.sections?.length;
-  const showChallenge = lesson && (!guided || finished);
+  const unit = unitAfter ?? lesson?.unit ?? null;
+  // The challenge proves the WHOLE unit, so it waits until every concept has been taught.
+  const unitDone = !unit || unit.covered >= unit.total;
+  const nextPart = unit && !unitDone
+    ? Math.min(...unit.concepts.filter((c) => !c.status).map((c) => c.part)) : null;
+  const showChallenge = lesson && (!guided || finished) && unitDone;
 
   async function newChallenge() {
     setGenerating(true);
@@ -65,6 +75,7 @@ function LessonView() {
     <>
       <p className="small muted" style={{ marginBottom: 4 }}>Lesson</p>
       <h1>{name}</h1>
+      {unit && lesson?.unit?.part ? <UnitProgress unit={unit} current={finished ? undefined : lesson.unit.part} /> : null}
       {lesson?.pitch && (
         <p className="small" style={{ marginTop: -4 }}>
           <span className="badge kind" title="Cognith adapts how it teaches to what your answers have shown">
@@ -108,9 +119,23 @@ function LessonView() {
       {lesson && guided && !finished && (
         <GuidedLesson learnerId={id} capabilityId={cap} hook={lesson.hook}
           sections={lesson.sections!} teachFirst={lesson.teachFirst}
-          onComplete={(r) => { setOutcome(r); setFinished(true); window.scrollTo(0, 0); }} />
+          onComplete={(r) => {
+            setOutcome(r); setFinished(true); window.scrollTo(0, 0);
+            api.unit(id, cap).then(setUnitAfter).catch(() => {});
+          }} />
       )}
       {finished && outcome && <LessonOutcome result={outcome} />}
+      {finished && unit && !unitDone && nextPart && (
+        <div className="card highlight">
+          <h2>Part done — {unit.covered} of {unit.total} ideas covered</h2>
+          <p className="muted">
+            The challenge comes once you&apos;ve covered the whole unit, so it can test all of it.
+          </p>
+          <button className="btn" onClick={() => setPartReq(nextPart)}>
+            Continue: Part {nextPart} of {unit.parts} →
+          </button>
+        </div>
+      )}
 
       {lesson && !guided && (
         <div className="card">

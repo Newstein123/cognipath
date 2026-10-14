@@ -373,3 +373,36 @@ def test_real_challenge_generator_uses_the_learners_course(client, monkeypatch):
     r = client.post(f"/api/learners/{lid}/challenges", json={"capabilityId": "web-basics"})
     assert r.status_code == 201, r.text
     assert r.json()["capabilityId"] == "web-basics"
+
+
+def test_unit_plan_covers_every_core_section():
+    """Every core section of the material is a concept; summaries and exercises are not."""
+    from cognith_course import using
+    from cognith_learning.units import plan_for
+
+    with using("rest-api"):
+        plan = plan_for("authorization")
+    titles = [c.title for c in plan.concepts]
+    assert "Misconception: hide or randomise the ID" in titles
+    assert not any(t.startswith(("Summary", "Exercise", "Worked example")) for t in titles)
+    assert sum(len(p) for p in plan.parts) == len(plan.concepts)
+    bola = next(c for c in plan.concepts if c.title.startswith("Broken Object"))
+    assert any("alice-changes-123-to-456" in e for e in bola.example_ids)
+
+
+def test_coverage_is_recorded_per_concept_and_gates_mastery(client):
+    from cognith_course import using
+    from cognith_learning.units import plan_for
+
+    lid = client.post("/api/learners", json={**ONBOARDING, "course": "rest-api", "name": "C",
+                                             "technologies": [], "level": "none"}).json()["learner"]["id"]
+    with using("rest-api"):
+        plan = plan_for("authorization")
+    first = plan.parts[0]
+    client.post(f"/api/learners/{lid}/lessons/result", json={"capabilityId": "authorization",
+        "concepts": [{"conceptId": c.id, "title": c.title, "verdict": "met"} for c in first]})
+    unit = client.get(f"/api/learners/{lid}/units/authorization").json()
+    assert unit["covered"] == len(first) and unit["total"] == len(plan.concepts)
+    assert unit["part"] == 2
+    steps = client.get(f"/api/learners/{lid}/next").json()["steps"]
+    assert any("Part 2 of" in s["title"] for s in steps if s["capabilityId"] == "authorization")

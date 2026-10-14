@@ -80,6 +80,8 @@ export interface Lesson {
   teachFirst: boolean;
   /** Structured lesson; null when the material couldn't support one (use `explanation`). */
   hook: string | null; sections: LessonSection[] | null;
+  /** Every concept in the unit's material, and this learner's coverage of it. */
+  unit: UnitInfo | null;
 }
 export interface Diagram {
   type: "none" | "venn" | "mapping" | "table" | "flow"; caption: string;
@@ -88,7 +90,12 @@ export interface Diagram {
   fromLabel: string; toLabel: string; domain: string[]; codomain: string[]; arrows: string[][];
   headers: string[]; rows: string[][]; steps: string[];
 }
+export interface UnitInfo {
+  part: number; parts: number; covered: number; total: number;
+  concepts: { id: string; title: string; part: number; status: Verdict | null }[];
+}
 export interface LessonSection {
+  conceptId: string | null;
   title: string; probe: QuizQuestion; explanation: string; example: string;
   diagram: Diagram; check: QuizQuestion; sources: string[];
 }
@@ -150,15 +157,18 @@ export const api = {
                                  kind: "simpler" | "example" | "mistakes" }) =>
     post<{ answered: boolean; text: string; sources: string[] }>(`/api/learners/${enc(id)}/lessons/followup`, body),
   lessonResult: (id: string, body: { capabilityId: string;
-                                     concepts: { title: string; verdict: Verdict; note: string }[] }) =>
+                                     concepts: { conceptId?: string | null; title: string; verdict: Verdict; note: string }[] }) =>
     post<AttemptResult>(`/api/learners/${enc(id)}/lessons/result`, body),
   help: (id: string, body: { activityId: string; level?: number; message: string;
                             history: { role: string; text: string }[] }) =>
     post<{ answered: boolean; reply: string; sources: string[] }>(`/api/learners/${enc(id)}/help`, body),
+  unit: (id: string, capabilityId: string) =>
+    call<UnitInfo>(`/api/learners/${enc(id)}/units/${enc(capabilityId)}`),
   /** With fromActivityId (or any evidence), the lesson teaches only what was missed. */
-  lesson: (id: string, capabilityId: string, opts: { fromActivityId?: string | null; full?: boolean } = {}) =>
+  lesson: (id: string, capabilityId: string,
+           opts: { fromActivityId?: string | null; full?: boolean; part?: number | null } = {}) =>
     post<Lesson>(`/api/learners/${enc(id)}/lessons`,
-      { capabilityId, fromActivityId: opts.fromActivityId ?? null, full: !!opts.full }),
+      { capabilityId, fromActivityId: opts.fromActivityId ?? null, full: !!opts.full, part: opts.part ?? null }),
   tutor: (id: string, question: string, capabilityId?: string) =>
     post<TutorAnswer>(`/api/learners/${enc(id)}/tutor`, { question, capabilityId }),
   evidence: (id: string) => call<EvidenceEntry[]>(`/api/learners/${enc(id)}/evidence`),

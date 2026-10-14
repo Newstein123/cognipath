@@ -200,17 +200,27 @@ def explain_skill(row: StudentCapability, gap: Gap | None) -> str:
 
 
 def skill_profile(profile: CapabilityProfile, loop: AdaptiveLoop | None = None) -> s.SkillProfile:
+    from cognith_learning import units
+
     loop = loop or AdaptiveLoop(graph(), profile)
     gaps = {g.capability_id: g for g in loop.resolver.gaps()}
     skills = []
     for row in profile.all_rows():
         cap = graph().get(row.capability_id)
+        state, why = state_of(row.status), explain_skill(row, gaps.get(cap.id))
+        up = units.progress(profile.student.id, cap.id) if cap.knowledge_docs else None
+        if up and up.done:
+            why += f" Covered {up.done} of {up.total} ideas in this unit."
+            # Mastery means the whole unit, not a strong answer on part of it.
+            if state is s.SkillState.MASTERED and not up.complete:
+                state = s.SkillState.DEVELOPING
+                why += " Finish the unit to master it."
         skills.append(s.Skill(
             capability_id=cap.id, name=cap.name, area=cap.area, statement=cap.statement,
-            state=state_of(row.status), mastery=row.mastery, self_rated=row.confidence,
+            state=state, mastery=row.mastery, self_rated=row.confidence,
             evidence_count=row.evidence_count,
             last_assessed_at=row.last_assessed_at.isoformat() if row.last_assessed_at else None,
-            explanation=explain_skill(row, gaps.get(cap.id)),
+            explanation=why,
         ))
     return s.SkillProfile(learner=summary(profile), position=loop.position(), skills=skills)
 
@@ -510,8 +520,21 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
 
     from cognith_learning import microlesson
 
-    focus = [] if req.full else missed_points(learner_id, cap.id, req.from_activity_id, gap)
+    from cognith_learning import units
+    from cognith_rag.store import Hit
+
     ctx = learner_context(profile, cap.id)
+    up = units.progress(learner_id, cap.id)
+    # Coverage first: until every concept in the material has been taught, a lesson is the
+    # next part of the unit. Remediation from a specific answer (from_activity_id) still
+    # goes straight at what that answer missed.
+    part_n: int | None = None
+    if up and not req.from_activity_id and (req.part or not up.complete):
+        part_n = (req.part - 1) if req.part else up.next_part()
+        part_n = max(0, min(part_n if part_n is not None else 0, len(up.plan.parts) - 1))
+    part = up.plan.parts[part_n] if part_n is not None else None
+    focus = ([] if req.full or part is not None
+             else missed_points(learner_id, cap.id, req.from_activity_id, gap))
     if focus:
         gap = replace(gap, unmet=tuple(focus))
 
@@ -519,10 +542,21 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         kk = GapResolver(graph(), profile)
         kk._store = store()
         retrieved = kk.knowledge_for(gap, explain=False)
-        hits = focused_hits(cap, focus) if focus and cap.knowledge_docs else retrieved.hits
+        concepts = None
+        if part is not None:
+            chunk = {c.id: c for c in store().chunks}
+            ids = up.plan.chunk_ids_for(part, first=part_n == 0,
+                                        last=part_n == len(up.plan.parts) - 1)
+            hits = [Hit(chunk[i], 1.0) for i in ids if i in chunk]
+            concepts = [(c.title, c.chunk_ids + c.example_ids) for c in part]
+        elif focus and cap.knowledge_docs:
+            hits = focused_hits(cap, focus)
+        else:
+            hits = retrieved.hits
         try:
             return microlesson.generate(cap, retrieved.question, hits, missed=list(gap.unmet),
-                                        focus=focus or None, learner=str(ctx)), hits
+                                        focus=focus or None, learner=str(ctx),
+                                        concepts=concepts), hits
         except Exception:  # noqa: BLE001 — the plain explanation is the fallback
             return None, hits
 
@@ -550,15 +584,41 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         retry_activity_id=req.from_activity_id or retry, focused=bool(focus) and micro is not None,
         pitch=ctx.pitch, teach_first=ctx.band in ("new", "struggling"),
         hook=micro.hook if micro else None,
+        unit=unit_info(up, part_n),
         sections=[s.LessonSection(
+            concept_id=part[n].id if part is not None and n < len(part) else None,
             title=x.title, probe=s.QuizQuestion(**x.probe.model_dump()),
             explanation=x.explanation, example=x.example,
             diagram=s.Diagram(**x.diagram.model_dump()),
             check=s.QuizQuestion(**x.check.model_dump()),
             sources=[citation[e] for e in x.excerpt_ids if e in citation])
-            for x in micro.sections] if micro else None,
+            for n, x in enumerate(micro.sections)] if micro else None,
         gate=res.gate if res else "no_corpus",
     )
+
+
+def unit_info(up, part_n: int | None) -> s.UnitInfo | None:
+    if up is None:
+        return None
+    return s.UnitInfo(
+        part=(part_n + 1) if part_n is not None else 0, parts=len(up.plan.parts),
+        covered=up.done, total=up.total,
+        concepts=[s.UnitConcept(id=c.id, title=c.title, part=up.plan.part_of(c.id) + 1,
+                                status=up.covered.get(c.id)) for c in up.plan.concepts])
+
+
+@app.get("/api/learners/{learner_id}/units/{capability_id}", response_model=s.UnitInfo)
+def get_unit(learner_id: str, capability_id: str):
+    """Every concept in the capability's material, and which this learner has covered."""
+    from cognith_learning import units
+
+    load_profile(learner_id)
+    capability_or_404(capability_id)
+    up = units.progress(learner_id, capability_id)
+    if up is None:
+        raise HTTPException(404, "No course material for this capability")
+    nxt = up.next_part()
+    return unit_info(up, nxt)
 
 
 def generator() -> ChallengeGenerator:
@@ -593,6 +653,19 @@ def create_challenge(learner_id: str, req: s.ChallengeRequest,
                Gap(capability_id=cap.id, mastery=row.mastery, confidence=row.confidence))
     k = resolver.knowledge_for(gap, explain=False)  # the same excerpts the lesson used
     hits = focused_hits(cap, req.focus) if req.focus else k.hits
+    if not req.focus:
+        # Draw on the WHOLE unit the learner has covered, not the top-5 search hits: one
+        # core section per covered concept, spread evenly, at most 8.
+        from cognith_learning import units
+        from cognith_rag.store import Hit
+
+        up = units.progress(learner_id, cap.id)
+        if up and up.done:
+            covered = [c for c in up.plan.concepts if c.id in up.covered]
+            step = max(1, len(covered) // 8 + (len(covered) % 8 > 0))
+            chunk = {c.id: c for c in store().chunks}
+            hits = [Hit(chunk[c.chunk_ids[0]], 1.0) for c in covered[::step][:8]
+                    if c.chunk_ids[0] in chunk] or hits
     try:
         experience = gen.generate(cap.id, hits, missed=req.focus or list(gap.unmet),
                                   avoid_prompt=avoid, focused=bool(req.focus),
@@ -700,7 +773,9 @@ def lesson_result(learner_id: str, req: s.LessonResultRequest):
         capability_id=cap.id, rubric=rubric, level=cap.level, minutes=5,
         prompt="Concept checks inside a guided lesson: " + "; ".join(c.title for c in req.concepts),
         source="guided lesson (multiple-choice checks)")
-    get_storage().save_activity(to_record(item, "guided-lesson"))
+    record = to_record(item, "guided-lesson")
+    record["concept_ids"] = [c.concept_id for c in req.concepts]  # coverage (units.py)
+    get_storage().save_activity(record)
     library.cache_clear()
     judge = ManualEvaluator({r.id: c.verdict.value for r, c in zip(rubric, req.concepts)},
                             justification="guided-lesson check")

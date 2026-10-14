@@ -165,7 +165,8 @@ def validate(lesson: StructuredLesson, sent_ids: set[str],
 
 def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] = (),
              model: str | None = None, focus: list[str] | None = None,
-             learner: str = "") -> StructuredLesson | None:
+             learner: str = "",
+             concepts: list[tuple[str, list[str]]] | None = None) -> StructuredLesson | None:
     """A validated lesson, or None — the caller then shows the plain explanation.
 
     With `focus`, the lesson is REMEDIAL: 1–2 concepts covering exactly those points. The
@@ -182,7 +183,17 @@ def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] 
     ]
     if learner:
         parts.append(learner)
-    if focus:
+    if concepts:
+        # A part of a unit plan: these concepts, in this order, one section each — so
+        # every concept in the material is taught somewhere (cognith_learning/units.py).
+        parts.append(
+            f"THIS LESSON IS ONE PART OF A UNIT. Teach EXACTLY these {len(concepts)} concepts, "
+            "in this order, one section per concept, using the title given. Each concept's "
+            "own excerpts are listed — build its explanation from its core excerpt and its "
+            "worked example from its example excerpts (same scenario, names and values):\n"
+            + "\n".join(f"{n}. {title}  [excerpts: {', '.join(ids)}]"
+                         for n, (title, ids) in enumerate(concepts, 1)))
+    elif focus:
         parts.append(
             "FOCUSED LESSON. The learner already showed the rest of this topic; they missed "
             "ONLY these points:\n" + "\n".join(f"- {m}" for m in focus[:3])
@@ -193,7 +204,8 @@ def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] 
         parts.append(f"WHAT THE LEARNER WANTS TO KNOW: {question}")
         if missed:
             parts.append("THE LEARNER PREVIOUSLY MISSED:\n" + "\n".join(f"- {m}" for m in missed[:3]))
-    bounds = (1, 2) if focus else (MIN_SECTIONS, MAX_SECTIONS)
+    bounds = ((len(concepts), len(concepts)) if concepts
+              else (1, 2) if focus else (MIN_SECTIONS, MAX_SECTIONS))
     sent = {h.chunk.id for h in hits}
     problems: list[str] = []
     for _ in range(2):  # one retry, told what was wrong

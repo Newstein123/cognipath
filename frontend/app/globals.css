@@ -241,3 +241,11 @@ details summary { cursor: pointer; }
 .course-card { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
 .course-card.on { border-color: var(--primary); background: var(--primary-soft); }
+.unit { padding: 14px 18px; }
+.unit-list { list-style: none; padding: 0; margin: 4px 0 0; }
+.unit-list li { display: flex; gap: 8px; align-items: center; padding: 3px 0; font-size: 14px; }
+.unit-list .mark { width: 18px; text-align: center; font-weight: 700; color: var(--muted); }
+.unit-list li.met .mark { color: var(--green); }
+.unit-list li.partial .mark { color: var(--amber); }
+.unit-list li.unmet .mark { color: var(--red); }
+.unit-list li.todo { color: var(--muted); }

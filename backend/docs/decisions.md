@@ -1727,3 +1727,25 @@ learners in different courses never see each other's skills or recommendations.
 workers do not inherit context variables — submit via `contextvars.copy_context().run`.
 
 **Where:** `cognith_course/`, `courses/`, `build_pack.py`, `api/main.py`.
+
+---
+
+## D59 — Lessons follow the material's own syllabus, and coverage is tracked
+
+**Phase 16.**
+
+**Decision:** a capability's lessons are planned from its material, not from retrieval.
+`cognith_learning/units.py` turns every core section into a concept in the author's
+order, attaches each worked example to the concept it illustrates (decided once at build
+time by Gemini, saved as the reviewable `courses/<id>/units.yaml`), and groups concepts
+into parts of 3. A lesson teaches exactly one part, each concept from its own sections.
+`/lessons/result` records outcomes against concept ids. Until every concept is covered
+the next step is "Continue … Part k of n", the challenge stays locked, and the profile
+cannot show the skill as mastered; the challenge then draws on the whole unit.
+
+**Why:** lessons were written from the top-5 retrieved sections, so a 20-section unit was
+taught from a quarter of its material and nothing recorded what was skipped. "Knows the
+skill" needs "was taught all of it" by construction.
+
+**Where:** `cognith_learning/units.py`, `build_pack.py` (units.yaml), `create_lesson`,
+`/units/{capability}`, `AdaptiveLoop` (continue-unit steps), `UnitProgress.tsx`.

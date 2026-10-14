@@ -2313,6 +2313,11 @@
           "gate": {
             "type": "string",
             "title": "Gate"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "course"
           }
         },
         "type": "object",

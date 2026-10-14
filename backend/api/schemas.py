@@ -419,6 +419,10 @@ class TutorAnswer(Model):
     answer: str
     sources: list[Source]
     gate: str
+    #: course    — grounded in the course material, with sources (or the abstention)
+    #: general   — NOT in the material but within the course's subject; must be labelled
+    #: off_topic — outside the course's subject; refused
+    kind: str = "course"
 
 
 # --- history ----------------------------------------------------------------------------

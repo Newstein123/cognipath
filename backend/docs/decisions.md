@@ -1683,3 +1683,23 @@ learner got 3 concepts from the basics with an everyday probe; a partial learner
 missed the contrapositive twice got 2 concepts opening on exactly that.
 
 **Where:** `cognith_learning/learner_context.py`; callers in `api/main.py`.
+
+---
+
+## D57 — The tutor answers in three ways: course, labelled general, or refused
+
+**Phase 15.** Revisits the spike's strict abstention, for the free tutor only.
+
+**Decision:** a tutor question is answered from the course material when it can be (with
+sources). If not, a second call judges it against the course's own capability map: within
+the course's subject → a general explanation shown as "Not in your course material", no
+sources; outside → refused, naming what the course covers.
+
+**Why:** strict abstention turned harmless course questions ("why translate English into
+logic?") into dead ends. The spike's objection was to answering from pretraining
+SILENTLY; the label keeps that distinction visible. Scope is per course with no code —
+"how do I write a for loop?" is refused for discrete maths and in scope for programming.
+Assessment, rubrics, lessons and challenges stay fully grounded. Measured: 6/6 test
+questions classified correctly (1 course, 2 general, 3 refused).
+
+**Where:** `cognith_learning/general.py`, `ask_tutor` in `api/main.py`, `TutorAnswer.kind`.

@@ -40,7 +40,10 @@ export function TutorBox({
   return (
     <div className="card">
       <h2>{title}</h2>
-      <p className="small muted">Answers come only from the course material, with sources. If it isn&apos;t covered, the tutor says so.</p>
+      <p className="small muted">
+        Answers come from your course material, with sources. If your material doesn&apos;t cover a
+        course question, you get a clearly labelled general explanation; questions outside the course are declined.
+      </p>
       {presets.length > 0 && (
         <div style={{ marginBottom: 8 }}>
           {presets.map((p) => (
@@ -62,8 +65,14 @@ export function TutorBox({
       {answers.map((a, i) => (
         <div key={i} style={{ borderTop: "1px solid var(--border)", marginTop: 16, paddingTop: 14 }}>
           <p><strong>{a.label ?? `Q: ${a.question}`}</strong></p>
-          {a.answered ? <Markdown text={a.answer} /> : <div className="notice">{a.answer}</div>}
-          {a.answered && <Sources sources={a.sources} />}
+          {a.kind === "general" ? (
+            <div className="general-answer">
+              <div className="general-label">⚠ Not in your course material — general explanation</div>
+              <Markdown text={a.answer} />
+              <div className="small muted">Check your lecture notes: your lecturer may present this differently.</div>
+            </div>
+          ) : a.answered ? <Markdown text={a.answer} /> : <div className="notice">{a.answer}</div>}
+          {a.answered && a.kind === "course" && <Sources sources={a.sources} />}
         </div>
       ))}
     </div>

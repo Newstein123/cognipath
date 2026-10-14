@@ -235,3 +235,5 @@ details summary { cursor: pointer; }
 .help { border-style: dashed; }
 .student-line { margin: 10px 0 0 auto; width: fit-content; max-width: 85%; padding: 8px 12px; border-radius: 10px;
   background: var(--surface-2); border: 1px solid var(--border); }
+.general-answer { border: 1px dashed var(--amber); border-radius: 10px; padding: 10px 14px; }
+.general-label { font-size: 12px; font-weight: 700; color: var(--amber); margin-bottom: 4px; letter-spacing: .02em; }

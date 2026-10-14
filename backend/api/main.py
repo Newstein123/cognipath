@@ -660,7 +660,7 @@ def challenge_help(learner_id: str, req: s.HelpRequest):
 
 @app.post("/api/learners/{learner_id}/tutor", response_model=s.TutorAnswer)
 def ask_tutor(learner_id: str, req: s.TutorRequest):
-    load_profile(learner_id)
+    profile = load_profile(learner_id)
     from cognith_rag.embeddings import embed_query
 
     docs = None
@@ -671,8 +671,31 @@ def ask_tutor(learner_id: str, req: s.TutorRequest):
             raise HTTPException(404, f"No capability {req.capability_id!r}") from None
     hits = store().search(embed_query(req.question), k=TOP_K, docs=docs)
     res = answer(req.question, hits)
-    return s.TutorAnswer(question=req.question, answered=res.answered, answer=res.answer,
-                         sources=sources(res.hits, res.citations), gate=res.gate)
+    if res.answered or res.gate == "api_error":
+        return s.TutorAnswer(question=req.question, answered=res.answered, answer=res.answer,
+                             sources=sources(res.hits, res.citations), gate=res.gate,
+                             kind="course")
+
+    # Not in the course material: a labelled general explanation if the question belongs
+    # to the course's subject, a refusal if it does not (cognith_learning/general.py).
+    from cognith_learning.general import course_scope, general_answer
+
+    course = profile.student.goal or "this course"
+    try:
+        g = general_answer(req.question, course_scope(graph(), course))
+    except Exception:  # noqa: BLE001 — keep the grounded abstention
+        g = None
+    if g is None:
+        return s.TutorAnswer(question=req.question, answered=False, answer=res.answer,
+                             sources=[], gate=res.gate, kind="course")
+    if not g.in_scope:
+        topics = ", ".join(c.name for c in list(graph().capabilities.values())[:6])
+        return s.TutorAnswer(
+            question=req.question, answered=False, sources=[], gate="off_topic", kind="off_topic",
+            answer=f"That's outside {course}, so I can't help with it here. I can help with "
+                   f"{topics} and the rest of this course.")
+    return s.TutorAnswer(question=req.question, answered=True, answer=g.answer, sources=[],
+                         gate="general", kind="general")
 
 
 @app.get("/api/learners/{learner_id}/evidence", response_model=list[s.EvidenceEntry])

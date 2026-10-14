@@ -90,7 +90,11 @@ export interface LessonSection {
   diagram: Diagram; check: QuizQuestion; sources: string[];
 }
 export interface QuizQuestion { question: string; options: string[]; answerIndex: number; explanation: string }
-export interface TutorAnswer { question: string; answered: boolean; answer: string; sources: Source[]; gate: string }
+export interface TutorAnswer {
+  question: string; answered: boolean; answer: string; sources: Source[]; gate: string;
+  /** course: grounded, with sources · general: NOT in the course material (must be labelled) · off_topic: refused */
+  kind: "course" | "general" | "off_topic";
+}
 export interface EvidenceEntry {
   activityId: string; attempt: number; createdAt: string; response: string;
   criteria: CriterionResult[]; changes: SkillChange[]; explanation: string;

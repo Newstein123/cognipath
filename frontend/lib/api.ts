@@ -73,6 +73,8 @@ export interface Lesson {
   missed: string[]; targeted: boolean; retryActivityId: string | null; focused: boolean;
   /** Who the lesson was pitched for, from the learner model. */
   pitch: string;
+  /** Beginners: explain first. Otherwise ask first and skip what's already known. */
+  teachFirst: boolean;
   /** Structured lesson; null when the material couldn't support one (use `explanation`). */
   hook: string | null; sections: LessonSection[] | null;
 }

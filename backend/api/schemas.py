@@ -381,6 +381,9 @@ class Lesson(Model):
     #: Who the lesson was pitched for — "New to this", "Building the basics",
     #: "Filling the gaps" or "Sharpening" (from cognith_learning/learner_context.py).
     pitch: str = ""
+    #: Beginners are taught first (explain → example → check). Learners with evidence are
+    #: asked first, so what they already know can be skipped.
+    teach_first: bool = False
     #: The guided lesson, one concept at a time. Null when the material could not support
     #: one; `explanation` is always there as the fallback. Concept-check results are
     #: posted to /lessons/result as light evidence (capped below mastery).

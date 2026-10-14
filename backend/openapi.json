@@ -1458,6 +1458,11 @@
             "title": "Pitch",
             "default": ""
           },
+          "teachFirst": {
+            "type": "boolean",
+            "title": "Teachfirst",
+            "default": false
+          },
           "hook": {
             "anyOf": [
               {

@@ -22,13 +22,16 @@ interface Outcome { title: string; verdict: Verdict; note: string }
 /** A concept at a time, the way a tutor would: ask first, teach only what's needed,
  *  check straight away, explain differently when an answer reveals a misconception.
  *  Outcomes are posted as light evidence at the end (they can't claim mastery). */
-export function GuidedLesson({ learnerId, capabilityId, hook, sections, onComplete }: {
+export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFirst, onComplete }: {
   learnerId: string; capabilityId: string; hook: string | null;
   sections: LessonSection[];
+  /** Beginners: no probe — explain, then check. */
+  teachFirst: boolean;
   onComplete: (result: AttemptResult | null) => void;
 }) {
   const [i, setI] = useState(0);
-  const [phase, setPhase] = useState<Phase>("probe");
+  const start: Phase = teachFirst ? "teach" : "probe";
+  const [phase, setPhase] = useState<Phase>(start);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
   const [log, setLog] = useState<string[]>([]);       // short tutor lines for this concept
   const [re, setRe] = useState<{ explanation: string; check: QuizQuestion | null } | null>(null);
@@ -87,7 +90,7 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, onComple
 
   async function next() {
     if (i + 1 < sections.length) {
-      setI(i + 1); setPhase("probe"); setLog([]); setRe(null);
+      setI(i + 1); setPhase(start); setLog([]); setRe(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -120,11 +123,12 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, onComple
           <span className="small muted">Concept {i + 1} of {sections.length}</span>
         </div>
 
-        {/* 1. ask first */}
-        <Question label="FIRST, WHAT DO YOU THINK?" q={sec.probe} allowNotSure
-          locked={phase !== "probe"} onAnswer={onProbe} />
-
-        {log[0] && <Tutor text={log[0]} />}
+        {/* 1. ask first — unless the learner is new to this, then explain first */}
+        {!teachFirst && (
+          <Question label="FIRST, WHAT DO YOU THINK?" q={sec.probe} allowNotSure
+            locked={phase !== "probe"} onAnswer={onProbe} />
+        )}
+        {!teachFirst && log[0] && <Tutor text={log[0]} />}
 
         {/* 2. teach — only if needed */}
         {showTeach && (
@@ -147,7 +151,7 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, onComple
         {phase === "teach" && (
           <button className="btn" style={{ marginTop: 10 }} onClick={() => setPhase("check")}>I&apos;ve read it — check me →</button>
         )}
-        {log[1] && <Tutor text={log[1]} />}
+        {(teachFirst ? log[0] : log[1]) && <Tutor text={(teachFirst ? log[0] : log[1])!} />}
 
         {/* 4. explain differently, then a new check */}
         {phase === "reexplaining" && <Loading stages={["Working out what that answer misunderstood…", "Explaining it another way…"]} />}
@@ -160,7 +164,7 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, onComple
         {re?.check && (
           <Question label="ONE MORE TRY" q={re.check} locked={phase !== "recheck"} onAnswer={onRecheck} />
         )}
-        {log[2] && <Tutor text={log[2]} />}
+        {(teachFirst ? log[1] : log[2]) && <Tutor text={(teachFirst ? log[1] : log[2])!} />}
 
         {phase === "done" && (
           <div className="row" style={{ marginTop: 14, justifyContent: "flex-end" }}>

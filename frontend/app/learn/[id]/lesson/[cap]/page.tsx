@@ -107,7 +107,7 @@ function LessonView() {
 
       {lesson && guided && !finished && (
         <GuidedLesson learnerId={id} capabilityId={cap} hook={lesson.hook}
-          sections={lesson.sections!}
+          sections={lesson.sections!} teachFirst={lesson.teachFirst}
           onComplete={(r) => { setOutcome(r); setFinished(true); window.scrollTo(0, 0); }} />
       )}
       {finished && outcome && <LessonOutcome result={outcome} />}

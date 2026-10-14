@@ -473,7 +473,7 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         prerequisites_first=[c.name for c in k.prerequisites_first],
         missed=list(gap.unmet[:3]), targeted=k.targeted,
         retry_activity_id=req.from_activity_id or retry, focused=bool(focus) and micro is not None,
-        pitch=ctx.pitch,
+        pitch=ctx.pitch, teach_first=ctx.band in ("new", "struggling"),
         hook=micro.hook if micro else None,
         sections=[s.LessonSection(
             title=x.title, probe=s.QuizQuestion(**x.probe.model_dump()),

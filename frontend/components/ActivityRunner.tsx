@@ -184,6 +184,13 @@ export function AttemptResultView({
           <StepCard learnerId={learnerId} step={result.next.steps[0]} primary />
         </>
       )}
+      {showNext && (
+        <div className="row" style={{ justifyContent: "flex-end" }}>
+          <Link className="btn secondary" href={`/learn/${encodeURIComponent(learnerId)}`}>
+            See my full plan →
+          </Link>
+        </div>
+      )}
     </>
   );
 }

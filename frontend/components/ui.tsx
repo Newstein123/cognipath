@@ -94,7 +94,10 @@ export function StepCard({ learnerId, step, primary }: { learnerId: string; step
           {primary ? "Start" : "Open"} →
         </Link>
       ) : (
-        <span className="muted small">Coming soon</span>
+        // Never a dead end: anything that can't start here goes back to the plan.
+        <Link className={primary ? "btn" : "btn secondary"} href={`/learn/${encodeURIComponent(learnerId)}`}>
+          {step.kind === "mission" ? "Mission coming soon — back to my plan →" : "Back to my plan →"}
+        </Link>
       )}
     </div>
   );

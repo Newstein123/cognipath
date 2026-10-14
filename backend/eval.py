@@ -13,7 +13,7 @@ import textwrap
 import numpy as np
 import yaml
 
-from cognith_rag.config import MIN_SCORE, TESTS_PATH, TOP_K
+from cognith_rag.config import MIN_SCORE, TOP_K, tests_path
 from cognith_rag.embeddings import embed_query
 from cognith_rag.generate import answer
 from cognith_rag.store import Store
@@ -22,7 +22,7 @@ RULE = "─" * 78
 
 
 def load_cases() -> list[dict]:
-    return yaml.safe_load(TESTS_PATH.read_text(encoding="utf-8"))
+    return yaml.safe_load(tests_path().read_text(encoding="utf-8"))
 
 
 # --------------------------------------------------------------------------

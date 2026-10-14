@@ -30,7 +30,7 @@ import yaml
 
 from .graph import CapabilityGraph
 
-MILESTONES_PATH = Path(__file__).resolve().parent.parent / "data" / "milestones.yaml"
+from cognith_course import path as course_path
 
 
 class MilestoneError(ValueError):
@@ -82,7 +82,8 @@ class MilestoneMap:
         self._validate()
 
     @classmethod
-    def load(cls, graph: CapabilityGraph, path: Path = MILESTONES_PATH) -> "MilestoneMap":
+    def load(cls, graph: CapabilityGraph, path: Path | None = None) -> "MilestoneMap":
+        path = path or course_path("milestones.yaml")
         if not path.exists():
             raise FileNotFoundError(f"No milestone data at {path}")
         spec = yaml.safe_load(path.read_text(encoding="utf-8"))

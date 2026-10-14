@@ -38,7 +38,10 @@ from cognith_capability.models import Level
 from cognith_student.diagnostic import RubricCriterion
 from cognith_student.models import utcnow
 
-MISSIONS_PATH = Path(__file__).resolve().parent.parent / "data" / "missions.yaml"
+def missions_path() -> Path:
+    from cognith_course import path as course_path
+
+    return course_path("missions.yaml")
 
 
 class MissionError(ValueError):
@@ -155,7 +158,8 @@ class MissionEngine:
         self.m = mission.model
 
     @classmethod
-    def load(cls, mission_id: str | None = None, path: Path = MISSIONS_PATH) -> "MissionEngine":
+    def load(cls, mission_id: str | None = None, path: Path | None = None) -> "MissionEngine":
+        path = path or missions_path()
         if not path.exists():
             raise FileNotFoundError(f"No mission data at {path}")
         spec = yaml.safe_load(path.read_text(encoding="utf-8"))

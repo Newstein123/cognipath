@@ -1,0 +1,126 @@
+diagnostics:
+  - id: valid-diag-001
+    capability: validation-errors
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [application, reasoning]
+    prompt: |
+      You are building the server for a sign-up form. The app sends a request to
+      POST /users with this JSON body:
+
+        {"email": "not-an-email", "age": -5}
+
+      The mobile app is supposed to check these fields before sending, but this request
+      got through anyway.
+
+      What should the server do with this request, and what should it send back (status
+      code and what the response body should say)? A teammate suggests just saving it,
+      because "the app already checks the input". Explain why that is or is not a good idea.
+    rubric:
+      - id: valid-d1-reject-not-save
+        criterion: Says the server should validate the input and reject the request without saving it, rather than storing it or silently correcting the values (e.g. changing -5 to 0)
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-d1-client-error-code
+        criterion: Chooses a 4xx client-error status, specifically 400 Bad Request or 422 Unprocessable Content, and does not use 200 or 500
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-d1-field-level-message
+        criterion: Says the response body should name each invalid field and why it is wrong (email is not a valid email format; age cannot be negative)
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-d1-server-must-check
+        criterion: Explains that client-side checks can be bypassed (e.g. someone calls the API directly or the app has a bug), so the server cannot trust them and must validate itself
+        capability: validation-errors
+        weight: 1.5
+
+  - id: valid-diag-002
+    capability: validation-errors
+    also_exercises: []
+    level: foundation
+    minutes: 8
+    probes: [reasoning, decision, application]
+    prompt: |
+      You are reviewing a to-do API before it goes live and notice two behaviours.
+
+      1. When the database is unreachable, GET /tasks/7 returns
+         500 Internal Server Error with this body:
+
+           Traceback (most recent call last):
+             File "/srv/app/db.py", line 41, in get_task
+           psycopg.OperationalError: connection to server at "10.0.3.7", port 5432 failed
+
+      2. When a brand-new user with no tasks calls GET /tasks, the API returns
+         404 Not Found.
+
+      For each behaviour, say what is wrong (if anything) and what the API should do
+      instead. Include the status code and what the response body should contain.
+    rubric:
+      - id: valid-d2-500-is-right-code
+        criterion: Recognises that 500 (a 5xx code) is an appropriate status for a database outage, because the failure is on the server and not the client's fault
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-d2-no-leaked-internals
+        criterion: Identifies that sending the stack trace is the problem, because it exposes internal details (file paths, database type, internal IP address and port) that can help an attacker and mean nothing to users
+        capability: validation-errors
+        weight: 1.5
+      - id: valid-d2-log-and-generic-body
+        criterion: Proposes logging the full error on the server and returning a short generic error message to the client, optionally with a request or error ID for support
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-d2-empty-list-200
+        criterion: Says GET /tasks with no tasks should return 200 OK with an empty list, because an empty collection is a normal result, not a missing resource
+        capability: validation-errors
+        weight: 1.5
+      - id: valid-d2-404-for-specific-missing
+        criterion: Distinguishes this from asking for one specific resource that does not exist (e.g. GET /tasks/999), which is where 404 is correct
+        capability: validation-errors
+        weight: 1.0
+
+exercises:
+  - chunk: validation-errors.md#exercise-fix-the-error-responses
+    title: Fix the error responses
+    capabilities: [validation-errors]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: valid-e1-not-200-for-error
+        criterion: Explains that returning 200 OK for a failed request is wrong, because the status code tells clients and tools whether it worked and 200 claims success
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-e1-missing-title-4xx
+        criterion: Says a missing title should get 400 Bad Request or 422 Unprocessable Content, since the client must fix the request
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-e1-useful-error-body
+        criterion: Replaces {"error":"bad"} with a consistent, specific error body that names the title field and the rule it broke (required, 1-200 characters), for example in a Problem Details shape
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-e1-keep-500-hide-trace
+        criterion: Keeps 500 for the database outage but removes the stack trace and internal details (database driver, internal IP address and port) from the response, logging them on the server instead and returning a generic message
+        capability: validation-errors
+        weight: 1.5
+
+  - chunk: validation-errors.md#exercise-pick-the-right-response
+    title: Pick the right response
+    capabilities: [validation-errors]
+    level: foundation
+    minutes: 6
+    rubric:
+      - id: valid-e2-404-vs-empty-list
+        criterion: Gives 404 for GET /tasks/999 and 200 with an empty list for GET /tasks with no tasks, and explains the difference between a missing resource and an empty collection
+        capability: validation-errors
+        weight: 1.5
+      - id: valid-e2-malformed-json-400
+        criterion: Gives 400 Bad Request for the cut-off body, because it is not valid JSON
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-e2-invalid-value-4xx
+        criterion: Gives 422 Unprocessable Content or 400 Bad Request for status "maybe", explaining that the JSON is well-formed but the value is not one of the allowed values
+        capability: validation-errors
+        weight: 1.0
+      - id: valid-e2-duplicate-409
+        criterion: Gives 409 Conflict for the already-taken username, because the request conflicts with existing data
+        capability: validation-errors
+        weight: 1.0

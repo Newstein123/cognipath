@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, pct, stepHref, type LearnerCreated, type LearnerSummary, type NextActivities, type OnboardingOptions } from "@/lib/api";
+import { api, pct, stepHref, type Course, type LearnerCreated, type LearnerSummary, type NextActivities, type OnboardingOptions } from "@/lib/api";
 import { ErrorBox, Loading } from "@/components/ui";
 
 export default function Start() {
   const router = useRouter();
   const [options, setOptions] = useState<OnboardingOptions | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [course, setCourse] = useState<string | null>(null);
   const [learners, setLearners] = useState<LearnerSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,9 +29,17 @@ export default function Start() {
   const [built, setBuilt] = useState("");
 
   useEffect(() => {
-    api.options().then(setOptions).catch((e) => setError(e.message));
+    api.courses().then((cs) => { setCourses(cs); setCourse((c) => c ?? cs[0]?.id ?? null); })
+      .catch((e) => setError(e.message));
     api.learners().then(setLearners).catch(() => {});
   }, []);
+  // Each course has its own goals, levels, topics and example goals.
+  useEffect(() => {
+    if (!course) return;
+    setOptions(null); setTechs([]);
+    api.options(course).then((o) => { setOptions(o); setLevel(o.levels[0]?.id ?? "none"); })
+      .catch((e) => setError(e.message));
+  }, [course]);
 
   const toggle = (t: string) =>
     setTechs((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
@@ -38,7 +48,7 @@ export default function Start() {
     setBusy(true);
     setError(null);
     try {
-      setCreated(await api.createLearner({ name, goal, technologies: techs, knows, built, level }));
+      setCreated(await api.createLearner({ course: course ?? undefined, name, goal, technologies: techs, knows, built, level }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -115,7 +125,20 @@ export default function Start() {
     <main className="center">
       <Brand />
       <div className="card">
-        <h1>What do you want to be able to do?</h1>
+        {courses.length > 1 && (
+          <>
+            <label style={{ marginTop: 0 }}>Course</label>
+            <div className="course-pick">
+              {courses.map((c) => (
+                <button key={c.id} className={`course-card ${c.id === course ? "on" : ""}`} onClick={() => setCourse(c.id)}>
+                  <strong>{c.name}</strong>
+                  <span className="small muted">{c.description}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        <h1 style={{ marginTop: 18 }}>What do you want to be able to do?</h1>
         <p className="muted">
           Tell us what you&apos;re trying to achieve. We&apos;ll find out what you already know
           and teach only what you need.
@@ -172,7 +195,7 @@ export default function Start() {
             {learners.map((l) => (
               <li key={l.id} className="spread">
                 <div>
-                  <strong>{l.name}</strong> <span className="small muted">({l.id})</span>
+                  <strong>{l.name}</strong> <span className="small muted">· {l.course.name}</span>
                   <div className="small muted">
                     {l.goal ?? "No goal"} · {l.counts.mastered} mastered, {l.counts.developing} developing
                   </div>

@@ -25,10 +25,50 @@
         }
       }
     },
+    "/api/courses": {
+      "get": {
+        "summary": "List Courses",
+        "operationId": "list_courses_api_courses_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Course"
+                  },
+                  "type": "array",
+                  "title": "Response List Courses Api Courses Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/onboarding/options": {
       "get": {
         "summary": "Onboarding Options",
         "operationId": "onboarding_options_api_onboarding_options_get",
+        "parameters": [
+          {
+            "name": "course",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Course"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -39,43 +79,33 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/learners": {
-      "get": {
-        "summary": "List Learners",
-        "operationId": "list_learners_api_learners_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
+          },
+          "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/LearnerSummary"
-                  },
-                  "type": "array",
-                  "title": "Response List Learners Api Learners Get"
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
           }
         }
-      },
+      }
+    },
+    "/api/learners": {
       "post": {
         "summary": "Create Learner",
         "operationId": "create_learner_api_learners_post",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/OnboardingRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -84,6 +114,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LearnerCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List Learners",
+        "description": "Every learner (each loaded in their own course), or only one course's.",
+        "operationId": "list_learners_api_learners_get",
+        "parameters": [
+          {
+            "name": "course",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Course"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LearnerSummary"
+                  },
+                  "title": "Response List Learners Api Learners Get"
                 }
               }
             }
@@ -231,6 +310,7 @@
     "/api/activities/{activity_id}": {
       "get": {
         "summary": "Get Activity Route",
+        "description": "Activities belong to a course: pass the learner (preferred) or the course.",
         "operationId": "get_activity_route_api_activities__activity_id__get",
         "parameters": [
           {
@@ -240,6 +320,38 @@
             "schema": {
               "type": "string",
               "title": "Activity Id"
+            }
+          },
+          {
+            "name": "learner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Learner"
+            }
+          },
+          {
+            "name": "course",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Course"
             }
           }
         ],
@@ -907,6 +1019,39 @@
         ],
         "title": "ConceptVerdict"
       },
+      "Course": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "inlineMath": {
+            "type": "boolean",
+            "title": "Inlinemath",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Course"
+      },
       "Criterion": {
         "properties": {
           "id": {
@@ -1483,6 +1628,9 @@
           },
           "counts": {
             "$ref": "#/components/schemas/SkillCounts"
+          },
+          "course": {
+            "$ref": "#/components/schemas/Course"
           }
         },
         "type": "object",
@@ -1490,7 +1638,8 @@
           "id",
           "name",
           "goal",
-          "counts"
+          "counts",
+          "course"
         ],
         "title": "LearnerSummary"
       },
@@ -1739,6 +1888,9 @@
       },
       "OnboardingOptions": {
         "properties": {
+          "course": {
+            "$ref": "#/components/schemas/Course"
+          },
           "goals": {
             "items": {
               "$ref": "#/components/schemas/Option"
@@ -1776,6 +1928,7 @@
         },
         "type": "object",
         "required": [
+          "course",
           "goals",
           "levels",
           "technologies"
@@ -1784,6 +1937,17 @@
       },
       "OnboardingRequest": {
         "properties": {
+          "course": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
+          },
           "name": {
             "type": "string",
             "maxLength": 80,

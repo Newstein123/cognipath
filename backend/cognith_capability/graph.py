@@ -24,7 +24,7 @@ from .models import (
     RelationType,
 )
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent / "data" / "capabilities.yaml"
+from cognith_course import path as course_path
 
 
 class CapabilityGraph:
@@ -61,7 +61,8 @@ class CapabilityGraph:
 
     # --- loading ----------------------------------------------------------------
     @classmethod
-    def load(cls, path: Path = DEFAULT_PATH, *, validate: bool = True) -> "CapabilityGraph":
+    def load(cls, path: Path | None = None, *, validate: bool = True) -> "CapabilityGraph":
+        path = path or course_path("capabilities.yaml")
         if not path.exists():
             raise FileNotFoundError(f"No capability data at {path}")
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))

@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+import cognith_course as courses
 from cognith_capability.graph import CapabilityGraph
 from cognith_learning.experience import ExperienceLibrary, LearningExperience
 from cognith_learning.generator import ChallengeGenerator, GenerationError, to_record
@@ -61,25 +62,55 @@ app.add_middleware(
 )
 
 
-# --- shared, read-only engine data ------------------------------------------------------
+# --- shared, read-only engine data — one cache entry per course pack -------------------
+# Every request runs with one course active (cognith_course): set from the learner's
+# record in load_profile, or from ?course= on routes that have no learner.
 @lru_cache
-def graph() -> CapabilityGraph:
+def _graph(course: str) -> CapabilityGraph:
     return CapabilityGraph.load()
 
 
 @lru_cache
-def library() -> ExperienceLibrary:
-    return ExperienceLibrary.load(graph())
+def _library(course: str) -> ExperienceLibrary:
+    return ExperienceLibrary.load(_graph(course))
 
 
 @lru_cache
-def onboarding() -> OnboardingEngine:
-    return OnboardingEngine.load(graph())
+def _onboarding(course: str) -> OnboardingEngine:
+    return OnboardingEngine.load(_graph(course))
 
 
 @lru_cache
-def store() -> Store:
+def _store(course: str) -> Store:
     return Store.load()
+
+
+def graph() -> CapabilityGraph:
+    return _graph(courses.current())
+
+
+def library() -> ExperienceLibrary:
+    return _library(courses.current())
+
+
+library.cache_clear = _library.cache_clear  # generated challenges join the library
+
+
+def onboarding() -> OnboardingEngine:
+    return _onboarding(courses.current())
+
+
+def store() -> Store:
+    return _store(courses.current())
+
+
+def use_course(course_id: str | None) -> str:
+    """Activate a course for this request (404 if there is no such pack)."""
+    try:
+        courses.set_course(course_id or courses.all_courses()[0]["id"])
+    except courses.UnknownCourse:
+        raise HTTPException(404, f"No course {course_id!r}") from None
+    return courses.current()
 
 
 def evaluator() -> Evaluator:
@@ -88,6 +119,11 @@ def evaluator() -> Evaluator:
 
 
 def load_profile(learner_id: str) -> CapabilityProfile:
+    """The learner's profile — and, first, their course becomes the active one."""
+    record = get_storage().load_profile(learner_id)
+    if record is None:
+        raise HTTPException(404, f"No learner {learner_id!r}")
+    use_course(record["student"].get("course") or courses.LEGACY_COURSE)
     try:
         return CapabilityProfile.load(learner_id, graph())
     except FileNotFoundError:
@@ -132,9 +168,16 @@ def counts(profile: CapabilityProfile) -> s.SkillCounts:
     )
 
 
+def course_model(course_id: str | None = None) -> s.Course:
+    c = courses.info(course_id or courses.current())
+    return s.Course(id=c["id"], name=c.get("name", c["id"]), subject=c.get("subject", ""),
+                    description=c.get("description", ""), inline_math=bool(c.get("inline_math")))
+
+
 def summary(profile: CapabilityProfile) -> s.LearnerSummary:
     st = profile.student
-    return s.LearnerSummary(id=st.id, name=st.name, goal=st.goal, counts=counts(profile))
+    return s.LearnerSummary(id=st.id, name=st.name, goal=st.goal, counts=counts(profile),
+                            course=course_model())
 
 
 def explain_skill(row: StudentCapability, gap: Gap | None) -> str:
@@ -232,12 +275,23 @@ def match_goal(text: str) -> str:
     return next(iter(goals))
 
 
+def course_for_goal(text: str) -> str:
+    """The course whose goal keywords the text mentions; else the default course."""
+    lowered = f" {text.lower()} "
+    for c in courses.all_courses():
+        with courses.using(c["id"]):
+            goals = _onboarding(c["id"]).goals
+        if any(w.lower() in lowered for g in goals.values() for w in g.get("keywords", [])):
+            return c["id"]
+    return courses.all_courses()[0]["id"]
+
+
 def onboarding_ui() -> dict:
     import yaml
 
-    from cognith_student.onboarding import DEFAULT_PATH
+    from cognith_course import path as course_path
 
-    return yaml.safe_load(DEFAULT_PATH.read_text(encoding="utf-8")).get("ui", {}) or {}
+    return yaml.safe_load(course_path("onboarding.yaml").read_text(encoding="utf-8")).get("ui", {}) or {}
 
 
 def new_learner_id(name: str) -> str:
@@ -252,10 +306,17 @@ def health() -> dict:
             "model": GENERATION_MODEL}
 
 
+@app.get("/api/courses", response_model=list[s.Course])
+def list_courses():
+    return [course_model(c["id"]) for c in courses.all_courses()]
+
+
 @app.get("/api/onboarding/options", response_model=s.OnboardingOptions)
-def onboarding_options():
+def onboarding_options(course: str | None = None):
+    use_course(course)
     eng = onboarding()
     return s.OnboardingOptions(
+        course=course_model(),
         goals=[s.Option(id=k, label=v["name"]) for k, v in eng.goals.items()],
         levels=[s.Option(id=k, label=v["label"]) for k, v in eng.levels.items()],
         technologies=sorted(eng.technologies),
@@ -266,6 +327,7 @@ def onboarding_options():
 
 @app.post("/api/learners", response_model=s.LearnerCreated, status_code=201)
 def create_learner(req: s.OnboardingRequest):
+    use_course(req.course or course_for_goal(req.goal))
     eng = onboarding()
     goal_key = match_goal(req.goal)
     answers = OnboardingAnswers(
@@ -296,8 +358,12 @@ def create_learner(req: s.OnboardingRequest):
 
 
 @app.get("/api/learners", response_model=list[s.LearnerSummary])
-def list_learners():
-    return [summary(CapabilityProfile.load(i, graph())) for i in get_storage().list_students()]
+def list_learners(course: str | None = None):
+    """Every learner (each loaded in their own course), or only one course's."""
+    out = []
+    for i in get_storage().list_students():
+        out.append(summary(load_profile(i)))
+    return [l for l in out if course is None or l.course.id == course]
 
 
 @app.get("/api/learners/{learner_id}/profile", response_model=s.SkillProfile)
@@ -307,7 +373,8 @@ def get_profile(learner_id: str):
 
 @app.get("/api/learners/{learner_id}/next", response_model=s.NextActivities)
 def get_next(learner_id: str, limit: int = 3):
-    loop = AdaptiveLoop(graph(), load_profile(learner_id))
+    profile = load_profile(learner_id)  # sets the learner's course first
+    loop = AdaptiveLoop(graph(), profile)
     # The loop reserves its LAST slot for the top rung, so with limit=1 that rung would
     # displace the gap step. Plan at least three, then trim, so steps[0] never depends
     # on how many the client asked for.
@@ -334,7 +401,12 @@ def get_diagnostic(learner_id: str):
 
 
 @app.get("/api/activities/{activity_id}", response_model=s.Activity)
-def get_activity_route(activity_id: str):
+def get_activity_route(activity_id: str, learner: str | None = None, course: str | None = None):
+    """Activities belong to a course: pass the learner (preferred) or the course."""
+    if learner:
+        load_profile(learner)
+    else:
+        use_course(course or courses.LEGACY_COURSE)
     return activity(get_activity(activity_id))
 
 
@@ -455,8 +527,11 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
             return None, hits
 
     # Cards and the full explanation at the same time: one wait, not two.
+    import contextvars
+
     with ThreadPoolExecutor(2) as pool:
-        card_job = pool.submit(cards)
+        # Worker threads don't inherit context vars — carry the active course across.
+        card_job = pool.submit(contextvars.copy_context().run, cards)
         k = resolver.knowledge_for(gap)
         micro, card_hits = card_job.result()
     citation = {h.chunk.id: h.chunk.citation for h in card_hits}

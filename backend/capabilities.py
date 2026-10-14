@@ -118,10 +118,10 @@ def show_coverage(g: CapabilityGraph) -> None:
     RAG package, so the two layers stay independent (Claude.md §25).
     """
     from cognith_rag.chunker import parse_frontmatter
-    from cognith_rag.config import KNOWLEDGE_DIR
+    from cognith_rag.config import knowledge_dir
 
     corpus: dict[str, str] = {}          # doc id -> filename
-    for path in sorted(KNOWLEDGE_DIR.glob("*.md")):
+    for path in sorted(knowledge_dir().glob("*.md")):
         meta, _ = parse_frontmatter(path.read_text(encoding="utf-8"))
         doc_id = meta.get("id")
         if doc_id:

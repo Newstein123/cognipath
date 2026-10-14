@@ -41,8 +41,8 @@ from cognith_capability.models import Level
 from cognith_rag.store import Store
 from cognith_student.diagnostic import DiagnosticEngine, RubricCriterion
 
-EXERCISES_PATH = Path(__file__).resolve().parent.parent / "data" / "exercises.yaml"
-APPLICATIONS_PATH = Path(__file__).resolve().parent.parent / "data" / "applications.yaml"
+from cognith_course import current as current_course
+from cognith_course import path as course_path
 
 
 class ExperienceError(ValueError):
@@ -137,7 +137,8 @@ class ExperienceLibrary:
         self.experiences = {e.id: e for e in experiences}
 
     @classmethod
-    def load(cls, graph: CapabilityGraph, path: Path = EXERCISES_PATH) -> "ExperienceLibrary":
+    def load(cls, graph: CapabilityGraph, path: Path | None = None) -> "ExperienceLibrary":
+        path = path or course_path("exercises.yaml")
         return cls(graph, cls._diagnostics(graph) + cls._exercises(graph, path)
                    + cls._applications(graph) + cls._missions(graph)
                    + cls._generated(graph))
@@ -149,8 +150,11 @@ class ExperienceLibrary:
 
         from .generator import from_record
 
+        from cognith_course import LEGACY_COURSE
+
         return [from_record(d) for d in get_storage().list_activities()
-                if d.get("capabilityId") in graph.capabilities]
+                if d.get("course", LEGACY_COURSE) == current_course()
+                and d.get("capabilityId") in graph.capabilities]
 
     # --- sources ------------------------------------------------------------------
     @staticmethod
@@ -231,7 +235,8 @@ class ExperienceLibrary:
         return out
 
     @staticmethod
-    def _applications(graph: CapabilityGraph, path: Path = APPLICATIONS_PATH) -> list[LearningExperience]:
+    def _applications(graph: CapabilityGraph, path: Path | None = None) -> list[LearningExperience]:
+        path = path or course_path("applications.yaml")
         """Integration scenarios. Authored whole — prompt and rubric together."""
         if not path.exists():
             return []
@@ -274,12 +279,12 @@ class ExperienceLibrary:
         is assessed by exactly the same code as a diagnostic or an exercise. Phase 9
         required no change to the assessment layer at all.
         """
-        from .mission import MISSIONS_PATH, MissionEngine
+        from .mission import MissionEngine, missions_path
 
-        if not MISSIONS_PATH.exists():
+        if not missions_path().exists():
             return []
         import yaml
-        spec = yaml.safe_load(MISSIONS_PATH.read_text(encoding="utf-8"))
+        spec = yaml.safe_load(missions_path().read_text(encoding="utf-8"))
         out: list[LearningExperience] = []
         for entry in spec.get("missions", []):
             m = MissionEngine.load(entry["id"]).mission

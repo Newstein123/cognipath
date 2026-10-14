@@ -4,9 +4,23 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-KNOWLEDGE_DIR = ROOT / "knowledge"
-INDEX_PATH = ROOT / "index.json"
-TESTS_PATH = ROOT / "tests.yaml"
+# Course material lives in the active course pack (cognith_course).
+def knowledge_dir() -> Path:
+    from cognith_course import path
+
+    return path("knowledge")
+
+
+def index_path() -> Path:
+    from cognith_course import path
+
+    return path("index.json")
+
+
+def tests_path() -> Path:
+    from cognith_course import path
+
+    return path("tests.yaml")
 
 # --- Models -----------------------------------------------------------------
 # gemini-embedding-001 is chosen over gemini-embedding-2 because it supports the

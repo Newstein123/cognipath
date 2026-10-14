@@ -25,7 +25,7 @@ from cognith_capability.models import RelationType
 from .models import Student, StudentCapability
 from .profile import CapabilityProfile
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent / "data" / "onboarding.yaml"
+from cognith_course import path as course_path
 
 
 class OnboardingError(ValueError):
@@ -113,7 +113,8 @@ class OnboardingEngine:
         self._validate()
 
     @classmethod
-    def load(cls, graph: CapabilityGraph, path: Path = DEFAULT_PATH) -> "OnboardingEngine":
+    def load(cls, graph: CapabilityGraph, path: Path | None = None) -> "OnboardingEngine":
+        path = path or course_path("onboarding.yaml")
         if not path.exists():
             raise FileNotFoundError(f"No onboarding vocabulary at {path}")
         return cls(graph, yaml.safe_load(path.read_text(encoding="utf-8")))
@@ -279,10 +280,13 @@ class OnboardingEngine:
         not evidence (§6.2, decisions.md D12).
         """
         result = self.estimate(answers)
+        from cognith_course import current
+
         student = Student(
             id=student_id,
             name=answers.student_name,
             goal=self.goals[answers.goal]["name"],
+            course=current(),
         )
         rows = [
             StudentCapability(

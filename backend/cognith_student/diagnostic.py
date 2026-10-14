@@ -42,7 +42,7 @@ from cognith_capability.models import Capability, Level
 from .models import DEMONSTRATED_AT, utcnow
 from .profile import CapabilityProfile
 
-DEFAULT_PATH = Path(__file__).resolve().parent.parent / "data" / "diagnostics.yaml"
+from cognith_course import path as course_path
 SESSION_DIR = Path(__file__).resolve().parent.parent / "data" / "diagnostics"
 
 
@@ -210,7 +210,8 @@ class DiagnosticEngine:
         self._validate()
 
     @classmethod
-    def load(cls, graph: CapabilityGraph, path: Path = DEFAULT_PATH) -> "DiagnosticEngine":
+    def load(cls, graph: CapabilityGraph, path: Path | None = None) -> "DiagnosticEngine":
+        path = path or course_path("diagnostics.yaml")
         if not path.exists():
             raise FileNotFoundError(f"No diagnostic data at {path}")
         return cls(graph, yaml.safe_load(path.read_text(encoding="utf-8")))

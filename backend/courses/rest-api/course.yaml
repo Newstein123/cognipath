@@ -1,0 +1,6 @@
+name: REST APIs from zero
+subject: Building REST APIs — HTTP, API design, databases, authentication and authorization, validation and testing
+description: From "what is a server?" to a secure task API. No backend experience needed.
+default: true
+order: 1
+inline_math: false

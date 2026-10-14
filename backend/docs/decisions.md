@@ -1703,3 +1703,27 @@ Assessment, rubrics, lessons and challenges stay fully grounded. Measured: 6/6 t
 questions classified correctly (1 course, 2 general, 3 refused).
 
 **Where:** `cognith_learning/general.py`, `ask_tutor` in `api/main.py`, `TutorAnswer.kind`.
+
+---
+
+## D58 — Course packs: one engine, many courses
+
+**Phase 16.**
+
+**Decision:** everything course-specific moved to `courses/<id>/` (capabilities,
+onboarding, diagnostics, exercises, milestones, applications, missions, knowledge,
+index). `cognith_course` holds the active course in a context variable; every loader asks
+it for paths. The API sets it per request from the learner record (`Student.course`), or
+from `?course=` where there is no learner; caches are per course. Learner state stays in
+`data/`; generated challenges record their course. Onboarding picks the course explicitly
+or from goal keywords across all packs.
+
+**Why:** MAT221 ran from a copied backend with hand-synced code, and the demo needs a
+second course in the same app. Measured: three packs build and validate; tests check that
+learners in different courses never see each other's skills or recommendations.
+
+**Gotchas found:** `AdaptiveLoop(graph(), load_profile(id))` evaluates `graph()` before
+`load_profile` switches the course — load the profile first, always. ThreadPoolExecutor
+workers do not inherit context variables — submit via `contextvars.copy_context().run`.
+
+**Where:** `cognith_course/`, `courses/`, `build_pack.py`, `api/main.py`.

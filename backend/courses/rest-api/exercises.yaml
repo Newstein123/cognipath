@@ -1,0 +1,348 @@
+exercises:
+- chunk: api-testing.md#exercise-write-the-test-cases
+  title: Write the test cases for PUT /tasks/{id}
+  capabilities:
+  - api-testing
+  level: foundation
+  minutes: 10
+  rubric:
+  - id: test-ex1-success-case
+    criterion: Includes a successful update by the owner with a valid body, expecting a 2xx status and
+      checking that the returned or stored task has the new values
+    capability: api-testing
+    weight: 1.0
+  - id: test-ex1-validation-case
+    criterion: Includes an invalid-input case (such as a missing or too-long title), expecting 400 or
+      422 with an error that identifies the problem field
+    capability: api-testing
+    weight: 1.0
+  - id: test-ex1-missing-and-no-token
+    criterion: Includes a request for a task id that does not exist expecting 404, and a request with
+      no token expecting 401
+    capability: api-testing
+    weight: 1.0
+  - id: test-ex1-other-user
+    criterion: Includes a case where a different logged-in user tries to update the owner's task, expecting
+      403 or 404
+    capability: api-testing
+    weight: 1.5
+  - id: test-ex1-state-unchanged
+    criterion: For the failure cases, states that the stored task must be unchanged afterwards, not just
+      that an error status is returned
+    capability: api-testing
+    weight: 1.0
+- chunk: api-testing.md#exercise-fix-the-flaky-tests
+  title: Fix the flaky tests
+  capabilities:
+  - api-testing
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: test-ex2-diagnoses-dependency
+    criterion: Explains that Test B fails alone because it relies on the task created by Test A, so task
+      1 does not exist (or is not Alice's) when B runs by itself
+    capability: api-testing
+    weight: 1.5
+  - id: test-ex2-names-principle
+    criterion: Names the principle being broken, that tests must be isolated and not depend on each other's
+      data or order
+    capability: api-testing
+    weight: 1.0
+  - id: test-ex2-rewrite-arrange
+    criterion: Rewrites the setup so Test B creates Alice, Bob and Alice's task itself and uses the returned
+      task id instead of a hard-coded 1
+    capability: api-testing
+    weight: 1.5
+  - id: test-ex2-rewrite-act-assert
+    criterion: The rewritten test sends one GET for Alice's task with Bob's token and asserts a refusal
+      (403, or 404 if that is the API's convention)
+    capability: api-testing
+    weight: 1.0
+- chunk: auth.md#exercise-find-the-broken-access-control
+  title: Find the broken access control
+  capabilities:
+  - authn-authz
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: auth-e1-missing-object-check
+    criterion: Explains that authentication worked (the token was valid) but there is no object-level
+      authorization check, so any logged-in user can read any user's tasks (BOLA / IDOR)
+    capability: authn-authz
+    weight: 1.5
+  - id: auth-e1-identity-from-token
+    criterion: Says the server must compare the requested user id or task owner with the authenticated
+      user's id taken from the verified token, never trusting the id in the URL alone
+    capability: authn-authz
+    weight: 2.0
+  - id: auth-e1-concrete-check
+    criterion: Describes a concrete check, such as rejecting when the URL id differs from the token's
+      user id or querying with both the id and the authenticated user's id
+    capability: authn-authz
+    weight: 1.0
+  - id: auth-e1-status-code
+    criterion: Gives 403 Forbidden or 404 Not Found as the response instead of 200, with no task data
+      returned
+    capability: authn-authz
+    weight: 1.0
+  - id: auth-e1-uuid-not-fix
+    criterion: Rejects random UUIDs as the fix, noting they may make guessing harder but are not a permission
+      check because IDs can still leak
+    capability: authn-authz
+    weight: 1.5
+- chunk: auth.md#exercise-authentication-or-authorization
+  title: Authentication or authorization?
+  capabilities:
+  - authn-authz
+  level: foundation
+  minutes: 5
+  rubric:
+  - id: auth-e2-no-header
+    criterion: Classifies the request with no Authorization header as an authentication problem with status
+      401
+    capability: authn-authz
+    weight: 1.0
+  - id: auth-e2-admin-only
+    criterion: Classifies the regular user calling the admin-only delete as an authorization problem with
+      status 403
+    capability: authn-authz
+    weight: 1.0
+  - id: auth-e2-expired-token
+    criterion: Classifies the expired token as an authentication problem with status 401, because the
+      credential is no longer valid
+    capability: authn-authz
+    weight: 1.0
+  - id: auth-e2-other-grade
+    criterion: Classifies reading another student's grade record as an authorization problem, answering
+      403 or 404 and not returning the record
+    capability: authn-authz
+    weight: 1.0
+- chunk: databases-crud.md#exercise-back-the-task-api-with-a-table
+  title: Back the task API with a table
+  capabilities:
+  - databases-crud
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: crud-ex1-insert
+    criterion: For POST /tasks writes an INSERT into tasks with owner_id and title as placeholders (owner_id
+      taken from the logged-in user) and gives 201 Created.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-ex1-select-update
+    criterion: For GET /tasks/{id} writes a SELECT filtered by id (200 OK) and for PATCH writes an UPDATE
+      ... SET done = ... WHERE id = ... (200 OK or 204).
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-ex1-delete
+    criterion: For DELETE /tasks/{id} writes a DELETE with a WHERE id = ... clause and gives 204 No Content.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-ex1-not-found
+    criterion: Gives 404 Not Found for a missing task in endpoints 2-4 and explains it is detected by
+      zero rows returned or zero rows affected.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-ex1-owner-filter
+    criterion: Includes owner_id in the WHERE clauses (or explains why) so a user cannot read, change
+      or delete another user's task, and uses placeholders rather than pasted-in values.
+    capability: databases-crud
+    weight: 1.0
+- chunk: databases-crud.md#exercise-spot-the-bugs-in-a-signup-endpoint
+  title: Spot the bugs in a signup endpoint
+  capabilities:
+  - databases-crud
+  level: foundation
+  minutes: 6
+  rubric:
+  - id: crud-ex2-injection
+    criterion: Identifies SQL injection from string concatenation and explains that crafted input can
+      change what the query does.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-ex2-parameterized
+    criterion: Recommends a parameterized query with the email passed as a separate value.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-ex2-409
+    criterion: States that a duplicate signup should return 409 Conflict instead of 500.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-ex2-detect
+    criterion: Explains the server should catch the unique-constraint violation raised by the INSERT and
+      translate it into the 409 response.
+    capability: databases-crud
+    weight: 1.0
+- chunk: http.md#exercise-read-a-failing-request
+  title: Read a failing request
+  capabilities:
+  - http-basics
+  level: foundation
+  minutes: 6
+  rubric:
+  - id: ex-fail-retry-unsafe
+    criterion: Says blind automatic retries are not safe here, because the server may have created the
+      order before failing, so a retry can create a duplicate
+    capability: http-basics
+    weight: 1.5
+  - id: ex-fail-400-means-fix-request
+    criterion: Explains that a 400 would mean the request itself is wrong, so retrying the same request
+      unchanged would just fail again and the client must fix it first
+    capability: http-basics
+    weight: 1.5
+  - id: ex-fail-500-server-fault
+    criterion: Recognises that 500 signals a server-side failure, which is why retrying is tempting in
+      the first place
+    capability: http-basics
+    weight: 1.0
+  - id: ex-fail-post-not-idempotent
+    criterion: Names non-idempotency of POST as the property that makes the retry risky
+    capability: http-basics
+    weight: 1.5
+- chunk: http.md#exercise-choose-the-status-code
+  title: Choose the status code
+  capabilities:
+  - http-basics
+  level: foundation
+  minutes: 6
+  rubric:
+  - id: ex-code-201-created
+    criterion: Gives 201 Created for the saved new book, explaining that a new resource was created
+    capability: http-basics
+    weight: 1.0
+  - id: ex-code-401-not-logged-in
+    criterion: Gives 401 Unauthorized for the visitor who is not logged in, because the server does not
+      know who they are
+    capability: http-basics
+    weight: 1.0
+  - id: ex-code-403-not-allowed
+    criterion: Gives 403 Forbidden for the logged-in student, because they are known but lack permission
+      to delete
+    capability: http-basics
+    weight: 1.0
+  - id: ex-code-404-missing
+    criterion: Gives 404 Not Found for the request for book 9999, because that resource does not exist
+    capability: http-basics
+    weight: 1.0
+  - id: ex-code-why-not-401
+    criterion: Explains that 401 is wrong for the student because logging in again would not help - the
+      problem is permission, not identity
+    capability: http-basics
+    weight: 1.0
+- chunk: rest-api.md#exercise-critique-an-endpoint
+  title: Critique an endpoint
+  capabilities:
+  - rest-design
+  level: intermediate
+  minutes: 8
+  rubric:
+  - id: ex-crit-verb-in-path
+    criterion: Identifies the verb in the path (getUsersByStatus) and proposes a noun resource such as
+      /users
+    capability: rest-design
+    weight: 1.0
+  - id: ex-crit-post-for-read
+    criterion: Identifies that POST is used for a read-only lookup and proposes GET with a query parameter,
+      such as GET /users?status=active
+    capability: rest-design
+    weight: 1.0
+  - id: ex-crit-success-flag
+    criterion: Identifies that a success flag inside a 200 body duplicates the status code and proposes
+      relying on HTTP status codes for success and failure
+    capability: rest-design
+    weight: 1.0
+  - id: ex-crit-no-pagination
+    criterion: Identifies that returning all 40,000 users is a problem and proposes pagination such as
+      a limit with a cursor or offset
+    capability: rest-design
+    weight: 1.0
+  - id: ex-crit-prioritises
+    criterion: Picks one change to make first and justifies it by its impact, for example pagination because
+      of load and latency, or GET because it unlocks caching and correct semantics
+    capability: rest-design
+    weight: 1.0
+- chunk: rest-api.md#exercise-design-a-profile-api
+  title: Design a profile API
+  capabilities:
+  - rest-design
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: ex-prof-paths
+    criterion: Uses a noun collection and item path such as /profiles and /profiles/{id} (or /students/{id}/profile)
+      with no verbs in the path
+    capability: rest-design
+    weight: 1.0
+  - id: ex-prof-get-post-delete
+    criterion: Uses GET to retrieve, POST to create (on the collection), and DELETE to delete, with success
+      codes of 200 OK for GET, 201 Created for POST, and 204 No Content (or 200 OK) for DELETE
+    capability: rest-design
+    weight: 1.5
+  - id: ex-prof-put-vs-patch
+    criterion: Uses PUT for the full replacement and PATCH for updating only the email, with 200 OK (or
+      204 No Content) on success
+    capability: rest-design
+    weight: 1.5
+  - id: ex-prof-404
+    criterion: Says a missing profile should return 404 Not Found
+    capability: rest-design
+    weight: 1.0
+  - id: ex-prof-why-status-codes
+    criterion: Explains that a real status code lets clients and tools detect the failure without parsing
+      the body, whereas 200 with an error message hides it
+    capability: rest-design
+    weight: 1.0
+- chunk: validation-errors.md#exercise-fix-the-error-responses
+  title: Fix the error responses
+  capabilities:
+  - validation-errors
+  level: foundation
+  minutes: 8
+  rubric:
+  - id: valid-e1-not-200-for-error
+    criterion: Explains that returning 200 OK for a failed request is wrong, because the status code tells
+      clients and tools whether it worked and 200 claims success
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e1-missing-title-4xx
+    criterion: Says a missing title should get 400 Bad Request or 422 Unprocessable Content, since the
+      client must fix the request
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e1-useful-error-body
+    criterion: Replaces {"error":"bad"} with a consistent, specific error body that names the title field
+      and the rule it broke (required, 1-200 characters), for example in a Problem Details shape
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e1-keep-500-hide-trace
+    criterion: Keeps 500 for the database outage but removes the stack trace and internal details (database
+      driver, internal IP address and port) from the response, logging them on the server instead and
+      returning a generic message
+    capability: validation-errors
+    weight: 1.5
+- chunk: validation-errors.md#exercise-pick-the-right-response
+  title: Pick the right response
+  capabilities:
+  - validation-errors
+  level: foundation
+  minutes: 6
+  rubric:
+  - id: valid-e2-404-vs-empty-list
+    criterion: Gives 404 for GET /tasks/999 and 200 with an empty list for GET /tasks with no tasks, and
+      explains the difference between a missing resource and an empty collection
+    capability: validation-errors
+    weight: 1.5
+  - id: valid-e2-malformed-json-400
+    criterion: Gives 400 Bad Request for the cut-off body, because it is not valid JSON
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e2-invalid-value-4xx
+    criterion: Gives 422 Unprocessable Content or 400 Bad Request for status "maybe", explaining that
+      the JSON is well-formed but the value is not one of the allowed values
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-e2-duplicate-409
+    criterion: Gives 409 Conflict for the already-taken username, because the request conflicts with existing
+      data
+    capability: validation-errors
+    weight: 1.0

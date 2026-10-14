@@ -7,6 +7,7 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
+import { getInlineMath } from "@/lib/settings";
 import { pct, stepHref, type Skill, type SkillState, type Source, type Step } from "@/lib/api";
 
 const STATE_LABEL: Record<SkillState, string> = {
@@ -33,9 +34,9 @@ export function KindBadge({ kind }: { kind: string }) {
   return <span className="badge kind">{KIND_LABEL[kind] ?? kind}</span>;
 }
 
-// Gemini writes formulas as $…$ / $$…$$ LaTeX. Inline $…$ is opt-in (NEXT_PUBLIC_INLINE_MATH=1)
+// Gemini writes formulas as $…$ / $$…$$ LaTeX. Inline $…$ is per course (lib/settings.ts)
 // because prose with prices ("$500 … $2,000/month") would otherwise be read as a formula.
-const MATH = [remarkMath, { singleDollarTextMath: process.env.NEXT_PUBLIC_INLINE_MATH === "1" }] as const;
+const math = () => [remarkMath, { singleDollarTextMath: getInlineMath() }] as const;
 
 /** \( … \) and \[ … \] are LaTeX delimiters Gemini sometimes uses; remark-math wants $. */
 const toDollars = (t: string) =>
@@ -45,7 +46,7 @@ export function Markdown({ text }: { text: string }) {
   text = toDollars(text);
   return (
     <div className="md">
-      <ReactMarkdown remarkPlugins={[remarkGfm, MATH as never]} rehypePlugins={[rehypeKatex]}>{text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm, math() as never]} rehypePlugins={[rehypeKatex]}>{text}</ReactMarkdown>
     </div>
   );
 }

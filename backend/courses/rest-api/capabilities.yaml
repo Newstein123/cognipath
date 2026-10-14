@@ -1,0 +1,67 @@
+# REST APIs from zero — the demo course. Six skills from the product vision, in the order
+# a beginner meets them. Same schema as every course pack.
+
+domain: rest-apis
+
+areas:
+  foundations: Foundations
+  building:    Building the API
+  quality:     Security & quality
+
+capabilities:
+
+  - id: http-basics
+    name: HTTP Basics
+    statement: Can explain how a client and server communicate through HTTP requests and responses, and choose the right method and status code.
+    description: Request–response cycle, methods, status codes, headers.
+    area: foundations
+    level: foundation
+    knowledge_docs: [http]
+
+  - id: rest-design
+    name: REST API Design
+    statement: Can design endpoints for a resource with the right paths, methods and status codes.
+    description: Resources, URLs, GET/POST/PUT/PATCH/DELETE, response design.
+    area: foundations
+    level: foundation
+    knowledge_docs: [rest-api]
+
+  - id: databases-crud
+    name: Databases and CRUD
+    statement: Can model a resource as a database table and map API operations to create, read, update and delete queries.
+    description: Tables, primary and foreign keys, CRUD SQL, parameterized queries, conflicts.
+    area: building
+    level: foundation
+    knowledge_docs: [databases-crud]
+
+  - id: authn-authz
+    name: Authentication and Authorization
+    statement: Can explain the difference between authentication and authorization and enforce server-side permission checks on every protected resource.
+    description: Who you are vs what you may do; 401 vs 403; object-level authorization (OWASP API1).
+    area: quality
+    level: intermediate
+    knowledge_docs: [auth]
+
+  - id: validation-errors
+    name: Validation and Error Handling
+    statement: Can validate input on the server and return clear, correct error responses for invalid input, missing resources and unexpected failures.
+    description: Never trust input; 400/422/404/409/500; problem details.
+    area: building
+    level: foundation
+    knowledge_docs: [validation-errors]
+
+  - id: api-testing
+    name: API Testing
+    statement: Can design tests for an API's normal behaviour and its failure cases, including validation, missing resources and access control.
+    description: Happy path and failure cases; arrange–act–assert; isolation.
+    area: quality
+    level: intermediate
+    knowledge_docs: [api-testing]
+
+edges:
+  - {from: http-basics,       relation: prerequisite_for, to: rest-design}
+  - {from: rest-design,       relation: prerequisite_for, to: databases-crud}
+  - {from: rest-design,       relation: prerequisite_for, to: validation-errors}
+  - {from: databases-crud,    relation: prerequisite_for, to: authn-authz}
+  - {from: validation-errors, relation: prerequisite_for, to: api-testing}
+  - {from: authn-authz,       relation: supports,         to: api-testing}

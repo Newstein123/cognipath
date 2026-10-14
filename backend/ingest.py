@@ -6,15 +6,15 @@ from __future__ import annotations
 import sys
 
 from cognith_rag.chunker import chunk_corpus
-from cognith_rag.config import EMBED_DIM, EMBED_MODEL, INDEX_PATH, KNOWLEDGE_DIR
+from cognith_rag.config import EMBED_DIM, EMBED_MODEL, index_path, knowledge_dir
 from cognith_rag.embeddings import embed_documents
 from cognith_rag.store import Store, file_hash
 
 
 def main() -> int:
-    chunks = chunk_corpus(KNOWLEDGE_DIR)
+    chunks = chunk_corpus(knowledge_dir())
     if not chunks:
-        print(f"No markdown found in {KNOWLEDGE_DIR}", file=sys.stderr)
+        print(f"No markdown found in {knowledge_dir()}", file=sys.stderr)
         return 1
 
     by_doc: dict[str, int] = {}
@@ -32,12 +32,12 @@ def main() -> int:
 
     manifest = {
         "files": {
-            p.name: file_hash(p) for p in sorted(KNOWLEDGE_DIR.glob("*.md"))
+            p.name: file_hash(p) for p in sorted(knowledge_dir().glob("*.md"))
         }
     }
     Store(chunks, manifest).save()
-    size_mb = INDEX_PATH.stat().st_size / 1e6
-    print(f"Wrote {INDEX_PATH.name} ({len(chunks)} chunks, {size_mb:.1f} MB)")
+    size_mb = index_path().stat().st_size / 1e6
+    print(f"Wrote {index_path().name} ({len(chunks)} chunks, {size_mb:.1f} MB)")
     return 0
 
 

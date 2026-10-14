@@ -1,0 +1,5 @@
+name: Backend Software Engineering
+subject: Backend software engineering — HTTP, APIs, databases and system design
+description: The original 17-skill pack the engine was built against. Kept for the engine's own tests.
+order: 3
+inline_math: false

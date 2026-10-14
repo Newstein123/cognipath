@@ -22,8 +22,8 @@ export default function ActivityPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.activity(aid).then(setActivity).catch((e) => setError(e.message));
-  }, [aid]);
+    api.activity(aid, id).then(setActivity).catch((e) => setError(e.message));
+  }, [aid, id]);
 
   if (error) return <ErrorBox error={error} />;
   if (!activity) return <Loading stages={["Loading…"]} />;

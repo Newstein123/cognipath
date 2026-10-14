@@ -1,0 +1,132 @@
+diagnostics:
+  - id: auth-diag-001
+    capability: authn-authz
+    also_exercises: []
+    level: foundation
+    minutes: 6
+    probes: [reasoning, application]
+    prompt: |
+      Many apps make you log in before you can use them, and even after you log in,
+      some things are still off-limits to you.
+
+      In your own words, explain the difference between "authentication" and
+      "authorization". Use an everyday example from outside of computers (a building,
+      a hotel, a club, anything you like) to show the difference.
+
+      Then imagine an API. Which HTTP status code fits each situation, and why?
+        a) The request arrives and the user is not logged in at all.
+        b) The user is logged in, but is trying to do something they are not allowed to do.
+    rubric:
+      - id: auth-d1-authn-identity
+        criterion: Explains authentication as proving or verifying who someone is (identity), e.g. logging in with a password or showing a badge
+        capability: authn-authz
+        weight: 1.0
+      - id: auth-d1-authz-permission
+        criterion: Explains authorization as deciding what an already-identified person is allowed to do or access (permissions), and makes clear it is a separate question from identity
+        capability: authn-authz
+        weight: 1.5
+      - id: auth-d1-analogy
+        criterion: Gives an everyday example where the two steps are clearly distinguishable, such as a badge proving identity while door rules decide which rooms it opens
+        capability: authn-authz
+        weight: 1.0
+      - id: auth-d1-401
+        criterion: Assigns 401 (Unauthorized) to the not-logged-in case, i.e. missing or invalid credentials
+        capability: authn-authz
+        weight: 1.0
+      - id: auth-d1-403
+        criterion: Assigns 403 (Forbidden) to the logged-in-but-not-allowed case, and does not swap 401 and 403
+        capability: authn-authz
+        weight: 1.0
+
+  - id: auth-diag-002
+    capability: authn-authz
+    also_exercises: []
+    level: foundation
+    minutes: 8
+    probes: [reasoning, decision, application]
+    prompt: |
+      A school app has an API. A student logs in and opens their own profile at:
+
+        GET /users/123
+
+      The page shows their name, email and grades. Out of curiosity, the student edits
+      the address bar to:
+
+        GET /users/456
+
+      and the API returns another student's name, email and grades.
+
+      A teammate says: "Easy fix: we should hide the user ID from the URL, or switch to
+      random IDs so nobody can guess them."
+
+      What is actually going wrong here? Is your teammate's fix enough, and why or why
+      not? What should the server do instead, and what should the student see when they
+      request /users/456?
+    rubric:
+      - id: auth-d2-names-authz-gap
+        criterion: Identifies that the user was authenticated (logged in) but the server never checked whether that user is allowed to see user 456's data, i.e. a missing authorization check
+        capability: authn-authz
+        weight: 1.5
+      - id: auth-d2-hiding-not-fix
+        criterion: States that hiding or randomising the ID is not a fix on its own, because IDs can leak, be shared, logged or guessed, and making something hard to find is not the same as checking permission
+        capability: authn-authz
+        weight: 2.0
+      - id: auth-d2-server-ownership-check
+        criterion: Proposes a server-side check on every request that compares the requested resource's owner with the authenticated user's identity taken from the session or token, not from the URL or the client
+        capability: authn-authz
+        weight: 2.0
+      - id: auth-d2-status-code
+        criterion: Says the request should be refused with 403 Forbidden or 404 Not Found and the other student's data must not be returned
+        capability: authn-authz
+        weight: 1.0
+
+exercises:
+  - chunk: auth.md#exercise-find-the-broken-access-control
+    title: Find the broken access control
+    capabilities: [authn-authz]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: auth-e1-missing-object-check
+        criterion: Explains that authentication worked (the token was valid) but there is no object-level authorization check, so any logged-in user can read any user's tasks (BOLA / IDOR)
+        capability: authn-authz
+        weight: 1.5
+      - id: auth-e1-identity-from-token
+        criterion: Says the server must compare the requested user id or task owner with the authenticated user's id taken from the verified token, never trusting the id in the URL alone
+        capability: authn-authz
+        weight: 2.0
+      - id: auth-e1-concrete-check
+        criterion: Describes a concrete check, such as rejecting when the URL id differs from the token's user id or querying with both the id and the authenticated user's id
+        capability: authn-authz
+        weight: 1.0
+      - id: auth-e1-status-code
+        criterion: Gives 403 Forbidden or 404 Not Found as the response instead of 200, with no task data returned
+        capability: authn-authz
+        weight: 1.0
+      - id: auth-e1-uuid-not-fix
+        criterion: Rejects random UUIDs as the fix, noting they may make guessing harder but are not a permission check because IDs can still leak
+        capability: authn-authz
+        weight: 1.5
+
+  - chunk: auth.md#exercise-authentication-or-authorization
+    title: Authentication or authorization?
+    capabilities: [authn-authz]
+    level: foundation
+    minutes: 5
+    rubric:
+      - id: auth-e2-no-header
+        criterion: Classifies the request with no Authorization header as an authentication problem with status 401
+        capability: authn-authz
+        weight: 1.0
+      - id: auth-e2-admin-only
+        criterion: Classifies the regular user calling the admin-only delete as an authorization problem with status 403
+        capability: authn-authz
+        weight: 1.0
+      - id: auth-e2-expired-token
+        criterion: Classifies the expired token as an authentication problem with status 401, because the credential is no longer valid
+        capability: authn-authz
+        weight: 1.0
+      - id: auth-e2-other-grade
+        criterion: Classifies reading another student's grade record as an authorization problem, answering 403 or 404 and not returning the record
+        capability: authn-authz
+        weight: 1.0

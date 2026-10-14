@@ -1,0 +1,494 @@
+selection:
+  max_capabilities: 3
+  min_score: 0.15
+  weights:
+    uncertainty: 0.3
+    stake: 0.2
+    goal_relevance: 0.15
+    leverage: 0.1
+    calibration: 0.1
+    claim_support: 0.15
+  unready_penalty: 0.55
+  secondary_coverage_discount: 0.7
+items:
+- id: test-diag-001
+  capability: api-testing
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - decomposition
+  - reasoning
+  prompt: 'You have built an endpoint, GET /tasks/{id}, in a to-do app''s API. Each task belongs
+
+    to the user who created it, and users log in to get a token. You opened the URL in
+
+    your browser for one of your own tasks and it returned the task correctly.
+
+
+    Before calling this endpoint done, what else would you test? List the situations you
+
+    would check, what you would expect the API to do in each, and explain why trying it
+
+    once in the browser is not enough.
+
+    '
+  rubric:
+  - id: test-d1-beyond-happy-path
+    criterion: Explains that one successful manual try only shows one case and does not prove the endpoint
+      handles other situations or keeps working after later changes
+    capability: api-testing
+    weight: 1.0
+  - id: test-d1-missing-resource
+    criterion: Includes a case where the requested task id does not exist and expects a not-found response
+      (404) rather than a crash or an empty success
+    capability: api-testing
+    weight: 1.0
+  - id: test-d1-no-token
+    criterion: Includes a case where the request is sent without being logged in (no token or an invalid
+      one) and expects it to be rejected, ideally with 401
+    capability: api-testing
+    weight: 1.0
+  - id: test-d1-other-users-task
+    criterion: Includes a case where a logged-in user asks for a task owned by someone else and expects
+      it to be refused (403 or 404), not returned
+    capability: api-testing
+    weight: 1.5
+  - id: test-d1-asserts-more-than-status
+    criterion: Says what to check in the response beyond whether it "works", such as the status code and
+      the returned fields or error message
+    capability: api-testing
+    weight: 0.5
+- id: test-diag-002
+  capability: api-testing
+  also_exercises: []
+  level: intermediate
+  minutes: 8
+  probes:
+  - application
+  - reasoning
+  prompt: 'A task API has DELETE /tasks/{id}. Every task has an owner, and requests carry a
+
+    login token in the Authorization header. A bug report says: "I could delete another
+
+    user''s task just by changing the number in the URL."
+
+
+    After the fix, you want an automated test that would catch this bug if it ever came
+
+    back. Write that test step by step, split into its setup, the request it sends, and
+
+    the checks it makes. Be specific about which users and tasks exist, which status
+
+    code you expect, and what you check afterwards. Then explain why your test would
+
+    still pass reliably if it were run on its own or in a different order.
+
+    '
+  rubric:
+  - id: test-d2-two-users-setup
+    criterion: Sets up two distinct users and a task owned by one of them inside the test itself, rather
+      than assuming existing data or a hard-coded id
+    capability: api-testing
+    weight: 1.5
+  - id: test-d2-single-act
+    criterion: The action is a single DELETE request for the other user's task, sent with the non-owner's
+      token
+    capability: api-testing
+    weight: 1.0
+  - id: test-d2-expected-status
+    criterion: Expects the request to be refused with 403 or 404 (and says a 2xx success would mean the
+      bug is back)
+    capability: api-testing
+    weight: 1.0
+  - id: test-d2-side-effect-check
+    criterion: Checks the side effect, confirming afterwards that the owner's task still exists and is
+      unchanged
+    capability: api-testing
+    weight: 1.5
+  - id: test-d2-isolation
+    criterion: Explains that the test is reliable because it creates its own data and does not depend
+      on other tests or their order
+    capability: api-testing
+    weight: 1.0
+- id: auth-diag-001
+  capability: authn-authz
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - reasoning
+  - application
+  prompt: "Many apps make you log in before you can use them, and even after you log in,\nsome things\
+    \ are still off-limits to you.\n\nIn your own words, explain the difference between \"authentication\"\
+    \ and\n\"authorization\". Use an everyday example from outside of computers (a building,\na hotel,\
+    \ a club, anything you like) to show the difference.\n\nThen imagine an API. Which HTTP status code\
+    \ fits each situation, and why?\n  a) The request arrives and the user is not logged in at all.\n\
+    \  b) The user is logged in, but is trying to do something they are not allowed to do.\n"
+  rubric:
+  - id: auth-d1-authn-identity
+    criterion: Explains authentication as proving or verifying who someone is (identity), e.g. logging
+      in with a password or showing a badge
+    capability: authn-authz
+    weight: 1.0
+  - id: auth-d1-authz-permission
+    criterion: Explains authorization as deciding what an already-identified person is allowed to do or
+      access (permissions), and makes clear it is a separate question from identity
+    capability: authn-authz
+    weight: 1.5
+  - id: auth-d1-analogy
+    criterion: Gives an everyday example where the two steps are clearly distinguishable, such as a badge
+      proving identity while door rules decide which rooms it opens
+    capability: authn-authz
+    weight: 1.0
+  - id: auth-d1-401
+    criterion: Assigns 401 (Unauthorized) to the not-logged-in case, i.e. missing or invalid credentials
+    capability: authn-authz
+    weight: 1.0
+  - id: auth-d1-403
+    criterion: Assigns 403 (Forbidden) to the logged-in-but-not-allowed case, and does not swap 401 and
+      403
+    capability: authn-authz
+    weight: 1.0
+- id: auth-diag-002
+  capability: authn-authz
+  also_exercises: []
+  level: foundation
+  minutes: 8
+  probes:
+  - reasoning
+  - decision
+  - application
+  prompt: "A school app has an API. A student logs in and opens their own profile at:\n\n  GET /users/123\n\
+    \nThe page shows their name, email and grades. Out of curiosity, the student edits\nthe address bar\
+    \ to:\n\n  GET /users/456\n\nand the API returns another student's name, email and grades.\n\nA teammate\
+    \ says: \"Easy fix: we should hide the user ID from the URL, or switch to\nrandom IDs so nobody can\
+    \ guess them.\"\n\nWhat is actually going wrong here? Is your teammate's fix enough, and why or why\n\
+    not? What should the server do instead, and what should the student see when they\nrequest /users/456?\n"
+  rubric:
+  - id: auth-d2-names-authz-gap
+    criterion: Identifies that the user was authenticated (logged in) but the server never checked whether
+      that user is allowed to see user 456's data, i.e. a missing authorization check
+    capability: authn-authz
+    weight: 1.5
+  - id: auth-d2-hiding-not-fix
+    criterion: States that hiding or randomising the ID is not a fix on its own, because IDs can leak,
+      be shared, logged or guessed, and making something hard to find is not the same as checking permission
+    capability: authn-authz
+    weight: 2.0
+  - id: auth-d2-server-ownership-check
+    criterion: Proposes a server-side check on every request that compares the requested resource's owner
+      with the authenticated user's identity taken from the session or token, not from the URL or the
+      client
+    capability: authn-authz
+    weight: 2.0
+  - id: auth-d2-status-code
+    criterion: Says the request should be refused with 403 Forbidden or 404 Not Found and the other student's
+      data must not be returned
+    capability: authn-authz
+    weight: 1.0
+- id: crud-diag-001
+  capability: databases-crud
+  also_exercises: []
+  level: foundation
+  minutes: 7
+  probes:
+  - application
+  - reasoning
+  prompt: "You are building a small API for a personal reading list. Each book is stored\nas a row in\
+    \ a database table called `books` (columns: id, title, author).\n\nThe API has three endpoints:\n\
+    \  1. POST /books         - add a book to the list\n  2. GET /books          - list all books\n  3.\
+    \ DELETE /books/{id}  - remove one book\n\nFor each endpoint, say which database operation it performs\
+    \ (create, read,\nupdate or delete — and the SQL keyword if you know it) and which HTTP status\ncode\
+    \ it should return when it succeeds.\n\nThen: a client sends DELETE /books/99, but there is no book\
+    \ with id 99.\nWhat should the API respond, and how would the server find out the book\nwasn't there?\n"
+  rubric:
+  - id: crud-d1-create
+    criterion: Maps POST /books to a create operation (INSERT) and gives 201 Created as the success status.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-d1-read
+    criterion: Maps GET /books to a read operation (SELECT) and gives 200 OK as the success status.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-d1-delete
+    criterion: Maps DELETE /books/{id} to a delete operation (DELETE ... WHERE id = ...) and gives 204
+      No Content (or 200 with a body) as the success status.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-d1-missing-404
+    criterion: Says a delete of a non-existent book should return 404 Not Found.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-d1-detect-missing
+    criterion: Explains that the server detects the missing book because the query matched no rows (zero
+      rows affected or nothing returned), rather than relying on a database error.
+    capability: databases-crud
+    weight: 1.0
+- id: crud-diag-002
+  capability: databases-crud
+  also_exercises: []
+  level: foundation
+  minutes: 8
+  probes:
+  - reasoning
+  - application
+  prompt: "A teammate wrote the signup endpoint POST /users like this (Python):\n\n    sql = \"INSERT\
+    \ INTO users (email) VALUES ('\" + body[\"email\"] + \"')\"\n    cur.execute(sql)\n    return 201\n\
+    \nThe `email` column in the `users` table is declared UNIQUE.\n\n1. What is dangerous about how this\
+    \ query is built? Describe what a malicious\n   user could do, and show how you would write the query\
+    \ instead.\n2. When the same email signs up twice, clients currently get\n   500 Internal Server Error.\
+    \ Why does that happen, what status code should\n   the API return instead, and how should the server\
+    \ decide to return it?\n"
+  rubric:
+  - id: crud-d2-injection
+    criterion: Identifies that concatenating user input into the SQL string allows SQL injection, where
+      crafted input changes the meaning of the query.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-d2-parameterized
+    criterion: Proposes a parameterized query (placeholder such as %s or $1 with the value passed separately)
+      so input is treated only as data.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-d2-constraint-error
+    criterion: Explains that the duplicate insert fails because the database's unique constraint rejects
+      it, and the unhandled error surfaces as a 500.
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-d2-409
+    criterion: Says a duplicate signup should return 409 Conflict (not 500), ideally with a clear message
+      like "email already registered".
+    capability: databases-crud
+    weight: 1.0
+  - id: crud-d2-catch-specific
+    criterion: Describes catching the specific unique-violation error from the insert (rather than only
+      checking with a SELECT first) to decide on the 409.
+    capability: databases-crud
+    weight: 0.5
+- id: http-diag-001
+  capability: http-basics
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - application
+  - reasoning
+  prompt: "You open a mobile app and tap \"My profile\". A moment later your name and photo\nappear on\
+    \ screen.\n\nIn a few sentences, describe what happened between the app and the server:\n  - What\
+    \ does the app send to the server, and roughly what does it contain?\n  - What does the server send\
+    \ back?\n  - If your profile had been deleted and no longer exists, what should the\n    server send\
+    \ back instead, and how would the app know something went wrong?\n"
+  rubric:
+  - id: http-d1-client-sends-request
+    criterion: Says the app (the client) sends a request to the server asking for the profile, ideally
+      naming GET as the method
+    capability: http-basics
+    weight: 1.0
+  - id: http-d1-request-identifies-resource
+    criterion: Mentions that the request identifies which profile is wanted, for example through a path
+      or URL such as /users/42 or /profile
+    capability: http-basics
+    weight: 1.0
+  - id: http-d1-response-has-status-and-data
+    criterion: Says the server returns a response containing a success status (such as 200 OK) and the
+      profile data, for example as JSON
+    capability: http-basics
+    weight: 1.0
+  - id: http-d1-not-found-404
+    criterion: Says that for a missing profile the server should return 404 Not Found, and that the app
+      learns of the failure from that status code
+    capability: http-basics
+    weight: 1.5
+- id: http-diag-002
+  capability: http-basics
+  also_exercises: []
+  level: foundation
+  minutes: 7
+  probes:
+  - reasoning
+  - application
+  - decision
+  prompt: "A shopping app has a \"Place order\" button that sends `POST /orders`. On a slow\nconnection,\
+    \ the app gets no answer and automatically sends the same request again.\nThe customer ends up charged\
+    \ for two orders.\n\n1. Why did retrying cause a duplicate, when retrying `GET /orders/5` would not\n\
+    \   have caused any harm?\n2. Later, a customer who is logged in tries to view someone else's order\
+    \ and is\n   refused. A visitor who is not logged in tries the same thing. Which status code\n   should\
+    \ each of them get, and why are they different?\n3. If the server crashes with a bug while saving\
+    \ an order, which status code\n   family (2xx, 4xx or 5xx) should the response come from, and why?\n"
+  rubric:
+  - id: http-d2-post-not-idempotent
+    criterion: Explains that POST creates something each time it is sent (it is not idempotent), so sending
+      it twice can create two orders
+    capability: http-basics
+    weight: 1.5
+  - id: http-d2-get-safe
+    criterion: Explains that GET only reads data and does not change anything on the server, so repeating
+      it is harmless
+    capability: http-basics
+    weight: 1.0
+  - id: http-d2-401-vs-403
+    criterion: Gives 403 Forbidden for the logged-in customer and 401 Unauthorized for the visitor who
+      is not logged in, with the reason (authenticated but not allowed vs not authenticated)
+    capability: http-basics
+    weight: 1.5
+  - id: http-d2-server-error-5xx
+    criterion: Says a crash or bug on the server should produce a 5xx code such as 500 Internal Server
+      Error, because the fault is on the server, not in the client's request
+    capability: http-basics
+    weight: 1.0
+- id: rest-diag-001
+  capability: rest-design
+  also_exercises:
+  - http-basics
+  level: foundation
+  minutes: 8
+  probes:
+  - application
+  - decision
+  - reasoning
+  prompt: "You are building the backend for a small recipe-sharing app. Users need to:\n  - see a list\
+    \ of all recipes\n  - see one recipe\n  - add a new recipe\n  - delete a recipe\n\nFor each action,\
+    \ write the HTTP method and the URL path you would use (for\nexample `GET /something`). Then answer:\n\
+    \  - What status code should the server return when a new recipe is successfully\n    added?\n  -\
+    \ What should it return when someone asks for a recipe that does not exist?\nBriefly explain one reason\
+    \ why a path like `/getAllRecipes` is a poor choice.\n"
+  rubric:
+  - id: rest-d1-noun-paths
+    criterion: Uses noun-based resource paths such as /recipes and /recipes/{id} rather than verbs in
+      the path
+    capability: rest-design
+    weight: 1.5
+  - id: rest-d1-correct-methods
+    criterion: Pairs each action with a fitting method - GET for listing and fetching one, POST for adding,
+      DELETE for deleting
+    capability: rest-design
+    weight: 1.5
+  - id: rest-d1-201-created
+    criterion: Gives 201 Created as the status for a successfully added recipe
+    capability: http-basics
+    weight: 1.0
+  - id: rest-d1-404-missing
+    criterion: Gives 404 Not Found for a recipe that does not exist
+    capability: http-basics
+    weight: 1.0
+  - id: rest-d1-verb-in-path
+    criterion: Explains that the action belongs in the HTTP method, so putting a verb like "get" in the
+      path duplicates or conflicts with the method
+    capability: rest-design
+    weight: 1.0
+- id: rest-diag-002
+  capability: rest-design
+  also_exercises:
+  - http-basics
+  level: foundation
+  minutes: 8
+  probes:
+  - reasoning
+  - decision
+  - trade-offs
+  prompt: "A to-do app stores this task:\n\n  { \"id\": 3, \"title\": \"Write report\", \"done\": false,\
+    \ \"due\": \"2026-11-01\" }\n\nA user taps a checkbox to mark the task as done. Two teammates disagree:\n\
+    \  - Ana wants the app to send `PUT /tasks/3` with the body `{ \"done\": true }`.\n  - Ben wants it\
+    \ to send `PATCH /tasks/3` with the body `{ \"done\": true }`.\n\nWho is right, and why? Describe\
+    \ what the task might look like after Ana's request\nif the server follows PUT correctly. Then say\
+    \ which of the two methods is\nguaranteed to be safe to retry if the network fails, and why.\n"
+  rubric:
+  - id: rest-d2-patch-partial
+    criterion: Says PATCH is the right choice because it applies a partial change, leaving title and due
+      date untouched
+    capability: rest-design
+    weight: 1.5
+  - id: rest-d2-put-replaces
+    criterion: Explains that PUT replaces the whole resource, so sending only done could wipe or drop
+      the title and due date
+    capability: rest-design
+    weight: 1.5
+  - id: rest-d2-put-idempotent
+    criterion: Identifies PUT as idempotent - sending the same PUT again leaves the resource in the same
+      state - while PATCH is not guaranteed to be
+    capability: http-basics
+    weight: 1.0
+  - id: rest-d2-fix-put
+    criterion: Notes that PUT could work if the client sent the complete task (title, done and due), not
+      just the changed field
+    capability: rest-design
+    weight: 1.0
+- id: valid-diag-001
+  capability: validation-errors
+  also_exercises: []
+  level: foundation
+  minutes: 6
+  probes:
+  - application
+  - reasoning
+  prompt: "You are building the server for a sign-up form. The app sends a request to\nPOST /users with\
+    \ this JSON body:\n\n  {\"email\": \"not-an-email\", \"age\": -5}\n\nThe mobile app is supposed to\
+    \ check these fields before sending, but this request\ngot through anyway.\n\nWhat should the server\
+    \ do with this request, and what should it send back (status\ncode and what the response body should\
+    \ say)? A teammate suggests just saving it,\nbecause \"the app already checks the input\". Explain\
+    \ why that is or is not a good idea.\n"
+  rubric:
+  - id: valid-d1-reject-not-save
+    criterion: Says the server should validate the input and reject the request without saving it, rather
+      than storing it or silently correcting the values (e.g. changing -5 to 0)
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-d1-client-error-code
+    criterion: Chooses a 4xx client-error status, specifically 400 Bad Request or 422 Unprocessable Content,
+      and does not use 200 or 500
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-d1-field-level-message
+    criterion: Says the response body should name each invalid field and why it is wrong (email is not
+      a valid email format; age cannot be negative)
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-d1-server-must-check
+    criterion: Explains that client-side checks can be bypassed (e.g. someone calls the API directly or
+      the app has a bug), so the server cannot trust them and must validate itself
+    capability: validation-errors
+    weight: 1.5
+- id: valid-diag-002
+  capability: validation-errors
+  also_exercises: []
+  level: foundation
+  minutes: 8
+  probes:
+  - reasoning
+  - decision
+  - application
+  prompt: "You are reviewing a to-do API before it goes live and notice two behaviours.\n\n1. When the\
+    \ database is unreachable, GET /tasks/7 returns\n   500 Internal Server Error with this body:\n\n\
+    \     Traceback (most recent call last):\n       File \"/srv/app/db.py\", line 41, in get_task\n \
+    \    psycopg.OperationalError: connection to server at \"10.0.3.7\", port 5432 failed\n\n2. When a\
+    \ brand-new user with no tasks calls GET /tasks, the API returns\n   404 Not Found.\n\nFor each behaviour,\
+    \ say what is wrong (if anything) and what the API should do\ninstead. Include the status code and\
+    \ what the response body should contain.\n"
+  rubric:
+  - id: valid-d2-500-is-right-code
+    criterion: Recognises that 500 (a 5xx code) is an appropriate status for a database outage, because
+      the failure is on the server and not the client's fault
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-d2-no-leaked-internals
+    criterion: Identifies that sending the stack trace is the problem, because it exposes internal details
+      (file paths, database type, internal IP address and port) that can help an attacker and mean nothing
+      to users
+    capability: validation-errors
+    weight: 1.5
+  - id: valid-d2-log-and-generic-body
+    criterion: Proposes logging the full error on the server and returning a short generic error message
+      to the client, optionally with a request or error ID for support
+    capability: validation-errors
+    weight: 1.0
+  - id: valid-d2-empty-list-200
+    criterion: Says GET /tasks with no tasks should return 200 OK with an empty list, because an empty
+      collection is a normal result, not a missing resource
+    capability: validation-errors
+    weight: 1.5
+  - id: valid-d2-404-for-specific-missing
+    criterion: Distinguishes this from asking for one specific resource that does not exist (e.g. GET
+      /tasks/999), which is where 404 is correct
+    capability: validation-errors
+    weight: 1.0

@@ -1,0 +1,82 @@
+"""Build a course pack: merge its question parts, rebuild its index, check it all loads.
+
+    .venv/bin/python build_pack.py <course-id> [--no-ingest]
+    .venv/bin/python build_pack.py --all [--no-ingest]
+
+A pack with a `parts/` folder gets `diagnostics.yaml` and `exercises.yaml` generated from
+`parts/*.yaml` (so several authors can write questions independently). A pack without one
+keeps its hand-written files.
+"""
+
+from __future__ import annotations
+
+import _bootstrap  # noqa: F401
+
+import sys
+
+import yaml
+
+import cognith_course as courses
+
+SELECTION = {
+    "max_capabilities": 3,
+    "min_score": 0.15,
+    "weights": {"uncertainty": 0.30, "stake": 0.20, "goal_relevance": 0.15,
+                "leverage": 0.10, "calibration": 0.10, "claim_support": 0.15},
+    "unready_penalty": 0.55,
+    "secondary_coverage_discount": 0.70,
+}
+
+
+def build(course_id: str, ingest: bool) -> None:
+    root = courses.course_dir(course_id)
+    print(f"\n=== {course_id} ({root})")
+    with courses.using(course_id):
+        parts = sorted((root / "parts").glob("*.yaml")) if (root / "parts").exists() else []
+        if parts:
+            diagnostics, exercises = [], []
+            for part in parts:
+                spec = yaml.safe_load(part.read_text(encoding="utf-8")) or {}
+                diagnostics += spec.get("diagnostics") or []
+                exercises += spec.get("exercises") or []
+                print(f"  {part.name}: {len(spec.get('diagnostics') or [])} diagnostics, "
+                      f"{len(spec.get('exercises') or [])} exercises")
+            selection = courses.info(course_id).get("diagnostic_selection", SELECTION)
+            (root / "diagnostics.yaml").write_text(yaml.safe_dump(
+                {"selection": selection, "items": diagnostics}, sort_keys=False,
+                allow_unicode=True, width=100), encoding="utf-8")
+            (root / "exercises.yaml").write_text(yaml.safe_dump(
+                {"exercises": exercises}, sort_keys=False, allow_unicode=True, width=100),
+                encoding="utf-8")
+        for optional in ("applications.yaml",):
+            if not (root / optional).exists():
+                (root / optional).write_text("applications: []\n", encoding="utf-8")
+
+        if ingest:
+            import ingest as ingest_cli
+
+            ingest_cli.main()
+
+        from cognith_capability.graph import CapabilityGraph
+        from cognith_capability.milestone import MilestoneMap
+        from cognith_learning.experience import ExperienceLibrary
+        from cognith_student.diagnostic import DiagnosticEngine
+        from cognith_student.onboarding import OnboardingEngine
+
+        g = CapabilityGraph.load()
+        OnboardingEngine.load(g)
+        MilestoneMap.load(g)
+        d = DiagnosticEngine.load(g)
+        lib = ExperienceLibrary.load(g)
+        print(f"  OK: {len(g)} capabilities, {len(d.items)} diagnostics, {len(lib)} activities")
+        print(f"  capabilities with no diagnostic: {[c.id for c in d.uncovered()]}")
+        print(f"  capabilities with no material: {[c.id for c in g.without_knowledge()]}")
+
+
+if __name__ == "__main__":
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    ids = [c["id"] for c in courses.all_courses()] if "--all" in sys.argv else args
+    if not ids:
+        sys.exit(__doc__)
+    for cid in ids:
+        build(cid, ingest="--no-ingest" not in sys.argv)

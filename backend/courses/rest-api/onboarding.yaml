@@ -1,0 +1,39 @@
+levels:
+  none:         {ceiling: 0.10, label: "Complete beginner"}
+  beginner:     {ceiling: 0.45, label: "I've tried a little"}
+  intermediate: {ceiling: 0.85, label: "I've built an API before"}
+  advanced:     {ceiling: 0.95, label: "I build APIs regularly"}
+
+goals:
+  build-rest-api:
+    name: Build a production-ready REST API
+    keywords: [rest, api, backend, back-end, back end, endpoint, server, authentication,
+               authorization, database, crud, web service]
+    focus: [http-basics, rest-design, databases-crud, authn-authz, validation-errors, api-testing]
+
+technologies:
+  javascript: {name: JavaScript, aliases: [javascript, js, node, nodejs, express], signals: {http-basics: 0.45, rest-design: 0.35}}
+  python:     {name: Python,     aliases: [python, flask, django, fastapi],         signals: {http-basics: 0.45, rest-design: 0.35}}
+  sql:        {name: SQL,        aliases: [sql, mysql, postgres, postgresql, sqlite], signals: {databases-crud: 0.60}}
+  postman:    {name: Postman,    aliases: [postman, curl, insomnia],               signals: {http-basics: 0.50, api-testing: 0.35}}
+  html:       {name: HTML & CSS, aliases: [html, css],                             signals: {http-basics: 0.25}}
+
+concepts:
+  api:    {aliases: [api, apis, rest, restful, endpoint], signals: {rest-design: 0.55}}
+  login:  {aliases: [login, auth, authentication, jwt, token, password], signals: {authn-authz: 0.50}}
+  tests:  {aliases: [test, tests, testing, unit test], signals: {api-testing: 0.50}}
+
+rules:
+  free_text_discount: 0.85
+  propagation:
+    prerequisite_for: {backward: 0.90}
+    contributes_to:   {forward: 0.70, backward: 0.60}
+    supports:         {forward: 0.50, backward: 0.55}
+    applies_to:       {forward: 0.50, backward: 0.80}
+
+ui:
+  topics_label: Anything you've used before (optional)
+  examples:
+    - I want to build a REST API with a database and user authentication. I'm a complete beginner.
+    - I want to understand how backend APIs work
+    - I want to make my API secure

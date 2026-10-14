@@ -1,0 +1,43 @@
+applications:
+  - id: capstone-secure-task-api
+    title: Capstone — design a secure task API
+    requires: [rest-design, databases-crud, authn-authz, validation-errors]
+    level: intermediate
+    minutes: 20
+    prompt: |
+      You are building the backend for a task-management app. Each user has their own
+      tasks; users must never see or change someone else's tasks.
+
+      1. List the endpoints (method + path) to create, list, read, update and delete a
+         user's tasks, with the success status code for each.
+      2. Describe the `tasks` table and the query behind "list my tasks".
+      3. Explain how a request is authenticated, and the exact check that stops a user
+         reading or editing another user's task. What does the API return in that case?
+      4. What happens when the title is missing, or the task id doesn't exist?
+      5. A teammate's code returns another user's task when you change the id in the URL.
+         Name the vulnerability and give the fix.
+    rubric:
+      - id: cap-endpoints
+        criterion: Gives GET/POST /tasks and GET/PUT-or-PATCH/DELETE /tasks/{id} with 200/201/204 success codes
+        capability: rest-design
+        weight: 1.0
+      - id: cap-owner-query
+        criterion: Describes a tasks table with an owner_id and lists tasks with WHERE owner_id = the authenticated user
+        capability: databases-crud
+        weight: 1.0
+      - id: cap-authn
+        criterion: Explains that the client sends a session or token on each request and the server verifies it (401 if missing or invalid)
+        capability: authn-authz
+        weight: 1.0
+      - id: cap-ownership-check
+        criterion: Checks on the server, on every request, that the task's owner is the authenticated user, returning 403 or 404 otherwise
+        capability: authn-authz
+        weight: 2.0
+      - id: cap-validation
+        criterion: Rejects a missing title with 400 or 422 naming the field, and returns 404 for a missing task
+        capability: validation-errors
+        weight: 1.0
+      - id: cap-bola
+        criterion: Names broken object level authorization (IDOR) and fixes it with an ownership check, not by hiding or randomising ids
+        capability: authn-authz
+        weight: 1.5

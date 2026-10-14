@@ -17,6 +17,7 @@ from cognith_student.evidence import ManualEvaluator
 from cognith_student.storage import FileStorage, set_storage
 
 ONBOARDING = {
+    "course": "backend-engineering",
     "goal": "I want to build production-ready REST APIs",
     "technologies": ["python", "postgres", "redis", "docker"],
     "knows": "I have built APIs with authentication and caching",
@@ -316,3 +317,30 @@ def test_after_mastering_one_topic_the_next_is_recommended(client):
     nxt = client.get(f"/api/learners/{learner}/next").json()
     assert nxt["stage"] != "nothing outstanding"
     assert any(s["kind"] == "learn" and s["capabilityId"] != first["capabilityId"] for s in nxt["steps"])
+
+
+def test_courses_are_isolated(client):
+    ids = [c["id"] for c in client.get("/api/courses").json()]
+    assert {"rest-api", "mat221", "backend-engineering"} <= set(ids)
+    made = {}
+    for course in ("rest-api", "mat221"):
+        body = client.post("/api/learners", json={**ONBOARDING, "course": course, "name": course,
+                                                  "technologies": [], "level": "none"}).json()
+        assert body["learner"]["course"]["id"] == course
+        made[course] = body["learner"]["id"]
+    caps = {c: {s["capabilityId"] for s in client.get(f"/api/learners/{lid}/profile").json()["skills"]}
+            for c, lid in made.items()}
+    assert "http-basics" in caps["rest-api"] and "sets" in caps["mat221"]
+    assert not caps["rest-api"] & caps["mat221"]
+    for c, lid in made.items():
+        nxt = client.get(f"/api/learners/{lid}/next").json()["steps"]
+        assert all(s["capabilityId"] in caps[c] for s in nxt if s["capabilityId"])
+
+
+def test_goal_text_picks_the_course(client):
+    body = {**ONBOARDING, "name": "Auto", "level": "none", "technologies": []}
+    body.pop("course")
+    r = client.post("/api/learners", json={**body, "goal": "pass my MAT221 discrete math midterm"}).json()
+    assert r["learner"]["course"]["id"] == "mat221"
+    r = client.post("/api/learners", json={**body, "goal": "build a REST API with authentication"}).json()
+    assert r["learner"]["course"]["id"] == "rest-api"

@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 
 from .chunker import Chunk
-from .config import EMBED_DIM, EMBED_MODEL, INDEX_PATH
+from .config import EMBED_DIM, EMBED_MODEL, index_path
 
 
 def file_hash(path: Path) -> str:
@@ -39,7 +39,8 @@ class Store:
         )
 
     # --- persistence --------------------------------------------------------
-    def save(self, path: Path = INDEX_PATH) -> None:
+    def save(self, path: Path | None = None) -> None:
+        path = path or index_path()
         payload = {
             "manifest": {
                 "embed_model": EMBED_MODEL,
@@ -52,7 +53,8 @@ class Store:
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     @classmethod
-    def load(cls, path: Path = INDEX_PATH) -> "Store":
+    def load(cls, path: Path | None = None) -> "Store":
+        path = path or index_path()
         if not path.exists():
             raise FileNotFoundError(
                 f"No index at {path}. Run `python ingest.py` first."

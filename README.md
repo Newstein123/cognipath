@@ -38,3 +38,22 @@ COGNITH_DATA_DIR=/tmp/cognith-demo backend/.venv/bin/uvicorn api.main:app --app-
 ```
 
 Delete the copy to reset the demo.
+
+## Courses
+
+Each course is a folder in `backend/courses/<id>/`: skill map, onboarding, diagnosis
+questions, exercises, milestones and the course material (`knowledge/*.md`). The engine
+has no course-specific code; each learner record names its course.
+
+| Course | Folder | Notes |
+|---|---|---|
+| REST APIs from zero | `courses/rest-api` | Demo course, 6 skills, default |
+| Backend Software Engineering | `courses/backend-engineering` | Original pack; used by the tests |
+| MAT221 Discrete Mathematics | `courses/mat221` | Local only — built from lecture slides, not committed |
+
+To add a course, create the folder (copy `courses/rest-api` as a template), write the
+material and `parts/*.yaml` questions, then run:
+
+```bash
+cd backend && .venv/bin/python build_pack.py <course-id>   # merge questions, build index, validate
+```

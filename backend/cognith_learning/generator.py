@@ -150,6 +150,7 @@ def to_record(e: LearningExperience, model: str) -> dict[str, Any]:
         "rubric": [{"id": c.id, "criterion": c.criterion, "capability": c.capability_id,
                     "weight": c.weight} for c in e.rubric],
         "model": model,
+        "course": __import__("cognith_course").current(),
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
 

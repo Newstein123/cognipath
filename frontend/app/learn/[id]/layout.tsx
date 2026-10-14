@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { param } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { api, param, type Course } from "@/lib/api";
+import { setInlineMath } from "@/lib/settings";
 
 export default function LearnerLayout({ children }: { children: React.ReactNode }) {
   const id = param(useParams().id);
   const path = usePathname();
+  // The learner's course decides display settings (inline maths); render once known.
+  const [course, setCourse] = useState<Course | null>(null);
+  useEffect(() => {
+    api.profile(id).then((p) => { setInlineMath(p.learner.course.inlineMath); setCourse(p.learner.course); })
+      .catch(() => setCourse({ id: "", name: "", subject: "", description: "", inlineMath: false }));
+  }, [id]);
   const base = `/learn/${encodeURIComponent(id)}`;
   const nav = [
     { href: base, label: "Home" },
@@ -28,11 +36,12 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
           ))}
         </nav>
         <div className="who">
+          {course?.name && <>Course: <strong>{course.name}</strong><br /></>}
           Learner: <strong>{id}</strong>
           <br /><Link href="/">Switch learner</Link>
         </div>
       </aside>
-      <main className="main">{children}</main>
+      <main className="main">{course ? children : null}</main>
     </div>
   );
 }

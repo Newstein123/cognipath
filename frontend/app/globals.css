@@ -237,3 +237,7 @@ details summary { cursor: pointer; }
   background: var(--surface-2); border: 1px solid var(--border); }
 .general-answer { border: 1px dashed var(--amber); border-radius: 10px; padding: 10px 14px; }
 .general-label { font-size: 12px; font-weight: 700; color: var(--amber); margin-bottom: 4px; letter-spacing: .02em; }
+.course-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.course-card { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.course-card.on { border-color: var(--primary); background: var(--primary-soft); }

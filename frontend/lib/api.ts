@@ -9,16 +9,19 @@ export type StepKind =
 export type Verdict = "met" | "partial" | "unmet";
 
 export interface Option { id: string; label: string }
+export interface Course { id: string; name: string; subject: string; description: string; inlineMath: boolean }
 export interface OnboardingOptions {
+  course: Course;
   goals: Option[]; levels: Option[]; technologies: string[];
   examples: string[]; topicsLabel: string;
 }
 export interface OnboardingRequest {
+  course?: string;
   name: string; goal: string; technologies: string[];
   knows: string; built: string; level: string;
 }
 export interface SkillCounts { mastered: number; developing: number; unknown: number; total: number }
-export interface LearnerSummary { id: string; name: string; goal: string | null; counts: SkillCounts }
+export interface LearnerSummary { id: string; name: string; goal: string | null; counts: SkillCounts; course: Course }
 export interface Skill {
   capabilityId: string; name: string; area: string; statement: string;
   state: SkillState; mastery: number | null; selfRated: number | null;
@@ -124,13 +127,17 @@ const post = <T>(path: string, body: unknown) =>
 const enc = encodeURIComponent;
 
 export const api = {
-  options: () => call<OnboardingOptions>("/api/onboarding/options"),
+  courses: () => call<Course[]>("/api/courses"),
+  options: (course?: string) =>
+    call<OnboardingOptions>(`/api/onboarding/options${course ? `?course=${enc(course)}` : ""}`),
   learners: () => call<LearnerSummary[]>("/api/learners"),
   createLearner: (req: OnboardingRequest) => post<LearnerCreated>("/api/learners", req),
   profile: (id: string) => call<SkillProfile>(`/api/learners/${enc(id)}/profile`),
   next: (id: string, limit = 4) => call<NextActivities>(`/api/learners/${enc(id)}/next?limit=${limit}`),
   diagnostic: (id: string) => call<Diagnostic>(`/api/learners/${enc(id)}/diagnostic`),
-  activity: (activityId: string) => call<Activity>(`/api/activities/${enc(activityId)}`),
+  /** Activities belong to a course; the learner's record says which. */
+  activity: (activityId: string, learnerId: string) =>
+    call<Activity>(`/api/activities/${enc(activityId)}?learner=${enc(learnerId)}`),
   attempt: (id: string, activityId: string, response: string, helpUsed = 0) =>
     post<AttemptResult>(`/api/learners/${enc(id)}/attempts`, { activityId, response, helpUsed }),
   challenge: (id: string, capabilityId: string, avoidActivityId?: string | null, focus: string[] = []) =>

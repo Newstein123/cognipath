@@ -63,6 +63,8 @@ class Student:
     name: str
     goal: str | None = None
     created_at: datetime = field(default_factory=utcnow)
+    #: The course pack this learner studies (courses/<id>). None = the legacy pack.
+    course: str | None = None
 
     def to_record(self) -> dict[str, Any]:
         """Shape for the `students/` collection in Claude.md §19."""
@@ -71,6 +73,7 @@ class Student:
             "name": self.name,
             "goal": self.goal,
             "createdAt": self.created_at.isoformat(),
+            "course": self.course,
         }
 
     @classmethod
@@ -80,6 +83,7 @@ class Student:
             name=d["name"],
             goal=d.get("goal"),
             created_at=datetime.fromisoformat(d["createdAt"]),
+            course=d.get("course"),
         )
 
 

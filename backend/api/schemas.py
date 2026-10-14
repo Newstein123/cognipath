@@ -49,6 +49,7 @@ class Option(Model):
 
 
 class OnboardingOptions(Model):
+    course: Course
     goals: list[Option]
     levels: list[Option]
     technologies: list[str]
@@ -58,7 +59,19 @@ class OnboardingOptions(Model):
     topics_label: str = "Technologies you have used"
 
 
+class Course(Model):
+    id: str
+    name: str
+    subject: str = ""
+    description: str = ""
+    #: Render $…$ as maths (maths courses). Off where prose has prices like "$500".
+    inline_math: bool = False
+
+
 class OnboardingRequest(Model):
+    #: courses/<id>. Omit to choose the course from the goal text (each course's goal
+    #: keywords), falling back to the default course.
+    course: str | None = None
     name: str = Field(min_length=1, max_length=80)
     #: Free text — "I want to build production-ready REST APIs".
     goal: str = Field(min_length=1, max_length=500)
@@ -98,6 +111,7 @@ class LearnerSummary(Model):
     name: str
     goal: str | None
     counts: SkillCounts
+    course: Course
 
 
 class Skill(Model):

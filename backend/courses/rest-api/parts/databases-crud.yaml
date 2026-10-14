@@ -1,0 +1,134 @@
+diagnostics:
+  - id: crud-diag-001
+    capability: databases-crud
+    also_exercises: []
+    level: foundation
+    minutes: 7
+    probes: [application, reasoning]
+    prompt: |
+      You are building a small API for a personal reading list. Each book is stored
+      as a row in a database table called `books` (columns: id, title, author).
+
+      The API has three endpoints:
+        1. POST /books         - add a book to the list
+        2. GET /books          - list all books
+        3. DELETE /books/{id}  - remove one book
+
+      For each endpoint, say which database operation it performs (create, read,
+      update or delete — and the SQL keyword if you know it) and which HTTP status
+      code it should return when it succeeds.
+
+      Then: a client sends DELETE /books/99, but there is no book with id 99.
+      What should the API respond, and how would the server find out the book
+      wasn't there?
+    rubric:
+      - id: crud-d1-create
+        criterion: Maps POST /books to a create operation (INSERT) and gives 201 Created as the success status.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-d1-read
+        criterion: Maps GET /books to a read operation (SELECT) and gives 200 OK as the success status.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-d1-delete
+        criterion: Maps DELETE /books/{id} to a delete operation (DELETE ... WHERE id = ...) and gives 204 No Content (or 200 with a body) as the success status.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-d1-missing-404
+        criterion: Says a delete of a non-existent book should return 404 Not Found.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-d1-detect-missing
+        criterion: Explains that the server detects the missing book because the query matched no rows (zero rows affected or nothing returned), rather than relying on a database error.
+        capability: databases-crud
+        weight: 1.0
+  - id: crud-diag-002
+    capability: databases-crud
+    also_exercises: []
+    level: foundation
+    minutes: 8
+    probes: [reasoning, application]
+    prompt: |
+      A teammate wrote the signup endpoint POST /users like this (Python):
+
+          sql = "INSERT INTO users (email) VALUES ('" + body["email"] + "')"
+          cur.execute(sql)
+          return 201
+
+      The `email` column in the `users` table is declared UNIQUE.
+
+      1. What is dangerous about how this query is built? Describe what a malicious
+         user could do, and show how you would write the query instead.
+      2. When the same email signs up twice, clients currently get
+         500 Internal Server Error. Why does that happen, what status code should
+         the API return instead, and how should the server decide to return it?
+    rubric:
+      - id: crud-d2-injection
+        criterion: Identifies that concatenating user input into the SQL string allows SQL injection, where crafted input changes the meaning of the query.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-d2-parameterized
+        criterion: Proposes a parameterized query (placeholder such as %s or $1 with the value passed separately) so input is treated only as data.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-d2-constraint-error
+        criterion: Explains that the duplicate insert fails because the database's unique constraint rejects it, and the unhandled error surfaces as a 500.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-d2-409
+        criterion: Says a duplicate signup should return 409 Conflict (not 500), ideally with a clear message like "email already registered".
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-d2-catch-specific
+        criterion: Describes catching the specific unique-violation error from the insert (rather than only checking with a SELECT first) to decide on the 409.
+        capability: databases-crud
+        weight: 0.5
+exercises:
+  - chunk: databases-crud.md#exercise-back-the-task-api-with-a-table
+    title: Back the task API with a table
+    capabilities: [databases-crud]
+    level: foundation
+    minutes: 8
+    rubric:
+      - id: crud-ex1-insert
+        criterion: For POST /tasks writes an INSERT into tasks with owner_id and title as placeholders (owner_id taken from the logged-in user) and gives 201 Created.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-ex1-select-update
+        criterion: For GET /tasks/{id} writes a SELECT filtered by id (200 OK) and for PATCH writes an UPDATE ... SET done = ... WHERE id = ... (200 OK or 204).
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-ex1-delete
+        criterion: For DELETE /tasks/{id} writes a DELETE with a WHERE id = ... clause and gives 204 No Content.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-ex1-not-found
+        criterion: Gives 404 Not Found for a missing task in endpoints 2-4 and explains it is detected by zero rows returned or zero rows affected.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-ex1-owner-filter
+        criterion: Includes owner_id in the WHERE clauses (or explains why) so a user cannot read, change or delete another user's task, and uses placeholders rather than pasted-in values.
+        capability: databases-crud
+        weight: 1.0
+  - chunk: databases-crud.md#exercise-spot-the-bugs-in-a-signup-endpoint
+    title: Spot the bugs in a signup endpoint
+    capabilities: [databases-crud]
+    level: foundation
+    minutes: 6
+    rubric:
+      - id: crud-ex2-injection
+        criterion: Identifies SQL injection from string concatenation and explains that crafted input can change what the query does.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-ex2-parameterized
+        criterion: Recommends a parameterized query with the email passed as a separate value.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-ex2-409
+        criterion: States that a duplicate signup should return 409 Conflict instead of 500.
+        capability: databases-crud
+        weight: 1.0
+      - id: crud-ex2-detect
+        criterion: Explains the server should catch the unique-constraint violation raised by the INSERT and translate it into the 409 response.
+        capability: databases-crud
+        weight: 1.0

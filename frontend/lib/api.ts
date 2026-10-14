@@ -135,6 +135,9 @@ export const api = {
                                   question: string; chosen: string; correct: string }) =>
     post<{ answered: boolean; explanation: string; check: QuizQuestion | null; sources: string[] }>(
       `/api/learners/${enc(id)}/lessons/reexplain`, body),
+  followup: (id: string, body: { capabilityId: string; concept: string; explanation: string;
+                                 kind: "simpler" | "example" | "mistakes" }) =>
+    post<{ answered: boolean; text: string; sources: string[] }>(`/api/learners/${enc(id)}/lessons/followup`, body),
   lessonResult: (id: string, body: { capabilityId: string;
                                      concepts: { title: string; verdict: Verdict; note: string }[] }) =>
     post<AttemptResult>(`/api/learners/${enc(id)}/lessons/result`, body),

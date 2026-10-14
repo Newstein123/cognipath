@@ -265,3 +265,55 @@ def reexplain(cap: Capability, concept: str, explanation: str, question: str,
             or any(e not in sent for e in r.excerpt_ids)):
         return None
     return r
+
+
+# --- follow-ups on one concept ---------------------------------------------------------
+class FollowUp(BaseModel):
+    answerable: bool
+    text: str = Field(description="Markdown, at most ~150 words.")
+    excerpt_ids: list[str]
+
+
+FOLLOWUP_TASKS = {
+    "simpler": "Explain this concept AGAIN in simpler words: start from an everyday analogy "
+               "or picture, use short sentences, then connect it back to the formal idea and "
+               "notation. Do not add new facts.",
+    "example": "Give ONE new worked example of this concept, different from the one already "
+               "shown, with numbered steps. Use an example from the excerpts if there is one; "
+               "otherwise build one that applies only the excerpts' rules.",
+    "mistakes": "List the 2–3 most common mistakes with this concept. For each: the mistake, "
+                "why it is wrong, and the correct version. Use warnings or fallacies from the "
+                "excerpts where they exist; otherwise derive them from the excerpts' rules.",
+}
+
+FOLLOWUP_INSTRUCTION = """\
+You are re-teaching ONE concept a student has just read. Facts, definitions and rules come \
+ONLY from the numbered excerpts; you may rephrase, use everyday analogies and construct new \
+examples that apply those rules. Cite the excerpt ids you relied on in `excerpt_ids`, never \
+in the text. Maths in Unicode, never LaTeX. Set answerable=false only if the excerpts say \
+nothing about this concept."""
+
+
+def followup(cap: Capability, concept: str, explanation: str, kind: str, hits: list[Hit],
+             learner: str = "", model: str | None = None) -> FollowUp | None:
+    if not hits or kind not in FOLLOWUP_TASKS:
+        return None
+    prompt = (
+        f"{len(hits)} excerpts follow.\n\n{build_context(hits)}\n\n--- END OF EXCERPTS ---\n\n"
+        f"TOPIC: {cap.name}\nCONCEPT: {concept}\n\nHOW IT WAS JUST EXPLAINED:\n{explanation}\n\n"
+        + (f"{learner}\n\n" if learner else "")
+        + f"YOUR TASK: {FOLLOWUP_TASKS[kind]}"
+    )
+    interaction = get_client().interactions.create(
+        model=model or GENERATION_MODEL,
+        system_instruction=FOLLOWUP_INSTRUCTION,
+        input=prompt,
+        response_format={"type": "text", "mime_type": "application/json",
+                         "schema": FollowUp.model_json_schema()},
+        generation_config={"temperature": 0.4, "thinking_level": "low",
+                           "max_output_tokens": 2500},
+    )
+    r = FollowUp.model_validate_json(interaction.output_text)
+    sent = {h.chunk.id for h in hits}
+    r.excerpt_ids = [e for e in r.excerpt_ids if e in sent]
+    return r if r.answerable and r.text.strip() else None

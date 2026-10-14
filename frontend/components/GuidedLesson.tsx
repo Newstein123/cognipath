@@ -36,6 +36,21 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
   const [log, setLog] = useState<string[]>([]);       // short tutor lines for this concept
   const [re, setRe] = useState<{ explanation: string; check: QuizQuestion | null } | null>(null);
   const [saving, setSaving] = useState(false);
+  // "Explain more simply" etc. — re-teaching THIS concept, not a topic-wide Q&A.
+  const [extras, setExtras] = useState<{ label: string; text: string; sources: string[] }[]>([]);
+  const [extraBusy, setExtraBusy] = useState<string | null>(null);
+
+  async function more(kind: "simpler" | "example" | "mistakes", label: string) {
+    setExtraBusy(label);
+    try {
+      const r = await api.followup(learnerId, { capabilityId, concept: sec.title, explanation: sec.explanation, kind });
+      setExtras((x) => [...x, { label, text: r.text, sources: r.sources }]);
+    } catch (e) {
+      setExtras((x) => [...x, { label, text: (e as Error).message, sources: [] }]);
+    } finally {
+      setExtraBusy(null);
+    }
+  }
   const sec = sections[i];
 
   function say(line: string) { setLog((l) => [...l, line]); }
@@ -90,7 +105,7 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
 
   async function next() {
     if (i + 1 < sections.length) {
-      setI(i + 1); setPhase(start); setLog([]); setRe(null);
+      setI(i + 1); setPhase(start); setLog([]); setRe(null); setExtras([]);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -139,6 +154,21 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
               <div className="example-label">WORKED EXAMPLE</div>
               <Markdown text={sec.example} />
             </div>
+            {extras.map((x, k) => (
+              <div key={k} className="teach again" style={{ marginTop: 10 }}>
+                <div className="example-label">{x.label.toUpperCase()}</div>
+                <Markdown text={x.text} />
+                {x.sources.length > 0 && <div className="small muted">From: {x.sources.join("; ")}</div>}
+              </div>
+            ))}
+            <div className="row" style={{ gap: 6, marginTop: 10 }}>
+              {([["simpler", "Explain it more simply"], ["example", "Show me another example"],
+                 ["mistakes", "Common mistakes"]] as const).map(([kind, label]) => (
+                <button key={kind} className="chip" disabled={!!extraBusy}
+                  onClick={() => more(kind, label)}>{label}</button>
+              ))}
+            </div>
+            {extraBusy && <Loading stages={[`${extraBusy}…`]} />}
           </div>
         )}
 

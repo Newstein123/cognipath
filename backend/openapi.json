@@ -465,6 +465,56 @@
         }
       }
     },
+    "/api/learners/{learner_id}/lessons/followup": {
+      "post": {
+        "summary": "Concept Followup",
+        "description": "Re-teach the concept the learner is reading: simpler, another example, or common\nmistakes. A teaching move, not a Q&A lookup \u2014 the Q&A grounding contract refused\n\"explain more simply\" because no excerpt contains a simpler version.",
+        "operationId": "concept_followup_api_learners__learner_id__lessons_followup_post",
+        "parameters": [
+          {
+            "name": "learner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Learner Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FollowUpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowUp"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/learners/{learner_id}/lessons/result": {
       "post": {
         "summary": "Lesson Result",
@@ -1143,6 +1193,60 @@
           "explanation"
         ],
         "title": "EvidenceEntry"
+      },
+      "FollowUp": {
+        "properties": {
+          "answered": {
+            "type": "boolean",
+            "title": "Answered"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answered",
+          "text",
+          "sources"
+        ],
+        "title": "FollowUp"
+      },
+      "FollowUpRequest": {
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "title": "Capabilityid"
+          },
+          "concept": {
+            "type": "string",
+            "title": "Concept"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capabilityId",
+          "concept",
+          "explanation",
+          "kind"
+        ],
+        "title": "FollowUpRequest"
       },
       "GoalMatch": {
         "properties": {

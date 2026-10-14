@@ -572,6 +572,30 @@ def reexplain_concept(learner_id: str, req: s.ReexplainRequest):
                            sources=[cite[e] for e in r.excerpt_ids if e in cite])
 
 
+@app.post("/api/learners/{learner_id}/lessons/followup", response_model=s.FollowUp)
+def concept_followup(learner_id: str, req: s.FollowUpRequest):
+    """Re-teach the concept the learner is reading: simpler, another example, or common
+    mistakes. A teaching move, not a Q&A lookup — the Q&A grounding contract refused
+    "explain more simply" because no excerpt contains a simpler version."""
+    from cognith_learning import microlesson
+
+    profile = load_profile(learner_id)
+    cap = capability_or_404(req.capability_id)
+    hits = retrieve_for(profile, cap, f"{req.concept} {req.explanation[:300]}")
+    try:
+        r = microlesson.followup(cap, req.concept, req.explanation, req.kind, hits,
+                                 learner=str(learner_context(profile, cap.id)))
+    except Exception:  # noqa: BLE001
+        r = None
+    if r is None:
+        return s.FollowUp(answered=False, sources=[],
+                          text="I couldn't find more on this in the course material — try asking "
+                               "the tutor a specific question below.")
+    cite = {h.chunk.id: h.chunk.citation for h in hits}
+    return s.FollowUp(answered=True, text=r.text,
+                      sources=[cite[e] for e in r.excerpt_ids if e in cite])
+
+
 @app.post("/api/learners/{learner_id}/lessons/result", response_model=s.AttemptResult)
 def lesson_result(learner_id: str, req: s.LessonResultRequest):
     """Concept-check outcomes as LIGHT evidence: they can move a skill to developing, never

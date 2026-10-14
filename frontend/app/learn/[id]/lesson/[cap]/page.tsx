@@ -148,8 +148,8 @@ function LessonView() {
       )}
 
       {lesson && (
-        <TutorBox learnerId={id} capabilityId={cap} presets={presets}
-          title="Ask the tutor" placeholder={`Ask anything about ${name}…`} />
+        <TutorBox learnerId={id} capabilityId={cap} presets={guided ? [] : presets}
+          title="Ask the tutor" placeholder={`Ask a specific question about ${name}…`} />
       )}
 
       {showChallenge && practice && practice.activityId !== retry && (

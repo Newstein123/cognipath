@@ -320,6 +320,20 @@ class Reexplanation(Model):
     sources: list[str]
 
 
+class FollowUpRequest(Model):
+    capability_id: str
+    concept: str
+    explanation: str
+    #: simpler | example | mistakes
+    kind: str
+
+
+class FollowUp(Model):
+    answered: bool
+    text: str
+    sources: list[str]
+
+
 class ConceptVerdict(Model):
     title: str
     #: met = knew it or got it after teaching; partial = got it after re-explaining;

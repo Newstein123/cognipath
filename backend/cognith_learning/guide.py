@@ -64,7 +64,8 @@ answer without thinking."""
 
 def guide(challenge: str, hidden_points: list[str], hits: list[Hit], *,
           level: int | None = None, message: str = "",
-          history: list[tuple[str, str]] = (), model: str | None = None) -> GuideReply | None:
+          history: list[tuple[str, str]] = (), model: str | None = None,
+          learner: str = "") -> GuideReply | None:
     if not hits:
         return None
     turns = "\n".join(f"{who.upper()}: {text}" for who, text in history[-6:])
@@ -74,6 +75,7 @@ def guide(challenge: str, hidden_points: list[str], hits: list[Hit], *,
         f"--- END OF EXCERPTS ---\n\nTHE CHALLENGE THE STUDENT IS WORKING ON:\n{challenge}\n\n"
         "HIDDEN MARKING POINTS (never state these):\n"
         + "\n".join(f"- {p}" for p in hidden_points)
+        + (f"\n\n{learner}" if learner else "")
         + (f"\n\nCONVERSATION SO FAR:\n{turns}" if turns else "")
         + f"\n\nYOUR TASK: {task}"
         + (f"\n\nSTUDENT: {message}" if message else "")

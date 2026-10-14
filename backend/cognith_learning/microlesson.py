@@ -160,7 +160,8 @@ def validate(lesson: StructuredLesson, sent_ids: set[str],
 
 
 def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] = (),
-             model: str | None = None, focus: list[str] | None = None) -> StructuredLesson | None:
+             model: str | None = None, focus: list[str] | None = None,
+             learner: str = "") -> StructuredLesson | None:
     """A validated lesson, or None — the caller then shows the plain explanation.
 
     With `focus`, the lesson is REMEDIAL: 1–2 concepts covering exactly those points. The
@@ -175,6 +176,8 @@ def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] 
         f"{build_context(hits)}\n\n--- END OF EXCERPTS ---",
         f"TOPIC: {cap.name} — {cap.statement}",
     ]
+    if learner:
+        parts.append(learner)
     if focus:
         parts.append(
             "FOCUSED LESSON. The learner already showed the rest of this topic; they missed "
@@ -237,7 +240,7 @@ Unicode, never LaTeX. If the excerpts cannot support it, set answerable=false.""
 
 def reexplain(cap: Capability, concept: str, explanation: str, question: str,
               chosen: str, correct: str, hits: list[Hit],
-              model: str | None = None) -> Reexplanation | None:
+              model: str | None = None, learner: str = "") -> Reexplanation | None:
     if not hits:
         return None
     prompt = (
@@ -245,6 +248,7 @@ def reexplain(cap: Capability, concept: str, explanation: str, question: str,
         f"{build_context(hits)}\n\n--- END OF EXCERPTS ---\n\n"
         f"TOPIC: {cap.name}\nCONCEPT: {concept}\n\nHOW IT WAS EXPLAINED:\n{explanation}\n\n"
         f"QUESTION: {question}\nTHE LEARNER CHOSE: {chosen}\nTHE RIGHT ANSWER: {correct}"
+        + (f"\n\n{learner}" if learner else "")
     )
     interaction = get_client().interactions.create(
         model=model or GENERATION_MODEL,

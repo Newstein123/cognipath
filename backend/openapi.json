@@ -1453,6 +1453,11 @@
             "title": "Focused",
             "default": false
           },
+          "pitch": {
+            "type": "string",
+            "title": "Pitch",
+            "default": ""
+          },
           "hook": {
             "anyOf": [
               {

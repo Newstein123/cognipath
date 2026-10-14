@@ -82,7 +82,7 @@ this challenge exists to check."""
 
 
 def _build_prompt(cap: Capability, hits: list[Hit], missed: list[str],
-                  avoid_prompt: str | None, focused: bool = False) -> str:
+                  avoid_prompt: str | None, focused: bool = False, learner: str = "") -> str:
     parts = [
         f"{len(hits)} excerpts from the course material follow. They are the only "
         f"information you may use.\n\n{build_context(hits)}\n\n--- END OF EXCERPTS ---\n",
@@ -96,6 +96,8 @@ def _build_prompt(cap: Capability, hits: list[Hit], missed: list[str],
             + "\n".join(f"- {m}" for m in missed))
     elif missed:
         parts.append("THE LEARNER PREVIOUSLY MISSED:\n" + "\n".join(f"- {m}" for m in missed))
+    if learner:
+        parts.append(learner + "\nPitch the challenge's difficulty to this level.")
     if avoid_prompt:
         parts.append(f"ORIGINAL QUESTION — do NOT reuse this situation:\n{avoid_prompt}")
     parts.append("Write the challenge.")
@@ -168,13 +170,14 @@ class ChallengeGenerator:
         self.attempts = attempts
 
     def generate(self, capability_id: str, hits: list[Hit], missed: list[str] = (),
-                 avoid_prompt: str | None = None, focused: bool = False) -> LearningExperience:
+                 avoid_prompt: str | None = None, focused: bool = False,
+                 learner: str = "") -> LearningExperience:
         """`focused`: test ONLY `missed` (after a focused lesson), with as few as 2 criteria."""
         cap = self.graph.get(capability_id)
         if not hits:
             raise GenerationError(f"No course material for {cap.name} to write a challenge from.")
         sent = {h.chunk.id for h in hits}
-        prompt = _build_prompt(cap, hits, list(missed)[:3], avoid_prompt, focused)
+        prompt = _build_prompt(cap, hits, list(missed)[:3], avoid_prompt, focused, learner)
         problems: list[str] = []
         for _ in range(self.attempts):
             feedback = ("" if not problems else

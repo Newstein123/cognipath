@@ -65,6 +65,13 @@ function LessonView() {
     <>
       <p className="small muted" style={{ marginBottom: 4 }}>Lesson</p>
       <h1>{name}</h1>
+      {lesson?.pitch && (
+        <p className="small" style={{ marginTop: -4 }}>
+          <span className="badge kind" title="Cognith adapts how it teaches to what your answers have shown">
+            Pitched for you: {lesson.pitch}
+          </span>
+        </p>
+      )}
       <ErrorBox error={error} />
 
       {lesson && lesson.missed.length > 0 && !finished && (

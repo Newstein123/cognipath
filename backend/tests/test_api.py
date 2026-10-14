@@ -181,7 +181,7 @@ def test_weak_attempt_says_what_to_learn(client):
 class FakeGenerator:
     model = "fake"
 
-    def generate(self, capability_id, hits, missed=(), avoid_prompt=None, focused=False):
+    def generate(self, capability_id, hits, missed=(), avoid_prompt=None, focused=False, learner=""):
         from cognith_learning.generator import _Challenge, to_experience
         from api.main import graph
 
@@ -271,3 +271,18 @@ def test_assisted_attempt_is_capped_and_says_so(client):
                     json={"activityId": activity, "response": "x", "helpUsed": 3}).json()
     assert all(c["score"] <= 0.65 for c in r["changes"])
     assert r["explanation"].startswith("You used guided help 3 times")
+
+
+def test_learner_context_bands(client):
+    from api.main import graph
+    from cognith_learning.learner_context import learner_context
+    from cognith_student.profile import CapabilityProfile
+
+    learner = onboard(client, "Ada")["learner"]["id"]
+    profile = CapabilityProfile.load(learner, graph())
+    assert learner_context(profile, "git").band == "new"
+    answer_diagnostic(client, learner, "unmet")
+    profile = CapabilityProfile.load(learner, graph())
+    assessed = next(r for r in profile.all_rows() if r.mastery is not None)
+    ctx = learner_context(profile, assessed.capability_id)
+    assert ctx.band == "struggling" and "MISSED" in ctx.prompt

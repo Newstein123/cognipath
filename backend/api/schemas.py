@@ -378,6 +378,9 @@ class Lesson(Model):
     retry_activity_id: str | None
     #: True when the lesson teaches only `missed` (the learner has evidence on the rest).
     focused: bool = False
+    #: Who the lesson was pitched for — "New to this", "Building the basics",
+    #: "Filling the gaps" or "Sharpening" (from cognith_learning/learner_context.py).
+    pitch: str = ""
     #: The guided lesson, one concept at a time. Null when the material could not support
     #: one; `explanation` is always there as the fallback. Concept-check results are
     #: posted to /lessons/result as light evidence (capped below mastery).

@@ -1661,3 +1661,25 @@ case: one concept on inclusion–exclusion; challenges whose every criterion was
 
 **Where:** `api/main.py` (`missed_points`, `focused_hits`), `microlesson.generate(focus=)`,
 `ChallengeGenerator.generate(focused=)`.
+
+---
+
+## D56 — Every teaching call carries the learner state
+
+**Phase 15.**
+
+**Decision:** `learner_context(profile, capability)` builds a short block — level on the
+capability (evidence, or a self-rating flagged as a claim), misconceptions missed more
+than once first, then other missed criteria — plus explicit teaching guidance for one of
+four bands: new (analogy first, define every term), struggling (worked example before
+the rule), partial (concise, skip shown basics, go at the gaps), strong (brisk, edge
+cases). It is passed to lesson generation, re-explanation, guided help and challenge
+generation; the lesson reports its band as `pitch` for the UI.
+
+**Why:** before this, Gemini received missed points only, so a 0% beginner and a 60%
+learner got the same depth. The band → guidance mapping lives in code, not in "adapt to
+the learner" prose, so it is testable. Measured 2026-10-14 on Propositional Logic: a new
+learner got 3 concepts from the basics with an everyday probe; a partial learner who had
+missed the contrapositive twice got 2 concepts opening on exactly that.
+
+**Where:** `cognith_learning/learner_context.py`; callers in `api/main.py`.

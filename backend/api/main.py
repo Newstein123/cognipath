@@ -24,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from cognith_capability.graph import CapabilityGraph
 from cognith_learning.experience import ExperienceLibrary, LearningExperience
 from cognith_learning.generator import ChallengeGenerator, GenerationError, to_record
+from cognith_learning.learner_context import learner_context
 from cognith_learning.knowledge import Gap, GapResolver
 from cognith_learning.loop import AdaptiveLoop, LoopState
 from cognith_rag.config import GENERATION_MODEL, TOP_K
@@ -438,6 +439,7 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
     from cognith_learning import microlesson
 
     focus = [] if req.full else missed_points(learner_id, cap.id, req.from_activity_id, gap)
+    ctx = learner_context(profile, cap.id)
     if focus:
         gap = replace(gap, unmet=tuple(focus))
 
@@ -448,7 +450,7 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         hits = focused_hits(cap, focus) if focus and cap.knowledge_docs else retrieved.hits
         try:
             return microlesson.generate(cap, retrieved.question, hits, missed=list(gap.unmet),
-                                        focus=focus or None), hits
+                                        focus=focus or None, learner=str(ctx)), hits
         except Exception:  # noqa: BLE001 — the plain explanation is the fallback
             return None, hits
 
@@ -471,6 +473,7 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         prerequisites_first=[c.name for c in k.prerequisites_first],
         missed=list(gap.unmet[:3]), targeted=k.targeted,
         retry_activity_id=req.from_activity_id or retry, focused=bool(focus) and micro is not None,
+        pitch=ctx.pitch,
         hook=micro.hook if micro else None,
         sections=[s.LessonSection(
             title=x.title, probe=s.QuizQuestion(**x.probe.model_dump()),
@@ -511,7 +514,8 @@ def create_challenge(learner_id: str, req: s.ChallengeRequest,
     hits = focused_hits(cap, req.focus) if req.focus else k.hits
     try:
         experience = gen.generate(cap.id, hits, missed=req.focus or list(gap.unmet),
-                                  avoid_prompt=avoid, focused=bool(req.focus))
+                                  avoid_prompt=avoid, focused=bool(req.focus),
+                                  learner=str(learner_context(profile, cap.id)))
     except GenerationError as exc:
         raise HTTPException(502, str(exc)) from None
     except Exception as exc:  # noqa: BLE001
@@ -554,7 +558,8 @@ def reexplain_concept(learner_id: str, req: s.ReexplainRequest):
     hits = retrieve_for(profile, cap, f"{req.concept} {req.question}")
     try:
         r = microlesson.reexplain(cap, req.concept, req.explanation, req.question,
-                                  req.chosen, req.correct, hits)
+                                  req.chosen, req.correct, hits,
+                                  learner=str(learner_context(profile, cap.id)))
     except Exception:  # noqa: BLE001
         r = None
     cite = {h.chunk.id: h.chunk.citation for h in hits}
@@ -616,7 +621,8 @@ def challenge_help(learner_id: str, req: s.HelpRequest):
         raise HTTPException(400, "Give a help level or a message")
     try:
         r = guide(item.prompt, [c.criterion for c in item.rubric], hits, level=req.level,
-                  message=req.message, history=[(t.role, t.text) for t in req.history])
+                  message=req.message, history=[(t.role, t.text) for t in req.history],
+                  learner=str(learner_context(profile, cap.id)))
     except Exception:  # noqa: BLE001
         r = None
     if r is None:

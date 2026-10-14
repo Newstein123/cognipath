@@ -347,25 +347,34 @@ class AdaptiveLoop:
                 detail = (f' You have missed this more than once: '
                           f'"{gap.persistent[0]}".')
 
-            if teachable:
+            # Coverage decides the shape: while the unit is open, keep teaching it (a
+            # challenge would test material never taught); once every idea is covered,
+            # prove it — another lesson is only needed if the evidence shows misses.
+            up = self._unit(cap.id) if teachable else None
+            unit_open = bool(up and not up.complete)
+            unit_done = bool(up and up.complete)
+            if teachable and (unit_open or not unit_done or gap.unmet):
                 steps.append(NextStep(
                     kind=StepKind.LEARN,
-                    title=self._gap_title(cap),
-                    why=f"You demonstrated {gap.mastery:.0%} here.{detail}" + self._unit_note(cap.id),
+                    title=self._gap_title(cap) if unit_open else f"Review {cap.name}",
+                    why=(self._continue_why(cap, up) if unit_open
+                         else f"You demonstrated {gap.mastery:.0%} here.{detail}"),
                     command=f"python learn.py --student {student} --gap {cap.id}",
                     capability_id=cap.id,
                 ))
+            if unit_open:
+                continue
             stalled = self.stalled()
             practice = [e for e in practice if e.id not in stalled] or practice
             if practice and len(steps) < gap_budget:
                 e = practice[0]
+                why = (f"You've covered all {up.total} ideas in {cap.name}. Prove it on a "
+                       f"question you haven't seen — that is what makes the skill mastered."
+                       if unit_done and not gap.unmet else
+                       f"A practice question on {cap.name}: your answer is evidence, and it's "
+                       f"what moves the skill toward mastered.")
                 steps.append(NextStep(
-                    kind=StepKind.PRACTISE,
-                    title=e.title,
-                    why=(f"Reading produces no evidence. This does — "
-                         f"{sum(c.weight for c in e.rubric if c.capability_id == cap.id):.1f} "
-                         f"of its {sum(c.weight for c in e.rubric):.1f} rubric weight "
-                         f"evidences {cap.name}."),
+                    kind=StepKind.PRACTISE, title=e.title, why=why,
                     command=(f"python practice.py --show '{e.id}'"),
                     capability_id=cap.id, experience_id=e.id, minutes=e.minutes,
                 ))
@@ -430,8 +439,7 @@ class AdaptiveLoop:
                     steps.append(NextStep(
                         kind=StepKind.LEARN,
                         title=f"Continue {cap.name} — Part {n + 1} of {len(up.plan.parts)}",
-                        why=(f"You've covered {up.done} of {up.total} ideas in this unit. "
-                             f"The rest of the material comes before a skill counts as done."),
+                        why=self._continue_why(cap, up),
                         command=f"python learn.py --student {student} --gap {cap.id}",
                         capability_id=cap.id,
                     ))
@@ -447,12 +455,16 @@ class AdaptiveLoop:
                 prereqs = self.graph.prerequisites_of(cap.id)
                 done = [p for p in prereqs
                         if (self.profile.row_for(p.id).mastery or 0.0) >= DEMONSTRATED_AT]
-                if done:
+                win = self._recent_win(prereqs)
+                if win:
+                    why = (f"You showed \"{win[1]}\" in {win[0]}. {cap.name} builds on that: "
+                           f"next you'll learn to {self._purpose(cap)}.")
+                elif done:
                     why = (f"You've mastered {', '.join(p.name for p in done)}, and "
                            f"{cap.name} builds on it — it's next on your path.")
                 elif prereqs:
-                    why = (f"Not started yet. It builds on "
-                           f"{', '.join(p.name for p in prereqs)}, which you're still working on.")
+                    why = (f"Comes after {', '.join(p.name for p in prereqs)} — it builds on "
+                           f"that, so you'll learn to {self._purpose(cap)}.")
                 else:
                     why = f"Not started yet — {cap.name} is a foundation later topics build on."
                 steps.append(NextStep(
@@ -511,6 +523,39 @@ class AdaptiveLoop:
         except Exception:  # noqa: BLE001 — no index / no material: no unit plan
             return None
 
+    def _recent_win(self, among: list[Capability] | None = None) -> tuple[str, str] | None:
+        """(capability name, what was shown) from the learner's most recent met evidence —
+        optionally only on `among`. Lets a reason say what the learner just demonstrated."""
+        from cognith_student.storage import get_storage
+
+        wanted = {c.id for c in among} if among is not None else None
+        criteria = {c.id: c for e in self.library.experiences.values() for c in e.rubric}
+        for entry in reversed(get_storage().load_evidence(self.profile.student.id)):
+            for r in entry["evidence"].get("results", []):
+                c = criteria.get(r["criterionId"])
+                if r["verdict"] != "met" or c is None:
+                    continue
+                if wanted is not None and c.capability_id not in wanted:
+                    continue
+                text = c.criterion.removeprefix("Understands: ").rstrip(".")
+                if len(text) > 90:
+                    text = text[:87].rstrip() + "…"
+                return self.graph.get(c.capability_id).name, text
+        return None
+
+    def _purpose(self, cap: Capability) -> str:
+        s = cap.statement.strip().rstrip(".")
+        s = s[4:] if s.lower().startswith("can ") else s
+        return s[0].lower() + s[1:]
+
+    def _continue_why(self, cap: Capability, up) -> str:
+        n = up.next_part()
+        upcoming = [c.title for c in up.plan.parts[n] if c.id not in up.covered]
+        win = self._recent_win([cap])
+        lead = f"You showed \"{win[1]}\". " if win else ""
+        return (f"{lead}You've covered {up.done} of {up.total} ideas in this unit. "
+                f"Next up in Part {n + 1}: {', '.join(upcoming)}.")
+
     def _gap_title(self, cap: Capability) -> str:
         up = self._unit(cap.id)
         if up and not up.complete:
@@ -521,7 +566,10 @@ class AdaptiveLoop:
     def _unit_note(self, capability_id: str) -> str:
         up = self._unit(capability_id)
         if up and not up.complete:
-            return f" You've covered {up.done} of {up.total} ideas in this unit."
+            n = up.next_part()
+            upcoming = [c.title for c in up.plan.parts[n] if c.id not in up.covered]
+            return (f" You've covered {up.done} of {up.total} ideas in this unit; "
+                    f"next up: {', '.join(upcoming)}.")
         return ""
 
     def _learn_title(self, cap: Capability) -> str:

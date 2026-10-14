@@ -127,9 +127,9 @@ export function AttemptResultView({
             <li key={c.id}>
               <div className="row" style={{ alignItems: "flex-start", flexWrap: "nowrap" }}>
                 <span className={`badge ${c.verdict}`}>{MARK[c.verdict]}</span>
-                <div>
-                  <div>{c.criterion}</div>
-                  <div className="small muted">{c.justification}</div>
+                <div className="md-inline" style={{ minWidth: 0 }}>
+                  <Markdown text={c.criterion} />
+                  <div className="small muted"><Markdown text={c.justification} /></div>
                 </div>
               </div>
             </li>

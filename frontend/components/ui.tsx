@@ -37,7 +37,12 @@ export function KindBadge({ kind }: { kind: string }) {
 // because prose with prices ("$500 … $2,000/month") would otherwise be read as a formula.
 const MATH = [remarkMath, { singleDollarTextMath: process.env.NEXT_PUBLIC_INLINE_MATH === "1" }] as const;
 
+/** \( … \) and \[ … \] are LaTeX delimiters Gemini sometimes uses; remark-math wants $. */
+const toDollars = (t: string) =>
+  t.replace(/\\\[([\s\S]+?)\\\]/g, (_, m) => `$$${m}$$`).replace(/\\\(([\s\S]+?)\\\)/g, (_, m) => `$${m}$`);
+
 export function Markdown({ text }: { text: string }) {
+  text = toDollars(text);
   return (
     <div className="md">
       <ReactMarkdown remarkPlugins={[remarkGfm, MATH as never]} rehypePlugins={[rehypeKatex]}>{text}</ReactMarkdown>

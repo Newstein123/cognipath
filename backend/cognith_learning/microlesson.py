@@ -143,10 +143,12 @@ def clean_diagram(d: Diagram) -> Diagram | None:
     return None
 
 
-def validate(lesson: StructuredLesson, sent_ids: set[str]) -> list[str]:
+def validate(lesson: StructuredLesson, sent_ids: set[str],
+             sections: tuple[int, int] = (MIN_SECTIONS, MAX_SECTIONS)) -> list[str]:
     problems = []
-    if not MIN_SECTIONS <= len(lesson.sections) <= MAX_SECTIONS:
-        problems.append(f"{len(lesson.sections)} sections, need {MIN_SECTIONS}-{MAX_SECTIONS}")
+    lo, hi = sections
+    if not lo <= len(lesson.sections) <= hi:
+        problems.append(f"{len(lesson.sections)} concepts, need {lo}-{hi}")
     for i, s in enumerate(lesson.sections, 1):
         if not s.excerpt_ids or any(e not in sent_ids for e in s.excerpt_ids):
             problems.append(f"section {i} cites excerpts that were not supplied: {s.excerpt_ids}")
@@ -158,18 +160,33 @@ def validate(lesson: StructuredLesson, sent_ids: set[str]) -> list[str]:
 
 
 def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] = (),
-             model: str | None = None) -> StructuredLesson | None:
-    """A validated lesson, or None — the caller then shows the plain explanation."""
+             model: str | None = None, focus: list[str] | None = None) -> StructuredLesson | None:
+    """A validated lesson, or None — the caller then shows the plain explanation.
+
+    With `focus`, the lesson is REMEDIAL: 1–2 concepts covering exactly those points. The
+    learner has evidence on the rest of the topic, and re-teaching it from the start
+    would waste their time — the vision's "focus on that distinction rather than repeat
+    everything".
+    """
     if not hits:
         return None
     parts = [
         f"{len(hits)} excerpts follow. They are the only information you may use.\n\n"
         f"{build_context(hits)}\n\n--- END OF EXCERPTS ---",
         f"TOPIC: {cap.name} — {cap.statement}",
-        f"WHAT THE LEARNER WANTS TO KNOW: {question}",
     ]
-    if missed:
-        parts.append("THE LEARNER PREVIOUSLY MISSED:\n" + "\n".join(f"- {m}" for m in missed[:3]))
+    if focus:
+        parts.append(
+            "FOCUSED LESSON. The learner already showed the rest of this topic; they missed "
+            "ONLY these points:\n" + "\n".join(f"- {m}" for m in focus[:3])
+            + "\n\nOverride the concept count: write 1–2 concepts that teach exactly these "
+            "points and nothing else. Do not re-teach basics they have shown. Probes and "
+            "checks must test these points.")
+    else:
+        parts.append(f"WHAT THE LEARNER WANTS TO KNOW: {question}")
+        if missed:
+            parts.append("THE LEARNER PREVIOUSLY MISSED:\n" + "\n".join(f"- {m}" for m in missed[:3]))
+    bounds = (1, 2) if focus else (MIN_SECTIONS, MAX_SECTIONS)
     sent = {h.chunk.id for h in hits}
     problems: list[str] = []
     for _ in range(2):  # one retry, told what was wrong
@@ -193,7 +210,7 @@ def generate(cap: Capability, question: str, hits: list[Hit], missed: list[str] 
             continue
         if not lesson.answerable:
             return None
-        problems = validate(lesson, sent)
+        problems = validate(lesson, sent, bounds)
         if not problems:
             for sec in lesson.sections:
                 sec.diagram = clean_diagram(sec.diagram) or Diagram(type="none")

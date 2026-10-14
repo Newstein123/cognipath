@@ -392,6 +392,33 @@ def attempt_result(profile: CapabilityProfile, item: LearningExperience, result)
     )
 
 
+def missed_points(learner_id: str, cap_id: str, activity_id: str | None, gap: Gap) -> list[str]:
+    """What to teach when the learner has evidence: the criteria their answer to
+    `activity_id` did not fully meet, or else the gap's unmet criteria. Empty means no
+    evidence yet — teach the whole topic."""
+    if activity_id:
+        texts = criterion_text()
+        for entry in reversed(get_storage().load_evidence(learner_id)):
+            ev = entry["evidence"]
+            if ev["experienceId"] != activity_id:
+                continue
+            pts = [texts[r["criterionId"]][0] for r in ev.get("results", [])
+                   if r["verdict"] != "met" and r["criterionId"] in texts
+                   and texts[r["criterionId"]][1] == cap_id]
+            if pts:
+                return pts[:3]
+            break
+    return list(gap.unmet[:3]) if gap.mastery is not None else []
+
+
+def focused_hits(cap, points: list[str]):
+    """Course sections about the missed points themselves, not the whole topic."""
+    from cognith_rag.embeddings import embed_query
+
+    return store().search(embed_query(" ".join(points)), k=TOP_K,
+                          docs=[f"{d}.md" for d in cap.knowledge_docs])
+
+
 @app.post("/api/learners/{learner_id}/lessons", response_model=s.Lesson)
 def create_lesson(learner_id: str, req: s.LessonRequest):
     profile = load_profile(learner_id)
@@ -406,18 +433,24 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
                 if g.capability_id == cap.id),
                Gap(capability_id=cap.id, mastery=row.mastery, confidence=row.confidence))
     from concurrent.futures import ThreadPoolExecutor
+    from dataclasses import replace
 
     from cognith_learning import microlesson
+
+    focus = [] if req.full else missed_points(learner_id, cap.id, req.from_activity_id, gap)
+    if focus:
+        gap = replace(gap, unmet=tuple(focus))
 
     def cards():
         kk = GapResolver(graph(), profile)
         kk._store = store()
         retrieved = kk.knowledge_for(gap, explain=False)
+        hits = focused_hits(cap, focus) if focus and cap.knowledge_docs else retrieved.hits
         try:
-            return microlesson.generate(cap, retrieved.question, retrieved.hits,
-                                        missed=list(gap.unmet)), retrieved.hits
+            return microlesson.generate(cap, retrieved.question, hits, missed=list(gap.unmet),
+                                        focus=focus or None), hits
         except Exception:  # noqa: BLE001 — the plain explanation is the fallback
-            return None, retrieved.hits
+            return None, hits
 
     # Cards and the full explanation at the same time: one wait, not two.
     with ThreadPoolExecutor(2) as pool:
@@ -436,7 +469,8 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         "There is no learning material for this capability yet.",
         sources=sources(k.hits, res.citations if res else []),
         prerequisites_first=[c.name for c in k.prerequisites_first],
-        missed=list(gap.unmet[:3]), targeted=k.targeted, retry_activity_id=retry,
+        missed=list(gap.unmet[:3]), targeted=k.targeted,
+        retry_activity_id=req.from_activity_id or retry, focused=bool(focus) and micro is not None,
         hook=micro.hook if micro else None,
         sections=[s.LessonSection(
             title=x.title, probe=s.QuizQuestion(**x.probe.model_dump()),
@@ -474,8 +508,10 @@ def create_challenge(learner_id: str, req: s.ChallengeRequest,
     gap = next((g for g in resolver.gaps(include_unverified=True) if g.capability_id == cap.id),
                Gap(capability_id=cap.id, mastery=row.mastery, confidence=row.confidence))
     k = resolver.knowledge_for(gap, explain=False)  # the same excerpts the lesson used
+    hits = focused_hits(cap, req.focus) if req.focus else k.hits
     try:
-        experience = gen.generate(cap.id, k.hits, missed=list(gap.unmet), avoid_prompt=avoid)
+        experience = gen.generate(cap.id, hits, missed=req.focus or list(gap.unmet),
+                                  avoid_prompt=avoid, focused=bool(req.focus))
     except GenerationError as exc:
         raise HTTPException(502, str(exc)) from None
     except Exception as exc:  # noqa: BLE001

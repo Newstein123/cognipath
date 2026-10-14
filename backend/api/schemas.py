@@ -186,6 +186,8 @@ class ChallengeRequest(Model):
     capability_id: str
     #: The activity the learner just missed — the new one must be a different situation.
     avoid_activity_id: str | None = None
+    #: Points the challenge must test (after a focused lesson). Empty = the learner's gaps.
+    focus: list[str] = []
 
 
 class DiagnosticTarget(Model):
@@ -352,6 +354,10 @@ class Help(Model):
 
 class LessonRequest(Model):
     capability_id: str
+    #: The activity the learner just answered: teach only what THAT answer missed.
+    from_activity_id: str | None = None
+    #: The whole topic from the start, even when there is evidence to focus on.
+    full: bool = False
 
 
 class Lesson(Model):
@@ -370,6 +376,8 @@ class Lesson(Model):
     targeted: bool
     #: An activity where the learner missed this — "try it again" after the lesson.
     retry_activity_id: str | None
+    #: True when the lesson teaches only `missed` (the learner has evidence on the rest).
+    focused: bool = False
     #: The guided lesson, one concept at a time. Null when the material could not support
     #: one; `explanation` is always there as the fallback. Concept-check results are
     #: posted to /lessons/result as light evidence (capped below mastery).

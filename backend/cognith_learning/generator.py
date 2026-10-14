@@ -82,13 +82,19 @@ this challenge exists to check."""
 
 
 def _build_prompt(cap: Capability, hits: list[Hit], missed: list[str],
-                  avoid_prompt: str | None) -> str:
+                  avoid_prompt: str | None, focused: bool = False) -> str:
     parts = [
         f"{len(hits)} excerpts from the course material follow. They are the only "
         f"information you may use.\n\n{build_context(hits)}\n\n--- END OF EXCERPTS ---\n",
         f"CAPABILITY TO CHECK: {cap.name} — {cap.statement}",
     ]
-    if missed:
+    if missed and focused:
+        parts.append(
+            "FOCUSED CHALLENGE. The learner has already shown the rest of this topic. Test "
+            "ONLY these points, in a new situation — every criterion must be about one of "
+            "them; do not re-test anything else. 2–3 criteria are enough:\n"
+            + "\n".join(f"- {m}" for m in missed))
+    elif missed:
         parts.append("THE LEARNER PREVIOUSLY MISSED:\n" + "\n".join(f"- {m}" for m in missed))
     if avoid_prompt:
         parts.append(f"ORIGINAL QUESTION — do NOT reuse this situation:\n{avoid_prompt}")
@@ -96,11 +102,12 @@ def _build_prompt(cap: Capability, hits: list[Hit], missed: list[str],
     return "\n\n".join(parts)
 
 
-def validate(raw: _Challenge, sent_ids: set[str], avoid_prompt: str | None) -> list[str]:
+def validate(raw: _Challenge, sent_ids: set[str], avoid_prompt: str | None,
+             min_criteria: int = MIN_CRITERIA) -> list[str]:
     """Problems that reject a challenge. Empty means it may be shown to a learner."""
     problems = []
-    if not MIN_CRITERIA <= len(raw.criteria) <= MAX_CRITERIA:
-        problems.append(f"{len(raw.criteria)} criteria, need {MIN_CRITERIA}-{MAX_CRITERIA}")
+    if not min_criteria <= len(raw.criteria) <= MAX_CRITERIA:
+        problems.append(f"{len(raw.criteria)} criteria, need {min_criteria}-{MAX_CRITERIA}")
     bad = [c.excerpt_id for c in raw.criteria if c.excerpt_id not in sent_ids]
     if bad:
         problems.append(f"criteria cite excerpts that were not supplied: {bad}")
@@ -161,12 +168,13 @@ class ChallengeGenerator:
         self.attempts = attempts
 
     def generate(self, capability_id: str, hits: list[Hit], missed: list[str] = (),
-                 avoid_prompt: str | None = None) -> LearningExperience:
+                 avoid_prompt: str | None = None, focused: bool = False) -> LearningExperience:
+        """`focused`: test ONLY `missed` (after a focused lesson), with as few as 2 criteria."""
         cap = self.graph.get(capability_id)
         if not hits:
             raise GenerationError(f"No course material for {cap.name} to write a challenge from.")
         sent = {h.chunk.id for h in hits}
-        prompt = _build_prompt(cap, hits, list(missed)[:3], avoid_prompt)
+        prompt = _build_prompt(cap, hits, list(missed)[:3], avoid_prompt, focused)
         problems: list[str] = []
         for _ in range(self.attempts):
             feedback = ("" if not problems else
@@ -183,7 +191,7 @@ class ChallengeGenerator:
                 generation_config={"temperature": 0.4, "thinking_level": "low"},
             )
             raw = _Challenge.model_validate_json(interaction.output_text)
-            problems = validate(raw, sent, avoid_prompt)
+            problems = validate(raw, sent, avoid_prompt, 2 if focused else MIN_CRITERIA)
             if not problems:
                 return to_experience(raw, cap, hits)
         raise GenerationError("Generated challenge failed validation: " + "; ".join(problems))

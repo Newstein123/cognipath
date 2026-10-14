@@ -181,7 +181,7 @@ def test_weak_attempt_says_what_to_learn(client):
 class FakeGenerator:
     model = "fake"
 
-    def generate(self, capability_id, hits, missed=(), avoid_prompt=None):
+    def generate(self, capability_id, hits, missed=(), avoid_prompt=None, focused=False):
         from cognith_learning.generator import _Challenge, to_experience
         from api.main import graph
 

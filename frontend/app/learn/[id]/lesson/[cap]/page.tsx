@@ -19,7 +19,9 @@ function LessonView() {
   const params = useParams();
   const id = param(params.id);
   const cap = param(params.cap);
-  const retryParam = useSearchParams().get("retry");
+  const search = useSearchParams();
+  const retryParam = search.get("retry");
+  const full = search.get("full") === "1";
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [practice, setPractice] = useState<Step | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,12 +31,12 @@ function LessonView() {
   const router = useRouter();
 
   useEffect(() => {
-    api.lesson(id, cap).then(setLesson).catch((e) => setError(e.message));
+    api.lesson(id, cap, { fromActivityId: retryParam, full }).then(setLesson).catch((e) => setError(e.message));
     api.next(id, 6).then((n) => {
       const doable = n.steps.filter((s) => s.activityId && s.capabilityId === cap);
       setPractice(doable[0] ?? null);
     }).catch(() => {});
-  }, [id, cap]);
+  }, [id, cap, retryParam, full]);
 
   const retry = retryParam ?? lesson?.retryActivityId ?? null;
   const name = lesson?.name ?? cap;
@@ -45,7 +47,7 @@ function LessonView() {
     setGenerating(true);
     setError(null);
     try {
-      const a = await api.challenge(id, cap, retry);
+      const a = await api.challenge(id, cap, retry, lesson?.focused ? lesson.missed : []);
       router.push(activityHref(id, a.id));
     } catch (e) {
       setError((e as Error).message);
@@ -67,10 +69,22 @@ function LessonView() {
 
       {lesson && lesson.missed.length > 0 && !finished && (
         <div className="card primary">
-          <h3>{lesson.targeted ? "What this lesson fixes" : "What you missed last time"}</h3>
+          <h3>{lesson.focused ? "Focused lesson — only what you missed" : "What you missed last time"}</h3>
+          {lesson.focused && (
+            <p className="small muted" style={{ marginTop: 0 }}>
+              You&apos;ve already shown the rest of {lesson.name}, so we&apos;ll skip it and work on:
+            </p>
+          )}
           <ul style={{ paddingLeft: 20, marginBottom: 0 }}>
             {lesson.missed.map((m) => <li key={m}>{m}</li>)}
           </ul>
+          {lesson.focused && (
+            <p className="small" style={{ marginBottom: 0 }}>
+              <a href={`?full=1${retryParam ? `&retry=${encodeURIComponent(retryParam)}` : ""}`}>
+                Prefer the whole {lesson.name} lesson from the start?
+              </a>
+            </p>
+          )}
         </div>
       )}
 

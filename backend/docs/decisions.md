@@ -1639,3 +1639,25 @@ let a learner reach mastery on an answer the tutor walked them through.
 
 **Where:** `cognith_learning/guide.py`, `POST /api/learners/{id}/help`,
 `AttemptRequest.help_used`, `frontend/components/GuidedHelp.tsx`.
+
+---
+
+## D55 — Remediation teaches only what was missed
+
+**Phase 15.**
+
+**Decision:** when a learner has evidence on a capability, a lesson is FOCUSED: the
+missed points are the criteria their last answer to the activity did not fully meet
+(`from_activity_id`), or else the gap's unmet criteria; retrieval searches for those
+points; the lesson is 1–2 concepts on exactly them; the follow-up challenge is told to
+test only them (2–3 criteria). A full lesson happens only with no evidence yet, or when
+the learner asks for it (`full`).
+
+**Why:** "Teach me Sets" after missing only inclusion–exclusion opened the whole Sets
+lesson from the start — the learner would re-learn everything to fix one point. The
+vision: "focus on that distinction rather than repeat everything". Measured on that exact
+case: one concept on inclusion–exclusion; challenges whose every criterion was about it
+(previously one criterion in three).
+
+**Where:** `api/main.py` (`missed_points`, `focused_hits`), `microlesson.generate(focus=)`,
+`ChallengeGenerator.generate(focused=)`.

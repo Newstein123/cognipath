@@ -70,7 +70,7 @@ export interface Source {
 export interface Lesson {
   capabilityId: string; name: string; question: string; answered: boolean;
   explanation: string; sources: Source[]; prerequisitesFirst: string[]; gate: string;
-  missed: string[]; targeted: boolean; retryActivityId: string | null;
+  missed: string[]; targeted: boolean; retryActivityId: string | null; focused: boolean;
   /** Structured lesson; null when the material couldn't support one (use `explanation`). */
   hook: string | null; sections: LessonSection[] | null;
 }
@@ -125,8 +125,8 @@ export const api = {
   activity: (activityId: string) => call<Activity>(`/api/activities/${enc(activityId)}`),
   attempt: (id: string, activityId: string, response: string, helpUsed = 0) =>
     post<AttemptResult>(`/api/learners/${enc(id)}/attempts`, { activityId, response, helpUsed }),
-  challenge: (id: string, capabilityId: string, avoidActivityId?: string | null) =>
-    post<Activity>(`/api/learners/${enc(id)}/challenges`, { capabilityId, avoidActivityId }),
+  challenge: (id: string, capabilityId: string, avoidActivityId?: string | null, focus: string[] = []) =>
+    post<Activity>(`/api/learners/${enc(id)}/challenges`, { capabilityId, avoidActivityId, focus }),
   reexplain: (id: string, body: { capabilityId: string; concept: string; explanation: string;
                                   question: string; chosen: string; correct: string }) =>
     post<{ answered: boolean; explanation: string; check: QuizQuestion | null; sources: string[] }>(
@@ -137,8 +137,10 @@ export const api = {
   help: (id: string, body: { activityId: string; level?: number; message: string;
                             history: { role: string; text: string }[] }) =>
     post<{ answered: boolean; reply: string; sources: string[] }>(`/api/learners/${enc(id)}/help`, body),
-  lesson: (id: string, capabilityId: string) =>
-    post<Lesson>(`/api/learners/${enc(id)}/lessons`, { capabilityId }),
+  /** With fromActivityId (or any evidence), the lesson teaches only what was missed. */
+  lesson: (id: string, capabilityId: string, opts: { fromActivityId?: string | null; full?: boolean } = {}) =>
+    post<Lesson>(`/api/learners/${enc(id)}/lessons`,
+      { capabilityId, fromActivityId: opts.fromActivityId ?? null, full: !!opts.full }),
   tutor: (id: string, question: string, capabilityId?: string) =>
     post<TutorAnswer>(`/api/learners/${enc(id)}/tutor`, { question, capabilityId }),
   evidence: (id: string) => call<EvidenceEntry[]>(`/api/learners/${enc(id)}/evidence`),

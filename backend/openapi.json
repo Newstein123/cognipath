@@ -819,6 +819,14 @@
               }
             ],
             "title": "Avoidactivityid"
+          },
+          "focus": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Focus",
+            "default": []
           }
         },
         "type": "object",
@@ -1440,6 +1448,11 @@
             ],
             "title": "Retryactivityid"
           },
+          "focused": {
+            "type": "boolean",
+            "title": "Focused",
+            "default": false
+          },
           "hook": {
             "anyOf": [
               {
@@ -1491,6 +1504,22 @@
           "capabilityId": {
             "type": "string",
             "title": "Capabilityid"
+          },
+          "fromActivityId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fromactivityid"
+          },
+          "full": {
+            "type": "boolean",
+            "title": "Full",
+            "default": false
           }
         },
         "type": "object",

@@ -1749,3 +1749,23 @@ skill" needs "was taught all of it" by construction.
 
 **Where:** `cognith_learning/units.py`, `build_pack.py` (units.yaml), `create_lesson`,
 `/units/{capability}`, `AdaptiveLoop` (continue-unit steps), `UnitProgress.tsx`.
+
+## D60 — The self-rated level is a claim on its own
+
+**Decision:** onboarding adds a `level` signal of half the level's ceiling to every
+goal-focus capability that no technology or phrase mentioned. Levels with a ceiling below
+0.4 ("Complete beginner") add nothing. So "I build APIs regularly" with no topics picked
+gives 48% claims on all 11 units, and the loop runs the quick diagnosis. A complete
+beginner still has no claims and is taught from Part 1.
+
+**Why:** the topic picker is optional, and the level only capped other signals. A
+confident learner who skipped the picker had zero claims and was started from the basics,
+which ignored what they said about themselves. Half the ceiling keeps this weakest signal
+below any named technology. It also lands in the "partial" band, so lessons ask first.
+
+**Where:** `OnboardingCatalogue.estimate` (`cognith_student/onboarding.py`), with an
+optional per-level `baseline` override in `onboarding.yaml`; `estimate_reason` ("You rated
+yourself …"); `test_confidence_alone_leads_to_diagnosis`.
+
+**Revisit if:** "I've tried a little" learners find the diagnosis discouraging. Then give
+that level `baseline: 0` so they are taught first.

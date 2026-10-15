@@ -279,9 +279,13 @@ def test_learner_context_bands(client):
     from cognith_learning.learner_context import learner_context
     from cognith_student.profile import CapabilityProfile
 
+    new = client.post("/api/learners", json={**ONBOARDING, "name": "New", "technologies": [],
+                                             "knows": "", "built": "", "level": "none"}).json()
+    profile = CapabilityProfile.load(new["learner"]["id"], graph())
+    assert learner_context(profile, "git").band == "new"
     learner = onboard(client, "Ada")["learner"]["id"]
     profile = CapabilityProfile.load(learner, graph())
-    assert learner_context(profile, "git").band == "new"
+    assert learner_context(profile, "git").band == "partial"  # self-rated intermediate
     answer_diagnostic(client, learner, "unmet")
     profile = CapabilityProfile.load(learner, graph())
     assessed = next(r for r in profile.all_rows() if r.mastery is not None)
@@ -317,6 +321,18 @@ def test_after_mastering_one_topic_the_next_is_recommended(client):
     nxt = client.get(f"/api/learners/{learner}/next").json()
     assert nxt["stage"] != "nothing outstanding"
     assert any(s["kind"] == "learn" and s["capabilityId"] != first["capabilityId"] for s in nxt["steps"])
+
+
+def test_confidence_alone_leads_to_diagnosis(client):
+    for level, stage in (("advanced", "claimed, unverified"), ("beginner", "claimed, unverified"),
+                         ("none", "starting from scratch")):
+        body = client.post("/api/learners", json={**ONBOARDING, "name": level, "technologies": [],
+                                                  "knows": "", "built": "", "level": level}).json()
+        nxt = client.get(f"/api/learners/{body['learner']['id']}/next").json()
+        assert nxt["stage"] == stage, level
+        if level != "none":
+            assert body["initialEstimates"][0]["reason"].startswith("You rated yourself")
+            assert client.get(f"/api/learners/{body['learner']['id']}/diagnostic").json()["activities"]
 
 
 def test_courses_are_isolated(client):

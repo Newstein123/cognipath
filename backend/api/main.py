@@ -315,6 +315,8 @@ def estimate_reason(signal) -> str:
         return f"You've used {signal.source}"
     if signal.kind == "phrase":
         return f"You mentioned {signal.source}"
+    if signal.kind == "level":
+        return f"You rated yourself \u201c{signal.source}\u201d"
     origin = re.split(r" <?--", signal.source, maxsplit=1)[0]
     return f"Inferred from your {origin} experience"
 

@@ -61,6 +61,8 @@ class Signal:
         technology  an explicitly listed technology        — strongest
         phrase      a phrase matched in a free-text answer — discounted
         derived     propagated one hop along the graph     — discounted by relation
+        level       the self-rated level alone, on the goal's capabilities that no
+                    other answer mentioned                — weakest (half the ceiling)
     """
 
     capability_id: str
@@ -239,6 +241,18 @@ class OnboardingEngine:
         grouped: dict[str, list[Signal]] = {}
         for s in all_signals:
             grouped.setdefault(s.capability_id, []).append(s)
+
+        # The self-rated level is itself a claim. Without this, a learner who says "I build
+        # APIs regularly" but skips the optional topic picker had no claims at all and was
+        # taught from the first lesson instead of being diagnosed. Half the ceiling keeps it
+        # below any named technology. A complete beginner (ceiling 0.10) claims nothing, so
+        # they still go straight to teaching.
+        level = self.levels[answers.self_rated_level]
+        baseline = float(level.get("baseline", ceiling / 2 if ceiling >= 0.4 else 0))
+        if baseline > 0:
+            for cid in self.goals[answers.goal].get("focus", []):
+                if cid in self.graph.capabilities and cid not in grouped:
+                    grouped[cid] = [Signal(cid, baseline, "level", level["label"])]
 
         estimates: list[InitialEstimate] = []
         for cid, signals in grouped.items():

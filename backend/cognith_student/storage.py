@@ -99,10 +99,13 @@ class FirestoreStorage:
         learning_experiences/{id}              generated challenges (save/list_activities)
 
     `load_evidence` must return entries oldest first; history and retry detection
-    depend on that order.
+    depend on that order. The full contract, as tests, is tests/test_storage_contract.py;
+    the handoff note is docs/firestore-handoff.md.
+
+    `prefix` namespaces every collection name, so tests can isolate their data.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, client: Any = None, prefix: str = "") -> None:
         raise NotImplementedError("Set COGNITH_STORAGE=file until Firestore is wired in.")
 
 

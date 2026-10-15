@@ -9,6 +9,8 @@ MVP definition of success, run end to end through HTTP.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -41,7 +43,10 @@ judge = Judge()
 
 @pytest.fixture
 def client(tmp_path):
-    set_storage(FileStorage(tmp_path))
+    # COGNITH_TEST_STORAGE=firestore runs the whole API suite on Firestore (emulator).
+    from tests.test_storage_contract import make_storage
+
+    set_storage(make_storage(os.environ.get("COGNITH_TEST_STORAGE", "file"), tmp_path))
     app.dependency_overrides[evaluator] = lambda: judge
     yield TestClient(app)
     app.dependency_overrides.clear()

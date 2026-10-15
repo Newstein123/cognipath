@@ -23,6 +23,7 @@ Every completed phase does three things:
 | Doc | Covers | Status |
 |---|---|---|
 | [architecture.md](architecture.md) | The system as built: entry points, data model, embeddings, storage, retrieval, generation, abstention, config, data flow | Phase 0 — current |
+| [firestore-handoff.md](firestore-handoff.md) | Handoff: the Firestore storage class, layout, tests, Cloud Run setup | Not built — owner Onyx |
 | [api.md](api.md) | The HTTP contract for the frontend, storage seam, skill-state mapping | Phase 15 — current |
 | [decisions.md](decisions.md) | Decision record, append-only. 8 entries + 2 open questions | Phase 0 — current |
 

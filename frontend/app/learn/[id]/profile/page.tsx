@@ -79,7 +79,8 @@ export default function ProfilePage() {
                             {s.evidence.map((e, k) => (
                               <li key={k}>
                                 <strong>{KIND[e.kind] ?? e.kind}</strong>{e.kind !== "lesson" && <> — {e.title}</>}:{" "}
-                                {e.met} of {e.total} {e.kind === "lesson" ? "concepts shown" : "points"}
+                                {e.met} of {e.total} {e.kind === "lesson" ? "concepts shown" : "points met"}
+                                {!!e.partial && <>, {e.partial} partly</>}
                                 {e.assisted && <span className="muted"> (with help)</span>}
                                 <span className="muted"> · {new Date(e.createdAt).toLocaleDateString()}</span>
                               </li>

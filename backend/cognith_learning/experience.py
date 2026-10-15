@@ -348,9 +348,12 @@ class ExperienceLibrary:
         return out
 
     def apply_blocked_by(self, experience: LearningExperience, profile) -> list[Capability]:
-        """Which of an apply scenario's components have no evidence yet."""
+        """Which of an apply scenario's components are not mastered yet. A capstone is the
+        step after mastery: one diagnosis answer per topic is not enough to integrate them."""
+        from cognith_student.models import DEMONSTRATED_AT
+
         return [self.graph.get(c) for c in experience.requires
-                if profile.row_for(c).evidence_count == 0]
+                if (profile.row_for(c).mastery or 0.0) < DEMONSTRATED_AT]
 
     def practice_for(self, capability_id: str) -> list[LearningExperience]:
         """Exercises only — what to offer once a gap is known and explained."""

@@ -294,7 +294,7 @@ class AdaptiveLoop:
             if blocked:
                 backlog.append((
                     self.graph.get(e.capability_id),
-                    f"'{e.title}' locked — no evidence yet in "
+                    f"'{e.title}' unlocks once you master "
                     f"{', '.join(c.name for c in blocked)}",
                 ))
             elif e.id not in done and ready_apply is None:
@@ -409,8 +409,8 @@ class AdaptiveLoop:
             names = ", ".join(self.graph.get(c).name for c in a.requires)
             steps.append(NextStep(
                 kind=StepKind.APPLY, title=a.title,
-                why=(f"You have evidence in {names}. This combines them, and nothing in "
-                     f"the question tells you which one matters — working that out is the "
+                why=(f"You have mastered {names}. This combines them in one problem, and "
+                     f"nothing in the question tells you which one matters — working that out is the "
                      f"part practice cannot test."),
                 command=f"python practice.py --show '{a.id}'",
                 capability_id=a.capability_id, experience_id=a.id, minutes=a.minutes,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api, type AttemptResult, type LessonSection, type QuizQuestion, type Verdict } from "@/lib/api";
+import { api, pct, type AttemptResult, type LessonSection, type QuizQuestion, type Verdict } from "@/lib/api";
 import { Diagram } from "./Diagram";
 import { Loading, Markdown, StateBadge } from "./ui";
 
@@ -368,7 +368,9 @@ export function LessonOutcome({ result }: { result: AttemptResult }) {
       <h2>Part complete</h2>
       {result.changes.map((c) => (
         <p key={c.capabilityId} style={{ margin: "4px 0" }}>
-          <strong>{c.name}</strong>: <StateBadge state={c.stateBefore} /> → <StateBadge state={c.stateAfter} />
+          <strong>{c.name}</strong>:{" "}
+          {c.stateBefore !== c.stateAfter && <><StateBadge state={c.stateBefore} /> → </>}
+          <StateBadge state={c.stateAfter} /> <span className="small muted">· skill level now {pct(c.masteryAfter)}</span>
         </p>
       ))}
       <p className="small muted" style={{ marginBottom: 0 }}>

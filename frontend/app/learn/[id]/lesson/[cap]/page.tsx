@@ -130,7 +130,11 @@ function LessonView() {
         <div className="card highlight">
           <h2>Part done — covered {unit.covered} of {unit.total} ideas, demonstrated {unit.demonstrated}</h2>
           <p className="muted">
-            The challenge comes once you&apos;ve covered the whole unit, so it can test all of it.
+            {unit.parts - nextPart === 0
+              ? <>This is the last part: <strong>the unit challenge unlocks when you finish it</strong>.</>
+              : <>The unit challenge unlocks after Part {unit.parts} — {unit.parts - nextPart + 1} parts
+                  ({unit.total - unit.covered} ideas) to go. It tests the whole unit in a new situation,
+                  so it waits until you&apos;ve been taught all of it.</>}
           </p>
           <button className="btn" onClick={() => setPartReq(nextPart)}>
             Continue: Part {nextPart} of {unit.parts} →

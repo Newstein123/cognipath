@@ -120,6 +120,7 @@ class SkillEvidence(Model):
     kind: str            # lesson | practice | challenge | diagnosis
     created_at: str
     met: int
+    partial: int = 0     # marking points only partly met (not counted in `met`)
     total: int
     assisted: bool = False
 

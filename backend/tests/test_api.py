@@ -115,9 +115,11 @@ def test_same_goal_different_evidence_different_next_step(client):
     s_result = answer_diagnostic(client, strong, "met")
     w_result = answer_diagnostic(client, weak, "unmet")
 
-    s_states = {s["capabilityId"]: s["state"] for s in s_result["profile"]["skills"]}
-    w_states = {s["capabilityId"]: s["state"] for s in w_result["profile"]["skills"]}
-    assert s_states != w_states, "same evidence profile from opposite answers"
+    # A diagnosis places, it never masters (D62), so compare levels rather than labels.
+    s_levels = {s["capabilityId"]: s["mastery"] for s in s_result["profile"]["skills"]}
+    w_levels = {s["capabilityId"]: s["mastery"] for s in w_result["profile"]["skills"]}
+    assert s_levels != w_levels, "same evidence profile from opposite answers"
+    assert all(s["state"] != "mastered" for s in s_result["profile"]["skills"])
 
     s_next, w_next = s_result["next"]["steps"], w_result["next"]["steps"]
     assert s_next and w_next
@@ -314,7 +316,8 @@ def test_after_mastering_one_topic_the_next_is_recommended(client):
     learner = body["learner"]["id"]
     first = client.get(f"/api/learners/{learner}/next").json()["steps"][0]
     act = next(a for a in library().experiences.values()
-               if a.capability_id == first["capabilityId"] and a.assessable)
+               if a.capability_id == first["capabilityId"] and a.assessable
+               and a.type.value != "diagnostic")  # a diagnosis places, it can't master
     judge.verdict = "met"
     for _ in range(3):  # enough evidence to demonstrate it
         client.post(f"/api/learners/{learner}/attempts", json={"activityId": act.id, "response": "x"})
@@ -353,6 +356,20 @@ def test_the_challenge_decides_mastery(client):
                          json={"activityId": act.id, "response": "x"}).json()
     http = next(c for c in failed["changes"] if c["capabilityId"] == "http")
     assert http["stateAfter"] != "mastered"
+
+
+def test_strong_diagnosis_places_but_does_not_master(client):
+    learner = onboard(client, "Placed")["learner"]["id"]
+    result = answer_diagnostic(client, learner, "met")
+    assert all(s["state"] != "mastered" for s in result["profile"]["skills"])
+    steps = client.get(f"/api/learners/{learner}/next").json()["steps"]
+    prove = [s for s in steps if s["title"].startswith("Prove ")]
+    assert prove and prove[0]["activityId"], steps
+    judge.verdict = "met"
+    passed = client.post(f"/api/learners/{learner}/attempts",
+                         json={"activityId": prove[0]["activityId"], "response": "x"}).json()
+    skill = next(s for s in passed["profile"]["skills"] if s["capabilityId"] == prove[0]["capabilityId"])
+    assert skill["state"] == "mastered"
 
 
 def test_courses_are_isolated(client):

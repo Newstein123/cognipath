@@ -217,10 +217,12 @@ def skill_profile(profile: CapabilityProfile, loop: AdaptiveLoop | None = None) 
         up = units.progress(profile.student.id, cap.id) if cap.knowledge_docs else None
         if up and up.done:
             why += f" Covered {up.done} of {up.total} ideas in this unit."
-            # Mastery means the whole unit, not a strong answer on part of it.
-            if state is s.SkillState.MASTERED and not up.complete:
-                state = s.SkillState.DEVELOPING
-                why += " Finish the unit to master it."
+        # Mastery means the whole unit was taught, or a unit challenge was passed outright
+        # after a strong diagnosis — not one strong answer on part of it.
+        if (state is s.SkillState.MASTERED and up and not up.complete
+                and not passed_challenge(history.get(cap.id, []))):
+            state = s.SkillState.DEVELOPING
+            why += " Finish the unit, or pass its challenge, to master it."
         gap = gaps.get(cap.id)
         skills.append(s.Skill(
             capability_id=cap.id, name=cap.name, area=cap.area, statement=cap.statement,
@@ -239,6 +241,12 @@ def skill_profile(profile: CapabilityProfile, loop: AdaptiveLoop | None = None) 
                           next_step=plan.steps[0] if plan.steps else None)
 
 
+def passed_challenge(entries: list[s.SkillEvidence]) -> bool:
+    """Was the latest written challenge or exercise on this skill passed (70%+ of points)?"""
+    latest = next((e for e in entries if e.kind in ("challenge", "practice")), None)
+    return bool(latest and latest.total and latest.met / latest.total >= DEMONSTRATED_AT)
+
+
 def skill_evidence(learner_id: str) -> dict[str, list[s.SkillEvidence]]:
     """capability id -> evidence entries in learner terms, newest first."""
     out: dict[str, list[s.SkillEvidence]] = {}
@@ -254,8 +262,11 @@ def skill_evidence(learner_id: str) -> dict[str, list[s.SkillEvidence]]:
                  else exp.title if exp is not None else ev["experienceId"])
         assisted = "guided help" in asmt.get("explanation", "")[:80]
         for o in asmt.get("outcomes", []):
-            shown = len(o.get("met", [])) + len(o.get("partial", []))
-            n_all = shown + len(o.get("unmet", []))
+            met, partly = len(o.get("met", [])), len(o.get("partial", []))
+            # A lesson concept shown after a second explanation counts as shown; a marking
+            # point only partly met does not count as met.
+            shown = met + partly if kind == "lesson" else met
+            n_all = met + partly + len(o.get("unmet", []))
             rows = out.setdefault(o["capabilityId"], [])
             # Lesson tasks are saved one concept at a time; show a day's as one line.
             if (kind == "lesson" and rows and rows[-1].kind == "lesson"
@@ -264,7 +275,8 @@ def skill_evidence(learner_id: str) -> dict[str, list[s.SkillEvidence]]:
                 rows[-1].total += n_all
                 continue
             rows.append(s.SkillEvidence(title=title, kind=kind, created_at=ev["createdAt"],
-                                        met=shown, total=n_all, assisted=assisted))
+                                        met=shown, partial=0 if kind == "lesson" else partly,
+                                        total=n_all, assisted=assisted))
     return out
 
 
@@ -465,6 +477,12 @@ def get_activity_route(activity_id: str, learner: str | None = None, course: str
     return activity(get_activity(activity_id))
 
 
+#: The most a diagnosis answer can set a skill to: "developing", never "mastered". A strong
+#: answer is still visible (the outcome keeps its raw score) and lets the plan offer the
+#: unit challenge straight away — see AdaptiveLoop's placement step.
+PLACEMENT_CAP = 0.65
+
+
 @app.post("/api/learners/{learner_id}/attempts", response_model=s.AttemptResult)
 def submit_attempt(learner_id: str, req: s.AttemptRequest,
                    judge: Evaluator = Depends(evaluator)):
@@ -475,8 +493,9 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
     cap_for_help = {0: None, 1: 0.85, 2: 0.75}.get(req.help_used, 0.65)
     try:
         # Written challenges and exercises settle the skill; diagnosis answers only place you.
+        placing = item.type is ExperienceType.DIAGNOSTIC
         result = assess(profile, item, req.response, judge, max_observed=cap_for_help,
-                        decisive=item.type is not ExperienceType.DIAGNOSTIC)
+                        decisive=not placing, mastery_cap=PLACEMENT_CAP if placing else None)
     except Exception as exc:  # noqa: BLE001
         # Nothing is saved: a failed judgement must not look like a weak answer.
         raise HTTPException(502, f"Assessment failed, profile unchanged: "

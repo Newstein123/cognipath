@@ -439,6 +439,7 @@ def assess(
     apply: bool = True,
     max_observed: float | None = None,
     decisive: bool = False,
+    mastery_cap: float | None = None,
 ) -> Assessment:
     """Response -> Evidence -> Assessment -> capability update.
 
@@ -448,6 +449,9 @@ def assess(
     `decisive`: a written challenge settles the state on its own (decisions.md D61). A pass
     lifts the skill to at least this answer's score; a fail drops it to at most that score.
     Without this, weak early lesson evidence outvoted a flawless challenge.
+
+    `mastery_cap`: the skill may not rise above this, while the outcome keeps the raw
+    score. Diagnosis uses it: one placement answer shows where to start, not mastery.
     """
     results = evaluator.evaluate(item, response)
     evidence = Evidence(
@@ -475,6 +479,9 @@ def assess(
             ceiling = mastery_ceiling(row.evidence_count + 1)
             after = round(min(max(after, score) if score >= DEMONSTRATED_AT else min(after, score),
                               ceiling), 4)
+        if mastery_cap is not None and after > mastery_cap:
+            # Never lifts past the cap, but never takes away a level already earned either.
+            after = min(after, max(mastery_cap, row.mastery or 0.0))
         criteria = [c for c in item.rubric if c.capability_id == cid]
         outcomes.append(CapabilityOutcome(
             capability_id=cid,

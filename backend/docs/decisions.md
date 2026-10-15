@@ -1788,3 +1788,27 @@ give early evidence, and the end-of-unit challenge is the checkpoint that decide
 
 **Revisit if:** challenges get difficulty levels (easy/standard/stretch). Then only a
 standard or stretch challenge should be able to decide a pass.
+
+## D62 — A diagnosis places you; it never masters a skill
+
+**Decision:** diagnosis answers can set a skill to at most 65% (`PLACEMENT_CAP`), and the
+outcome keeps its raw score. When that raw score is 70%+ on a unit not yet started, the
+plan offers "Prove X — skip the lessons": the unit's exercise. Passing it masters the
+unit through D61; failing it leads to lessons on what was missed. The profile shows
+"mastered" only when the unit is covered or its latest challenge was passed. Evidence
+lines count partly met points separately ("1 of 2 points met, 1 partly").
+
+**Why:** one diagnosis answer that was only partly right (one point met, one partly met)
+scored 70%. That marked HTTP mastered with none of its 4 ideas taught. The plan then said
+"Continue HTTP — Part 1 of 1" for a unit that had never been started, and the evidence line
+read "2 of 2 points" next to "one thing still missed". A placement test should move your
+starting point, not award mastery, and a strong learner should still have a next step.
+
+**Where:** `assess(..., mastery_cap=)` (`cognith_student/evidence.py`); `PLACEMENT_CAP`,
+`passed_challenge` and `skill_evidence` (`api/main.py`); `AdaptiveLoop._placement_score`
+and the placement step (`cognith_learning/loop.py`);
+`test_strong_diagnosis_places_but_does_not_master`.
+
+**Known gap:** learners diagnosed before this change can still hold a stored 70% from a
+diagnosis. Their profile shows Developing, but the plan treats the unit as done. New
+learners are not affected.

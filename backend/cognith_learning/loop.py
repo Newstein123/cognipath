@@ -353,6 +353,29 @@ class AdaptiveLoop:
             up = self._unit(cap.id) if teachable else None
             unit_open = bool(up and not up.complete)
             unit_done = bool(up and up.complete)
+
+            # Placement: a strong diagnosis answer on a unit not yet started offers its
+            # challenge straight away. Passing it masters the unit without lessons the
+            # learner doesn't need; the lessons stay one step below as the alternative.
+            placed = self._placement_score(cap.id) if not (up and up.done) else None
+            if placed is not None and practice and len(steps) < gap_budget:
+                e = next((x for x in practice if x.id not in self.completed()), practice[0])
+                steps.append(NextStep(
+                    kind=StepKind.PRACTISE, title=f"Prove {cap.name} — skip the lessons",
+                    why=(f"Your diagnosis answer scored {placed:.0%} here. Pass this "
+                         f"challenge and {cap.name} counts as mastered without the lessons; "
+                         f"if not, you'll get lessons on just what it shows you missed."),
+                    command=f"python practice.py --show '{e.id}'",
+                    capability_id=cap.id, experience_id=e.id, minutes=e.minutes,
+                ))
+                if teachable and len(steps) < gap_budget:
+                    steps.append(NextStep(
+                        kind=StepKind.LEARN, title=self._gap_title(cap),
+                        why=f"Prefer to learn it properly first? The {cap.name} lessons start here.",
+                        command=f"python learn.py --student {student} --gap {cap.id}",
+                        capability_id=cap.id,
+                    ))
+                continue
             if teachable and (unit_open or not unit_done or gap.unmet):
                 steps.append(NextStep(
                     kind=StepKind.LEARN,
@@ -556,11 +579,28 @@ class AdaptiveLoop:
         return (f"{lead}You've covered {up.done} of {up.total} ideas in this unit. "
                 f"Next up in Part {n + 1}: {', '.join(upcoming)}.")
 
+    def _placement_score(self, capability_id: str) -> float | None:
+        """The latest diagnosis score on this unit if it was strong (70%+) and nothing
+        decisive has been tried on it since; otherwise None."""
+        from cognith_student.storage import get_storage
+
+        for entry in reversed(get_storage().load_evidence(self.profile.student.id)):
+            ev = entry["evidence"]
+            outcome = next((o for o in entry["assessment"].get("outcomes", [])
+                            if o["capabilityId"] == capability_id), None)
+            if outcome is None or ev["experienceId"].startswith("checks-"):
+                continue
+            if ev.get("type") != "diagnostic_response":
+                return None  # a challenge or exercise since: that decides, not placement
+            return outcome["score"] if outcome["score"] >= DEMONSTRATED_AT else None
+        return None
+
     def _gap_title(self, cap: Capability) -> str:
         up = self._unit(cap.id)
         if up and not up.complete:
             n = up.next_part()
-            return f"Continue {cap.name} — Part {n + 1} of {len(up.plan.parts)}"
+            verb = "Continue" if up.done else "Learn"
+            return f"{verb} {cap.name} — Part {n + 1} of {len(up.plan.parts)}"
         return f"Read up on {cap.name}"
 
     def _unit_note(self, capability_id: str) -> str:

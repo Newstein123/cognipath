@@ -335,6 +335,26 @@ def test_confidence_alone_leads_to_diagnosis(client):
             assert client.get(f"/api/learners/{body['learner']['id']}/diagnostic").json()["activities"]
 
 
+def test_the_challenge_decides_mastery(client):
+    learner = onboard(client, "Ada")["learner"]["id"]
+    weak = {"capabilityId": "http", "concepts": [
+        {"title": f"Idea {k}", "verdict": "unmet"} for k in range(4)]}
+    for _ in range(3):  # a shaky start in the lessons
+        client.post(f"/api/learners/{learner}/lessons/result", json=weak)
+    act = next(a for a in library().experiences.values()
+               if a.capability_id == "http" and a.assessable and a.type.value != "diagnostic")
+    judge.verdict = "met"
+    passed = client.post(f"/api/learners/{learner}/attempts",
+                         json={"activityId": act.id, "response": "x"}).json()
+    http = next(c for c in passed["changes"] if c["capabilityId"] == "http")
+    assert http["masteryBefore"] < 0.5 and http["stateAfter"] == "mastered"
+    judge.verdict = "unmet"
+    failed = client.post(f"/api/learners/{learner}/attempts",
+                         json={"activityId": act.id, "response": "x"}).json()
+    http = next(c for c in failed["changes"] if c["capabilityId"] == "http")
+    assert http["stateAfter"] != "mastered"
+
+
 def test_courses_are_isolated(client):
     ids = [c["id"] for c in client.get("/api/courses").json()]
     assert {"rest-api", "mat221", "backend-engineering"} <= set(ids)

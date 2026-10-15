@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import cognith_course as courses
 from cognith_capability.graph import CapabilityGraph
-from cognith_learning.experience import ExperienceLibrary, LearningExperience
+from cognith_learning.experience import ExperienceLibrary, ExperienceType, LearningExperience
 from cognith_learning.generator import ChallengeGenerator, GenerationError, to_record
 from cognith_learning.learner_context import learner_context
 from cognith_learning.knowledge import Gap, GapResolver
@@ -474,7 +474,9 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
         raise HTTPException(400, f"{item.id!r} has no rubric, so it cannot be assessed")
     cap_for_help = {0: None, 1: 0.85, 2: 0.75}.get(req.help_used, 0.65)
     try:
-        result = assess(profile, item, req.response, judge, max_observed=cap_for_help)
+        # Written challenges and exercises settle the skill; diagnosis answers only place you.
+        result = assess(profile, item, req.response, judge, max_observed=cap_for_help,
+                        decisive=item.type is not ExperienceType.DIAGNOSTIC)
     except Exception as exc:  # noqa: BLE001
         # Nothing is saved: a failed judgement must not look like a weak answer.
         raise HTTPException(502, f"Assessment failed, profile unchanged: "
@@ -484,6 +486,14 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
         result.explanation = (f"You used guided help {n} time{'s' if n != 1 else ''}, so this "
                               "counts as assisted — try a new challenge without help to prove "
                               "it independently.\n\n" + result.explanation)
+    main = next((o for o in result.outcomes if o.capability_id == item.capability_id), None)
+    if item.type is not ExperienceType.DIAGNOSTIC and main:
+        name = graph().get(main.capability_id).name
+        result.explanation += (
+            f"\n\nThis challenge decides {name}: you passed it, so the skill counts as mastered."
+            if main.mastery_after >= DEMONSTRATED_AT else
+            f"\n\nThis challenge decides {name}, and it isn't passed yet. Review the points "
+            "you missed, then try a new challenge.")
     profile.save()
     save_evidence(result)
     return attempt_result(profile, item, result)

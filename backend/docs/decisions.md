@@ -1769,3 +1769,22 @@ yourself …"); `test_confidence_alone_leads_to_diagnosis`.
 
 **Revisit if:** "I've tried a little" learners find the diagnosis discouraging. Then give
 that level `baseline: 0` so they are taught first.
+
+## D61 — The challenge decides mastery
+
+**Decision:** a written challenge or exercise attempt is decisive (`assess(..., decisive=True)`).
+If its score reaches 0.70, the skill rises to at least that score. If it doesn't, the skill
+falls to at most that score. The evidence ceiling and the guided-help caps still apply.
+Diagnosis answers and in-lesson checks keep the plain blend.
+
+**Why:** with the blend, a shaky start in the lessons outvoted a flawless challenge. For
+example, lessons at ~0.3 followed by a perfect challenge gave ~0.55, so the learner was
+told "not mastered" after getting everything right. The flow agreed with the team: lessons
+give early evidence, and the end-of-unit challenge is the checkpoint that decides.
+
+**Where:** `assess` in `cognith_student/evidence.py`; `submit_attempt` in `api/main.py`
+(passes `decisive` and adds the "This challenge decides …" line);
+`test_the_challenge_decides_mastery`.
+
+**Revisit if:** challenges get difficulty levels (easy/standard/stretch). Then only a
+standard or stretch challenge should be able to decide a pass.

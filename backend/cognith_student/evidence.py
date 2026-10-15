@@ -34,7 +34,7 @@ from pydantic import BaseModel, Field
 from cognith_capability.graph import CapabilityGraph
 
 from .diagnostic import RubricCriterion
-from .models import StudentCapability, utcnow
+from .models import DEMONSTRATED_AT, StudentCapability, utcnow
 from .profile import CapabilityProfile
 
 EVIDENCE_DIR = Path(__file__).resolve().parent.parent / "data" / "evidence"
@@ -438,11 +438,16 @@ def assess(
     *,
     apply: bool = True,
     max_observed: float | None = None,
+    decisive: bool = False,
 ) -> Assessment:
     """Response -> Evidence -> Assessment -> capability update.
 
     The order matters: evidence is constructed and kept BEFORE any number is derived from
     it, so the record survives independently of whatever scoring rules were current.
+
+    `decisive`: a written challenge settles the state on its own (decisions.md D61). A pass
+    lifts the skill to at least this answer's score; a fail drops it to at most that score.
+    Without this, weak early lesson evidence outvoted a flawless challenge.
     """
     results = evaluator.evaluate(item, response)
     evidence = Evidence(
@@ -466,6 +471,10 @@ def assess(
     for cid, score in scores.items():
         row: StudentCapability = profile.row_for(cid)
         after = next_mastery(row.mastery, score, row.evidence_count)
+        if decisive:
+            ceiling = mastery_ceiling(row.evidence_count + 1)
+            after = round(min(max(after, score) if score >= DEMONSTRATED_AT else min(after, score),
+                              ceiling), 4)
         criteria = [c for c in item.rubric if c.capability_id == cid]
         outcomes.append(CapabilityOutcome(
             capability_id=cid,

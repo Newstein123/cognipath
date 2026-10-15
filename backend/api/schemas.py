@@ -383,6 +383,7 @@ class ReexplainRequest(Model):
     question: str
     chosen: str
     correct: str
+    previous: list[str] = []   # re-explanations already shown, so the next takes a new angle
 
 
 class Reexplanation(Model):

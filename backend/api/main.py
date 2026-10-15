@@ -802,7 +802,8 @@ def reexplain_concept(learner_id: str, req: s.ReexplainRequest):
     try:
         r = microlesson.reexplain(cap, req.concept, req.explanation, req.question,
                                   req.chosen, req.correct, hits,
-                                  learner=str(learner_context(profile, cap.id)))
+                                  learner=str(learner_context(profile, cap.id)),
+                                  previous=req.previous[-3:])
     except Exception:  # noqa: BLE001
         r = None
     cite = {h.chunk.id: h.chunk.citation for h in hits}

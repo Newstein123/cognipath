@@ -162,7 +162,7 @@ export const api = {
            criteria: { criterion: string; verdict: Verdict; justification: string }[] }>(
       `/api/learners/${enc(id)}/lessons/judge`, body),
   reexplain: (id: string, body: { capabilityId: string; concept: string; explanation: string;
-                                  question: string; chosen: string; correct: string }) =>
+                                  question: string; chosen: string; correct: string; previous?: string[] }) =>
     post<{ answered: boolean; explanation: string; check: QuizQuestion | null; sources: string[] }>(
       `/api/learners/${enc(id)}/lessons/reexplain`, body),
   followup: (id: string, body: { capabilityId: string; concept: string; explanation: string;

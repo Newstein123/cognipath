@@ -21,7 +21,11 @@ type Phase =
   | "judging"
   | "reexplaining" // explain again, aimed at what the answer missed
   | "recheck"
+  | "stuck"        // several explanations in: learner chooses another try or moving on
   | "done";
+
+/** Re-explanations before the learner is offered "move on". Not a cap: they can keep going. */
+const ROUNDS_BEFORE_ASKING = 3;
 
 /** What the learner showed for one concept. "Covered" = taught; "demonstrated" = shown. */
 interface Outcome { conceptId?: string | null; title: string; verdict: Verdict; note: string }
@@ -30,6 +34,7 @@ const NOTE = {
   knew: "demonstrated — you already knew it",
   learned: "demonstrated after the lesson",
   second: "demonstrated after a second explanation",
+  persisted: "demonstrated after a few explanations",
   unclear: "covered — not demonstrated yet",
 } as const;
 
@@ -56,7 +61,8 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
   const [log, setLog] = useState<string[]>([]);
   const [answer, setAnswer] = useState("");
   const [judged, setJudged] = useState<Judged | null>(null);
-  const [re, setRe] = useState<{ explanation: string; check: QuizQuestion | null } | null>(null);
+  /** Each re-explanation and its question, plus the learner's line after answering it. */
+  const [rounds, setRounds] = useState<{ explanation: string; check: QuizQuestion; reply?: string }[]>([]);
   const [last, setLast] = useState<AttemptResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [extras, setExtras] = useState<{ label: string; text: string; sources: string[] }[]>([]);
@@ -124,31 +130,58 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
       say(j.outcome === "partial"
         ? "Part of that is right. Let me explain just the part you missed."
         : "Not yet — let me explain it a different way, aimed at your answer.");
-      setPhase("reexplaining");
-      const r = await api.reexplain(learnerId, {
-        capabilityId, concept: sec.title, explanation: sec.explanation,
-        question: task.prompt, chosen: answer,
-        correct: `A correct answer needed to: ${j.missed.join("; ")}`,
-      });
-      setRe({ explanation: r.explanation, check: r.check });
-      if (r.check) setPhase("recheck"); else finishConcept("unmet", "unclear");
+      await explainAgain(task.prompt, answer, `A correct answer needed to: ${j.missed.join("; ")}`, []);
     } catch (e) {
       setErr((e as Error).message); setPhase("teach");
     }
   }
 
-  function onRecheck(choice: number) {
-    if (!re?.check) return;
-    if (choice === re.check.answerIndex) { say("That's it — it clicked the second time."); finishConcept("partial", "second"); }
-    else {
-      say("Still tricky — that's saved as not shown yet. Cognith will bring it back for review before the unit challenge; the tutor below can help right now.");
-      finishConcept("unmet", "unclear");
+  /** Explain again from a new angle (told what was already tried) with a new question. */
+  async function explainAgain(question: string, chosen: string, correct: string, previous: string[]) {
+    setPhase("reexplaining");
+    try {
+      const r = await api.reexplain(learnerId, {
+        capabilityId, concept: sec.title, explanation: sec.explanation, question, chosen, correct, previous,
+      });
+      if (!r.check) { finishConcept("unmet", "unclear"); return; }
+      setRounds((cur) => [...cur, { explanation: r.explanation, check: r.check! }]);
+      setPhase("recheck");
+    } catch (e) {
+      setErr((e as Error).message); setPhase(previous.length ? "stuck" : "teach");
     }
+  }
+
+  function reply(line: string) {
+    setRounds((cur) => cur.map((r, k) => (k === cur.length - 1 ? { ...r, reply: line } : r)));
+  }
+
+  function onRecheck(choice: number) {
+    const cur = rounds[rounds.length - 1];
+    if (!cur) return;
+    if (choice === cur.check.answerIndex) {
+      reply(rounds.length === 1 ? "That's it — it clicked the second time." : "That's it — you've got it now.");
+      finishConcept("partial", rounds.length === 1 ? "second" : "persisted");
+    } else if (rounds.length < ROUNDS_BEFORE_ASKING) {
+      reply("Not yet — let's try it another way, in smaller steps.");
+      tryAnotherWay(choice);
+    } else {
+      reply("Still tricky. You can keep going, or move on and come back to it — Cognith will bring it back before the unit challenge.");
+      setPhase("stuck");
+    }
+  }
+
+  function tryAnotherWay(choice?: number) {
+    const cur = rounds[rounds.length - 1];
+    const picked = choice ?? -1;
+    explainAgain(cur.check.question,
+      picked >= 0 ? cur.check.options[picked] : "(still unsure)",
+      `${cur.check.options[cur.check.answerIndex]}. ${cur.check.explanation}`,
+      rounds.map((r) => r.explanation));
   }
 
   function next() {
     if (i + 1 < sections.length) {
-      setI(i + 1); setPhase(start); setLog([]); setRe(null); setExtras([]); setAnswer(""); setJudged(null);
+      setI(i + 1); setPhase(start); setLog([]); setRounds([]); setExtras([]); setAnswer(""); setJudged(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       onComplete(last);
@@ -251,15 +284,31 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
         )}
         {showTeach && log[teachFirst ? 0 : 1] && <Tutor text={log[teachFirst ? 0 : 1]} />}
 
-        {phase === "reexplaining" && <Loading stages={["Working out what your answer missed…", "Explaining just that part…"]} />}
-        {re && (
-          <div className="teach again">
-            <div className="example-label">THE PART YOU MISSED</div>
-            <Markdown text={re.explanation} />
+        {phase === "reexplaining" && rounds.length === 0 && <Loading stages={["Working out what your answer missed…", "Explaining just that part…"]} />}
+        {rounds.map((r, k) => {
+          const latest = k === rounds.length - 1;
+          return (
+            <div key={k}>
+              <div className="teach again">
+                <div className="example-label">{k === 0 ? "THE PART YOU MISSED" : `ANOTHER WAY TO SEE IT (${k + 1})`}</div>
+                <Markdown text={r.explanation} />
+              </div>
+              <Choice label={k === 0 ? "ONE MORE TRY" : "TRY THIS ONE"} q={r.check}
+                locked={!(latest && phase === "recheck")} onAnswer={onRecheck} />
+              {r.reply && <Tutor text={r.reply} />}
+            </div>
+          );
+        })}
+        {phase === "reexplaining" && rounds.length > 0 && <Loading stages={["Finding another way to explain it…"]} />}
+        {phase === "stuck" && (
+          <div className="row" style={{ marginTop: 10, justifyContent: "flex-end" }}>
+            {err && <div className="error">{err}</div>}
+            <button className="btn secondary" onClick={() => finishConcept("unmet", "unclear")}>
+              Move on — review it later
+            </button>
+            <button className="btn" onClick={() => { setErr(null); tryAnotherWay(); }}>Explain it another way →</button>
           </div>
         )}
-        {re?.check && <Choice label="ONE MORE TRY" q={re.check} locked={phase !== "recheck"} onAnswer={onRecheck} />}
-        {showTeach && log[teachFirst ? 1 : 2] && <Tutor text={log[teachFirst ? 1 : 2]} />}
 
         {phase === "done" && (
           <div className="row" style={{ marginTop: 14, justifyContent: "flex-end" }}>

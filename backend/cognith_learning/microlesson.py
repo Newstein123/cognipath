@@ -271,20 +271,27 @@ concept AGAIN, differently: simpler words, a different angle or analogy, and add
 specific misconception their wrong answer reveals — say what that answer gets wrong and \
 why. Then write one new 4-option question on the same idea, in a new situation.
 
+If EXPLANATIONS ALREADY TRIED are listed, the learner is still stuck after them: do NOT \
+repeat their angle or examples. Go smaller: one step at a time, a fully worked tiny example, \
+and contrast the right answer with the exact option they chose.
+
 Use ONLY the supplied excerpts for facts. Never cite an id that was not supplied. Maths in \
 Unicode, never LaTeX. If the excerpts cannot support it, set answerable=false."""
 
 
 def reexplain(cap: Capability, concept: str, explanation: str, question: str,
               chosen: str, correct: str, hits: list[Hit],
-              model: str | None = None, learner: str = "") -> Reexplanation | None:
+              model: str | None = None, learner: str = "",
+              previous: list[str] | None = None) -> Reexplanation | None:
     if not hits:
         return None
+    tried = "".join(f"\n\n--- TRY {k} ---\n{t}" for k, t in enumerate(previous or [], 1))
     prompt = (
         f"{len(hits)} excerpts follow. They are the only information you may use.\n\n"
         f"{build_context(hits)}\n\n--- END OF EXCERPTS ---\n\n"
         f"TOPIC: {cap.name}\nCONCEPT: {concept}\n\nHOW IT WAS EXPLAINED:\n{explanation}\n\n"
         f"QUESTION: {question}\nTHE LEARNER CHOSE: {chosen}\nTHE RIGHT ANSWER: {correct}"
+        + (f"\n\nEXPLANATIONS ALREADY TRIED:{tried}" if tried else "")
         + (f"\n\n{learner}" if learner else "")
     )
     interaction = get_client().interactions.create(

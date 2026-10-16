@@ -400,6 +400,9 @@ details summary { cursor: pointer; }
 .meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; color: var(--muted); font-size: 13px; }
 
 /* --- home ---------------------------------------------------------------------------- */
+.milestone { margin: 4px 0 12px; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--primary-soft); color: var(--text); }
+.milestone .eyebrow { color: var(--on-tint); }
 .skill-rows > li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
 .skill-rows .name { min-width: 0; }
 .evidence-rows > li { padding: 10px 0; }

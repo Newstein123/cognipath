@@ -42,6 +42,10 @@ export default function Home() {
     }
   }
   const latest = [...recent.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4);
+  // `position` is the backend's summary (AdaptiveLoop.position): a first sentence that the
+  // counts below already show, then — only for a learner with evidence on a goal — the
+  // milestone line(s), e.g. "Ready to build a secure task API: 0 of 11 demonstrated, …".
+  const milestone = profile.position.split("\n").slice(1).map((l) => l.trim()).filter(Boolean);
 
   return (
     <>
@@ -65,6 +69,12 @@ export default function Home() {
             <h2 id="status-h" style={{ margin: 0 }}>Skill status</h2>
             <Link href={`${base}/profile`} className="small">Skill profile →</Link>
           </div>
+          {milestone.length > 0 && (
+            <div className="milestone">
+              <p className="eyebrow" style={{ marginBottom: 2 }}>Milestone</p>
+              {milestone.map((m) => <p key={m} className="small" style={{ margin: 0 }}>{m}</p>)}
+            </div>
+          )}
           <div className="counts">
             <div className="count"><strong>{learner.counts.mastered}</strong><StateLabel state="mastered" /></div>
             <div className="count"><strong>{learner.counts.developing}</strong><StateLabel state="developing" /></div>

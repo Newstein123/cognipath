@@ -32,16 +32,23 @@ function LessonView() {
   // Coverage after finishing a part (decides "continue" vs the challenge).
   const [unitAfter, setUnitAfter] = useState<UnitInfo | null>(null);
   const [partReq, setPartReq] = useState<number | null>(null);
+  // Bumped by "Try again" to re-request the same lesson after a failure.
+  const [attempt, setAttempt] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
-    setLesson(null); setFinished(false); setOutcome(null); setUnitAfter(null);
-    api.lesson(id, cap, { fromActivityId: retryParam, full, part: partReq }).then(setLesson).catch((e) => setError(e.message));
+    // A superseded request (StrictMode's first mount, or a part change) must not land.
+    let current = true;
+    setLesson(null); setError(null); setFinished(false); setOutcome(null); setUnitAfter(null);
+    api.lesson(id, cap, { fromActivityId: retryParam, full, part: partReq })
+      .then((l) => { if (current) setLesson(l); })
+      .catch((e) => { if (current) setError(e.message); });
     api.next(id, 6).then((n) => {
       const doable = n.steps.filter((s) => s.activityId && s.capabilityId === cap);
-      setPractice(doable[0] ?? null);
+      if (current) setPractice(doable[0] ?? null);
     }).catch(() => {});
-  }, [id, cap, retryParam, full, partReq]);
+    return () => { current = false; };
+  }, [id, cap, retryParam, full, partReq, attempt]);
 
   const retry = retryParam ?? lesson?.retryActivityId ?? null;
   const name = lesson?.name ?? cap;
@@ -84,6 +91,11 @@ function LessonView() {
         </p>
       )}
       <ErrorBox error={error} />
+      {error && !lesson && (
+        <div className="row" style={{ marginTop: 8 }}>
+          <button className="btn" onClick={() => setAttempt((n) => n + 1)}>Try again</button>
+        </div>
+      )}
 
       {lesson && lesson.missed.length > 0 && !finished && (
         <div className="card primary">
@@ -108,11 +120,7 @@ function LessonView() {
 
       {!lesson && !error && (
         <div className="card">
-          <Loading stages={[
-            "Finding the parts of the course material you need…",
-            "Planning what to ask you first…",
-            "Preparing examples and diagrams…",
-          ]} />
+          <Loading stages={["Writing your lesson from the course material…"]} />
         </div>
       )}
 

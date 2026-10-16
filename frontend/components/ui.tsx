@@ -55,15 +55,21 @@ export function ErrorBox({ error }: { error: string | null }) {
   return error ? <div className="error" role="alert">{error}</div> : null;
 }
 
-/** Gemini calls take 5–15 s, so the wait names what is happening. */
+/** Gemini calls take 5–15 s. The wait shows what was asked and how long it has taken —
+ *  not a sequence of stages, since the backend reports no progress. Only the first of
+ *  `stages` is shown. */
 export function Loading({ stages }: { stages: string[] }) {
-  const [i, setI] = useState(0);
+  const [seconds, setSeconds] = useState(0);
   useEffect(() => {
-    if (stages.length < 2) return;
-    const t = setInterval(() => setI((n) => Math.min(n + 1, stages.length - 1)), 3500);
+    const t = setInterval(() => setSeconds((n) => n + 1), 1000);
     return () => clearInterval(t);
-  }, [stages.length]);
-  return <div className="loading"><span className="spinner" />{stages[i]}</div>;
+  }, []);
+  return (
+    <div className="loading">
+      <span className="spinner" />{stages[0]}
+      {seconds >= 3 && <span className="muted small" style={{ marginLeft: 8 }}>{seconds} s</span>}
+    </div>
+  );
 }
 
 export function MasteryBar({ skill }: { skill: Pick<Skill, "mastery" | "selfRated"> }) {

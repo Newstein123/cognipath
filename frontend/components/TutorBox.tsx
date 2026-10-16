@@ -19,6 +19,8 @@ export function TutorBox({
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The question that failed, so "Try again" works for presets too.
+  const [failed, setFailed] = useState<{ q: string; label?: string } | null>(null);
   const [answers, setAnswers] = useState<(TutorAnswer & { label?: string })[]>([]);
 
   async function ask(q: string, label?: string) {
@@ -26,12 +28,14 @@ export function TutorBox({
     if (!q || busy) return;
     setBusy(true);
     setError(null);
+    setFailed(null);
     try {
       const a = await api.tutor(learnerId, q, capabilityId);
       setAnswers((cur) => [{ ...a, label }, ...cur]);
       if (!label) setQuestion("");
     } catch (e) {
       setError((e as Error).message);
+      setFailed({ q, label });
     } finally {
       setBusy(false);
     }
@@ -61,7 +65,10 @@ export function TutorBox({
         <button className="btn" disabled={busy || !question.trim()} onClick={() => ask(question)}>Ask</button>
       </div>
       <ErrorBox error={error} />
-      {busy && <Loading stages={["Searching the course material…", "Checking it covers your question…", "Writing a grounded answer…"]} />}
+      {failed && !busy && (
+        <button className="btn secondary" style={{ marginTop: 8 }} onClick={() => ask(failed.q, failed.label)}>Try again</button>
+      )}
+      {busy && <Loading stages={["Answering from your course material…"]} />}
       {answers.map((a, i) => (
         <div key={i} style={{ borderTop: "1px solid var(--border)", marginTop: 16, paddingTop: 14 }}>
           <p><strong>{a.label ?? `Q: ${a.question}`}</strong></p>

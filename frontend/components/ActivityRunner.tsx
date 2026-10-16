@@ -1,13 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, lessonHref, pct, type Activity, type AttemptResult } from "@/lib/api";
 import { GuidedHelp } from "./GuidedHelp";
 import { joinAnswers, MultiPartAnswer, splitParts } from "./MultiPart";
 import { ErrorBox, Loading, Markdown, StateBadge, StepCard } from "./ui";
 
 const MARK = { met: "✓", partial: "△", unmet: "✗" } as const;
+
+/** An unsent answer survives a failed submit and a page refresh (this tab only). */
+type Draft = { response: string; parts: string[] };
+const draftKey = (learnerId: string, activityId: string) => `cognith-draft:${learnerId}:${activityId}`;
+function readDraft(key: string): Draft | null {
+  try { return JSON.parse(sessionStorage.getItem(key) ?? "null"); } catch { return null; }
+}
+function writeDraft(key: string, draft: Draft | null) {
+  try {
+    if (draft && (draft.response.trim() || draft.parts.some((a) => a?.trim()))) sessionStorage.setItem(key, JSON.stringify(draft));
+    else sessionStorage.removeItem(key);
+  } catch { /* storage unavailable: the answer still lives in this page */ }
+}
 
 /** Prompt + rubric + answer box. On submit, shows the judged result in place. */
 export function ActivityRunner({
@@ -22,10 +35,11 @@ export function ActivityRunner({
   /** Off during the diagnosis: leaving mid-way would lose the learner's place. */
   showTeach?: boolean;
 }) {
-  const [response, setResponse] = useState("");
+  const key = draftKey(learnerId, activity.id);
+  const [response, setResponse] = useState(() => readDraft(key)?.response ?? "");
   // Multi-part questions — "(a) … (b) …" — get one answer box per part.
   const split = useMemo(() => splitParts(activity.prompt), [activity.prompt]);
-  const [partAnswers, setPartAnswers] = useState<string[]>([]);
+  const [partAnswers, setPartAnswers] = useState<string[]>(() => readDraft(key)?.parts ?? []);
   const answerText = split ? joinAnswers(split.parts, partAnswers) : response;
   const hasAnswer = split ? partAnswers.some((a) => a?.trim()) : !!response.trim();
   const blank = split ? split.parts.filter((_, k) => !partAnswers[k]?.trim()).map((p) => p.label) : [];
@@ -34,12 +48,14 @@ export function ActivityRunner({
   const [result, setResult] = useState<AttemptResult | null>(null);
   // Guided-help requests so far; sent with the answer, which then counts as assisted.
   const [helpUsed, setHelpUsed] = useState(0);
+  useEffect(() => { if (!result) writeDraft(key, { response, parts: partAnswers }); }, [key, response, partAnswers, result]);
 
   async function submit() {
     setBusy(true);
     setError(null);
     try {
       setResult(await api.attempt(learnerId, activity.id, answerText, helpUsed));
+      writeDraft(key, null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -82,10 +98,10 @@ export function ActivityRunner({
             )}
             <ErrorBox error={error} />
             {busy ? (
-              <Loading stages={["Reading your answer…", "Judging each criterion…", "Updating your skill profile…"]} />
+              <Loading stages={["Marking your answer against each point…"]} />
             ) : (
               <div className="row" style={{ marginTop: 12 }}>
-                <button className="btn" disabled={!hasAnswer} onClick={submit}>Submit answer</button>
+                <button className="btn" disabled={!hasAnswer} onClick={submit}>{error ? "Try again" : "Submit answer"}</button>
                 {split && hasAnswer && blank.length > 0 && (
                   <span className="small muted">Not answered yet: {blank.map((b) => `(${b})`).join(", ")}</span>
                 )}

@@ -12,9 +12,13 @@ them in its threadpool rather than blocking the event loop.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+import threading
+import time
 import uuid
+from concurrent.futures import Future
 from functools import lru_cache
 
 from dotenv import load_dotenv
@@ -116,6 +120,60 @@ def use_course(course_id: str | None) -> str:
 def evaluator() -> Evaluator:
     """Overridden in tests with a ManualEvaluator, so they need no API key."""
     return GeminiEvaluator()
+
+
+# --- provider failures ------------------------------------------------------------------
+# Gemini errors come from two SDK paths: embeddings raise google.genai.errors.APIError
+# (`code`), generation raises the interactions client's compat errors (`status_code`).
+from google.genai import errors as genai_errors  # noqa: E402
+from google.genai._gaos.lib import compat_errors  # noqa: E402
+import httpx  # noqa: E402
+
+PROVIDER_ERRORS = (genai_errors.APIError, compat_errors.GeminiNextGenAPIClientError, httpx.TransportError)
+
+
+log = logging.getLogger("uvicorn.error")
+
+
+def redact(text: str) -> str:
+    """Provider error text with anything key-like removed, for the server log."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if key:
+        text = text.replace(key, "[REDACTED]")
+    text = re.sub(r"AIza[0-9A-Za-z_\-]{20,}", "[REDACTED]", text)
+    return re.sub(r"(?i)(key=)[^&\s'\"]+", r"\1[REDACTED]", text)
+
+
+def ai_failure(exc: BaseException | None, unchanged: str = "") -> HTTPException | None:
+    """A provider failure as a 503 with a short message the learner can act on; None if
+    `exc` is not one. The provider's own text goes to the server log only (redacted).
+
+    `unchanged` is said only by callers that have verified it — e.g. grading, where a
+    failure leaves profile and evidence untouched (tests/test_provider_failures.py)."""
+    if not isinstance(exc, PROVIDER_ERRORS):
+        return None
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    log.warning("Gemini call failed: %s (status %s): %s", type(exc).__name__, status, redact(str(exc)))
+    if isinstance(exc, (compat_errors.APITimeoutError, httpx.TimeoutException)):
+        why = "The AI service took too long to respond. Please try again."
+    elif isinstance(exc, (compat_errors.APIConnectionError, httpx.TransportError)):
+        why = "Couldn't reach the AI service. Please try again."
+    elif status == 429:
+        why = "The AI service has reached its usage limit. Please try again later."
+    else:
+        why = "The AI service is unavailable right now. Please try again later."
+    return HTTPException(503, f"{why} {unchanged}".strip())
+
+
+@app.exception_handler(genai_errors.APIError)
+@app.exception_handler(compat_errors.GeminiNextGenAPIClientError)
+@app.exception_handler(httpx.TransportError)
+def provider_error(_request, exc):
+    """Any provider failure not handled in its route (e.g. a query embedding)."""
+    from fastapi.responses import JSONResponse
+
+    err = ai_failure(exc)
+    return JSONResponse(status_code=err.status_code, content={"detail": err.detail})
 
 
 def load_profile(learner_id: str) -> CapabilityProfile:
@@ -498,8 +556,8 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
                         decisive=not placing, mastery_cap=PLACEMENT_CAP if placing else None)
     except Exception as exc:  # noqa: BLE001
         # Nothing is saved: a failed judgement must not look like a weak answer.
-        raise HTTPException(502, f"Assessment failed, profile unchanged: "
-                                 f"{type(exc).__name__}: {exc}") from None
+        raise ai_failure(exc, "Your answer wasn't marked, and your progress hasn't changed.") or HTTPException(
+            502, f"Assessment failed, profile unchanged: {type(exc).__name__}: {exc}") from None
     if req.help_used:
         n = req.help_used
         result.explanation = (f"You used guided help {n} time{'s' if n != 1 else ''}, so this "
@@ -576,8 +634,49 @@ def focused_hits(cap, points: list[str]):
                           docs=[f"{d}.md" for d in cap.knowledge_docs])
 
 
+#: A lesson costs several Gemini calls, and the lesson page asks for one on every mount —
+#: twice under React StrictMode in development, again on refresh. Identical requests from
+#: the same learner state share ONE generation: a second caller waits for the first, and a
+#: finished guided lesson is served again for LESSON_REUSE_S. Failures and fallback
+#: lessons are never reused, so a retry really retries. The evidence count is part of the
+#: key, so any new evidence (a lesson check, an attempt) means a freshly written lesson.
+LESSON_REUSE_S = 600
+_lesson_jobs: dict[tuple, tuple[float, Future]] = {}
+_lesson_jobs_lock = threading.Lock()
+
+
+def shared_lesson(key: tuple, build):
+    now = time.monotonic()
+    with _lesson_jobs_lock:
+        for k in [k for k, (t, f) in _lesson_jobs.items() if f.done() and now - t > LESSON_REUSE_S]:
+            del _lesson_jobs[k]
+        job = _lesson_jobs.get(key, (0.0, None))[1]
+        owner = job is None
+        if owner:
+            job = Future()
+            _lesson_jobs[key] = (now, job)
+    if owner:
+        try:
+            lesson = build()
+            job.set_result(lesson)
+        except BaseException as exc:
+            job.set_exception(exc)
+            lesson = None
+        if not (lesson and lesson.sections):
+            with _lesson_jobs_lock:
+                _lesson_jobs.pop(key, None)
+    return job.result()
+
+
 @app.post("/api/learners/{learner_id}/lessons", response_model=s.Lesson)
 def create_lesson(learner_id: str, req: s.LessonRequest):
+    load_profile(learner_id)  # 404 for an unknown learner, before anything is shared
+    key = (learner_id, courses.current(), req.model_dump_json(),
+           len(get_storage().load_evidence(learner_id)))
+    return shared_lesson(key, lambda: build_lesson(learner_id, req))
+
+
+def build_lesson(learner_id: str, req: s.LessonRequest) -> s.Lesson:
     profile = load_profile(learner_id)
     try:
         cap = graph().get(req.capability_id)
@@ -657,6 +756,8 @@ def create_lesson(learner_id: str, req: s.LessonRequest):
         micro, card_hits = card_job.result()
     citation = {h.chunk.id: h.chunk.citation for h in card_hits}
     res: Result | None = k.result
+    if micro is None and res is not None and res.gate == "api_error" and (err := ai_failure(res.error)):
+        raise err  # nothing was generated: say why, rather than show bare excerpts
     # Most recent assessable activity where this capability was missed.
     retry = next((e for e in reversed(gap.from_evidence)
                   if e in library().experiences and library().get(e).assessable), None)
@@ -762,7 +863,8 @@ def create_challenge(learner_id: str, req: s.ChallengeRequest,
     except GenerationError as exc:
         raise HTTPException(502, str(exc)) from None
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(502, f"Challenge generation failed: {type(exc).__name__}: {exc}") from None
+        raise ai_failure(exc) or HTTPException(
+            502, f"Challenge generation failed: {type(exc).__name__}: {exc}") from None
     get_storage().save_activity(to_record(experience, gen.model))
     library.cache_clear()
     return activity(experience)
@@ -807,7 +909,7 @@ def judge_task(learner_id: str, req: s.JudgeRequest):
     try:
         results = GeminiEvaluator(thinking="low").evaluate(item, req.answer)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(502, f"Couldn't mark that answer: {type(exc).__name__}") from None
+        raise ai_failure(exc) or HTTPException(502, f"Couldn't mark that answer: {type(exc).__name__}") from None
     verdicts = [r.verdict.value for r in results]
     outcome = ("met" if all(v == "met" for v in verdicts)
                else "unmet" if all(v == "unmet" for v in verdicts) else "partial")
@@ -833,6 +935,8 @@ def reexplain_concept(learner_id: str, req: s.ReexplainRequest):
                                   req.chosen, req.correct, hits,
                                   learner=str(learner_context(profile, cap.id)),
                                   previous=req.previous[-3:])
+    except PROVIDER_ERRORS:
+        raise  # "Gemini failed", not "nothing in the material"
     except Exception:  # noqa: BLE001
         r = None
     cite = {h.chunk.id: h.chunk.citation for h in hits}
@@ -858,6 +962,8 @@ def concept_followup(learner_id: str, req: s.FollowUpRequest):
     try:
         r = microlesson.followup(cap, req.concept, req.explanation, req.kind, hits,
                                  learner=str(learner_context(profile, cap.id)))
+    except PROVIDER_ERRORS:
+        raise  # "Gemini failed", not "nothing in the material"
     except Exception:  # noqa: BLE001
         r = None
     if r is None:
@@ -922,6 +1028,8 @@ def challenge_help(learner_id: str, req: s.HelpRequest):
         r = guide(item.prompt, [c.criterion for c in item.rubric], hits, level=req.level,
                   message=req.message, history=[(t.role, t.text) for t in req.history],
                   learner=str(learner_context(profile, cap.id)))
+    except PROVIDER_ERRORS:
+        raise  # "Gemini failed", not "nothing in the material"
     except Exception:  # noqa: BLE001
         r = None
     if r is None:
@@ -946,6 +1054,8 @@ def ask_tutor(learner_id: str, req: s.TutorRequest):
             raise HTTPException(404, f"No capability {req.capability_id!r}") from None
     hits = store().search(embed_query(req.question), k=TOP_K, docs=docs)
     res = answer(req.question, hits)
+    if res.gate == "api_error" and (err := ai_failure(res.error)):
+        raise err
     if res.answered or res.gate == "api_error":
         return s.TutorAnswer(question=req.question, answered=res.answered, answer=res.answer,
                              sources=sources(res.hits, res.citations), gate=res.gate,

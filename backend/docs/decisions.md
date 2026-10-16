@@ -1812,3 +1812,30 @@ and the placement step (`cognith_learning/loop.py`);
 **Known gap:** learners diagnosed before this change can still hold a stored 70% from a
 diagnosis. Their profile shows Developing, but the plan treats the unit as done. New
 learners are not affected.
+
+## D63 — A challenge decides its own skill only; an incomplete judgement is refused
+
+**Decision:** D61's decisive rule applies to the challenge's own skill
+(`item.capability_id`), and only for exercises and generated challenges. Other skills a
+rubric touches, and every skill in a capstone (APPLY), take the plain blend. The profile's
+"passed its challenge" check counts only a challenge on that skill. A Gemini judgement that
+is malformed, misses a criterion, judges one twice, names an unknown criterion or gives an
+unknown verdict is refused (`EvaluationError`) before anything is recorded; the API answers
+502 and the learner submits again.
+
+**Why:** applied to every rubric skill, D61 turned one point into a verdict. A capstone
+answer missing its single Authentication point set a mastered 85% to 0%, and one met
+Reliability point inside the HTTP exercise made Reliability "mastered". A capstone
+integrates skills already mastered (§12 of learning-experiences.md): its evidence should
+move each skill, not decide it, and its "primary" skill is only the first `requires` entry.
+Separately, a missing judgement was scored unmet, so a model hiccup looked like a weak
+answer — and on a challenge, decided the skill.
+
+**Where:** `assess` (`cognith_student/evidence.py`, `cid == item.capability_id`);
+`decides`, `passed_challenge`, `skill_evidence`, `submit_attempt`, `judge_task`
+(`api/main.py`); `read_judgements` and `EvaluationError` (`cognith_student/evidence.py`);
+`tests/test_assessment_rules.py`.
+
+**Revisit if:** capstones should be able to certify mastery on their own. The blend still
+moves a mastered skill below 70% after one missed capstone point (0.85 → 0.55, because a
+new observation weighs at least 35%); that is the existing weighting, not changed here.

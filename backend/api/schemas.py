@@ -123,6 +123,8 @@ class SkillEvidence(Model):
     partial: int = 0     # marking points only partly met (not counted in `met`)
     total: int
     assisted: bool = False
+    #: Internal, not serialised: a unit challenge on THIS skill, so it can decide it.
+    decides: bool = Field(default=False, exclude=True)
 
 
 class Coverage(Model):

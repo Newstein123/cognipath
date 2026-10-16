@@ -36,7 +36,7 @@ from cognith_rag.config import GENERATION_MODEL, TOP_K
 from cognith_rag.generate import Result, answer
 from cognith_rag.store import Hit, Store
 from cognith_student.diagnostic import DiagnosticEngine
-from cognith_student.evidence import Evaluator, GeminiEvaluator, assess, save_evidence
+from cognith_student.evidence import Evaluator, EvaluationError, GeminiEvaluator, assess, save_evidence
 from cognith_student.models import DEMONSTRATED_AT, MasteryStatus, StudentCapability
 from cognith_student.onboarding import OnboardingAnswers, OnboardingEngine, OnboardingError
 from cognith_student.profile import CapabilityProfile
@@ -299,9 +299,18 @@ def skill_profile(profile: CapabilityProfile, loop: AdaptiveLoop | None = None) 
                           next_step=plan.steps[0] if plan.steps else None)
 
 
+def decides(item: LearningExperience | None, capability_id: str) -> bool:
+    """Is `item` a unit challenge for `capability_id` — the kind that settles a skill
+    (decisions.md D61)? Exercises and generated challenges, for their own skill only."""
+    return (item is not None and item.capability_id == capability_id
+            and item.type in (ExperienceType.EXERCISE, ExperienceType.GENERATED))
+
+
 def passed_challenge(entries: list[s.SkillEvidence]) -> bool:
-    """Was the latest written challenge or exercise on this skill passed (70%+ of points)?"""
-    latest = next((e for e in entries if e.kind in ("challenge", "practice")), None)
+    """Was the latest written challenge or exercise on this skill passed (70%+ of points)?
+    Only one whose own skill this is: a criterion of another skill's exercise, or a
+    capstone, is evidence for this skill but not its challenge."""
+    latest = next((e for e in entries if e.decides), None)
     return bool(latest and latest.total and latest.met / latest.total >= DEMONSTRATED_AT)
 
 
@@ -334,7 +343,8 @@ def skill_evidence(learner_id: str) -> dict[str, list[s.SkillEvidence]]:
                 continue
             rows.append(s.SkillEvidence(title=title, kind=kind, created_at=ev["createdAt"],
                                         met=shown, partial=0 if kind == "lesson" else partly,
-                                        total=n_all, assisted=assisted))
+                                        total=n_all, assisted=assisted,
+                                        decides=kind != "lesson" and decides(exp, o["capabilityId"])))
     return out
 
 
@@ -549,11 +559,19 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
     if not item.assessable:
         raise HTTPException(400, f"{item.id!r} has no rubric, so it cannot be assessed")
     cap_for_help = {0: None, 1: 0.85, 2: 0.75}.get(req.help_used, 0.65)
+    # Diagnosis answers only place you. A unit challenge settles its own skill (assess keeps
+    # that to item.capability_id); a capstone integrates skills already mastered, so its
+    # evidence blends into each of them like any other evidence.
+    placing = item.type is ExperienceType.DIAGNOSTIC
+    deciding = decides(item, item.capability_id)
     try:
-        # Written challenges and exercises settle the skill; diagnosis answers only place you.
-        placing = item.type is ExperienceType.DIAGNOSTIC
         result = assess(profile, item, req.response, judge, max_observed=cap_for_help,
-                        decisive=not placing, mastery_cap=PLACEMENT_CAP if placing else None)
+                        decisive=deciding, mastery_cap=PLACEMENT_CAP if placing else None)
+    except EvaluationError as exc:
+        # Raised before anything is recorded (tests/test_assessment_rules.py checks it).
+        log.warning("Unusable judgement of %s for %s: %s", item.id, learner_id, exc)
+        raise HTTPException(502, "The AI marker returned an incomplete result. Your answer wasn't "
+                                 "marked, and your progress hasn't changed. Please try again.") from None
     except Exception as exc:  # noqa: BLE001
         # Nothing is saved: a failed judgement must not look like a weak answer.
         raise ai_failure(exc, "Your answer wasn't marked, and your progress hasn't changed.") or HTTPException(
@@ -564,7 +582,7 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
                               "counts as assisted — try a new challenge without help to prove "
                               "it independently.\n\n" + result.explanation)
     main = next((o for o in result.outcomes if o.capability_id == item.capability_id), None)
-    if item.type is not ExperienceType.DIAGNOSTIC and main:
+    if deciding and main:
         name = graph().get(main.capability_id).name
         result.explanation += (
             f"\n\nThis challenge decides {name}: you passed it, so the skill counts as mastered."
@@ -908,6 +926,9 @@ def judge_task(learner_id: str, req: s.JudgeRequest):
                            prompt=f"(Concept: {req.concept})\n{req.task.prompt}")
     try:
         results = GeminiEvaluator(thinking="low").evaluate(item, req.answer)
+    except EvaluationError as exc:
+        log.warning("Unusable judgement of a lesson task for %s: %s", learner_id, exc)
+        raise HTTPException(502, "The AI marker returned an incomplete result. Please try again.") from None
     except Exception as exc:  # noqa: BLE001
         raise ai_failure(exc) or HTTPException(502, f"Couldn't mark that answer: {type(exc).__name__}") from None
     verdicts = [r.verdict.value for r in results]

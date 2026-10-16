@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, param, pct, stepHref, type Skill, type SkillProfile } from "@/lib/api";
-import { ErrorBox, Loading, MasteryBar, StateBadge, StepCard } from "@/components/ui";
+import { ErrorBox, Loading, MasteryBar, PageHead, StateBadge, StepCard } from "@/components/ui";
 
 const ORDER = { mastered: 0, developing: 1, unknown: 2 } as const;
 const KIND: Record<string, string> = {
@@ -31,17 +31,15 @@ export default function ProfilePage() {
 
   return (
     <>
-      <h1>Your skill profile</h1>
-      <p className="muted">
+      <PageHead eyebrow="Skill profile" title="Your skill profile">
         Built from what you&apos;ve <strong>shown</strong>, not what you&apos;ve read. You have evidence on{" "}
         {shown.length} of {profile.skills.length} skills: {c.mastered} mastered, {c.developing} developing.
         &ldquo;Not verified yet&rdquo; isn&apos;t a weakness — there&apos;s simply no evidence either way.
-      </p>
+      </PageHead>
 
       {profile.nextStep && (
         <>
-          <h2>What to do next</h2>
-          <StepCard learnerId={id} step={profile.nextStep} primary />
+          <StepCard learnerId={id} step={profile.nextStep} primary label="What to do next" />
         </>
       )}
 

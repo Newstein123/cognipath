@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api, pct, type AttemptResult, type LessonSection, type QuizQuestion, type Verdict } from "@/lib/api";
 import { Diagram } from "./Diagram";
-import { Loading, Markdown, StateBadge } from "./ui";
+import { Loading, Markdown, StateBadge, VerdictBadge, keepLineBreaks } from "./ui";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 const NOT_SURE = "I'm not sure yet";
@@ -225,7 +225,7 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
             <Diagram d={sec.diagram} />
             <div className="example">
               <div className="example-label">WORKED EXAMPLE</div>
-              <Markdown text={sec.example} />
+              <Markdown text={keepLineBreaks(sec.example)} />
             </div>
             {extras.map((x, k) => (
               <div key={k} className="teach again" style={{ marginTop: 10 }}>
@@ -258,6 +258,7 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
                 {err && <div className="error">{err}</div>}
                 <div className="row" style={{ marginTop: 8 }}>
                   <button className="btn" disabled={!answer.trim()} onClick={submitTask}>Check my answer →</button>
+                    {!answer.trim() && <span className="why-disabled">Write an answer first.</span>}
                   <span className="small muted">Marked on {task.criteria.length} point{task.criteria.length > 1 ? "s" : ""}</span>
                 </div>
               </>
@@ -269,7 +270,7 @@ export function GuidedLesson({ learnerId, capabilityId, hook, sections, teachFir
               <div style={{ marginTop: 10 }}>
                 {judged.criteria.map((c) => (
                   <div key={c.criterion} className="row" style={{ alignItems: "flex-start", flexWrap: "nowrap", margin: "6px 0" }}>
-                    <span className={`badge ${c.verdict}`}>{c.verdict === "met" ? "✓" : c.verdict === "partial" ? "△" : "✗"}</span>
+                    <VerdictBadge verdict={c.verdict} />
                     <div className="md-inline" style={{ minWidth: 0 }}><Markdown text={c.criterion} />
                       <div className="small muted"><Markdown text={c.justification} /></div></div>
                   </div>

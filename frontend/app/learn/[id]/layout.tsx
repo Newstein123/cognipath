@@ -135,7 +135,8 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
       </aside>
-      <main className="main" id="main" inert={menuOpen}>{course ? children : null}</main>
+      {/* Home is wide: the learning column and the tutor panel side by side (globals.css). */}
+      <main className={path === base ? "main wide" : "main"} id="main" inert={menuOpen}>{course ? children : null}</main>
     </div>
   );
 }

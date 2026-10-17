@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { activityHref, api, param, type AttemptResult, type Lesson, type Step, type UnitInfo } from "@/lib/api";
 import { GuidedLesson, LessonOutcome } from "@/components/GuidedLesson";
 import { UnitProgress } from "@/components/UnitProgress";
-import { TutorBox } from "@/components/TutorBox";
+import { TutorChat } from "@/components/TutorChat";
 import { ErrorBox, Loading, Markdown, PageHead, Sources, StepCard } from "@/components/ui";
 
 export default function LessonPage() {
@@ -194,7 +194,7 @@ function LessonView() {
       )}
 
       {lesson && (
-        <TutorBox learnerId={id} capabilityId={cap} presets={guided ? [] : presets}
+        <TutorChat variant="inline" learnerId={id} capabilityId={cap} presets={guided ? [] : presets}
           title="Ask the tutor" placeholder={`Ask a specific question about ${name}…`} />
       )}
 

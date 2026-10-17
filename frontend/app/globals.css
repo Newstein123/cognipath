@@ -524,12 +524,23 @@ html.theme-switching, html.theme-switching *, html.theme-switching *::before, ht
   /* The panel is the viewport's height less the padding: a short Home doesn't scroll. */
   .main.wide { padding-bottom: var(--pad); }
 }
-/* Narrower, the tutor is a launcher; the page ends clear of it, so it covers no control. */
-@media (max-width: 1279px) { .home-layout { padding-bottom: 76px; } }
+/* Narrower, the tutor launcher sits in an opaque dock along the bottom edge, never on top of
+   the page, and Home reserves the dock's height at its end, so all of it scrolls clear. */
+:root { --dock-h: 65px; }
+@media (max-width: 1279px) {
+  .home-layout { padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom)); }
+  /* Focus and scrollIntoView stop above the dock rather than behind it. */
+  html:has(.tutor-dock) { scroll-padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom) + 8px); }
+}
+.tutor-dock {
+  position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; display: flex; justify-content: flex-end;
+  padding: 8px max(16px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 16px;
+  background: var(--bg); border-top: 1px solid var(--border);
+}
+@media (min-width: 861px) { .tutor-dock { left: 248px; padding-right: var(--pad); } }  /* beside the sidebar */
 .tutor-launcher {
-  position: fixed; z-index: 10; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom));
-  display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 12px 20px; border: 0; border-radius: 999px;
-  background: var(--btn-bg); color: var(--btn-text); font: inherit; font-weight: 700; box-shadow: var(--overlay-shadow); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 10px 20px; border: 0; border-radius: 999px;
+  background: var(--btn-bg); color: var(--btn-text); font: inherit; font-weight: 700; cursor: pointer;
   transition: background-color 150ms var(--ease), transform 120ms var(--ease);
 }
 .tutor-launcher:hover { background: var(--btn-bg-hover); }

@@ -93,12 +93,7 @@ export default function Home() {
           <section className="alternatives" aria-labelledby="alt-h">
             <h2 id="alt-h">Or try instead</h2>
             <StepCard learnerId={id} step={alternatives[0]} />
-            {alternatives.length > 1 && (
-              <details className="more-options">
-                <summary>Show other options ({alternatives.length - 1})</summary>
-                {alternatives.slice(1).map((s, i) => <StepCard key={i} learnerId={id} step={s} />)}
-              </details>
-            )}
+            {alternatives.length > 1 && <MoreOptions learnerId={id} steps={alternatives.slice(1)} />}
           </section>
         )}
       </div>
@@ -149,6 +144,18 @@ function NextCard({ learnerId, step, plan, planError, hasUnit, onRetry }: {
       </div>
       {hasUnit && step.capabilityId && <LessonDetails learnerId={learnerId} capabilityId={step.capabilityId} />}
     </section>
+  );
+}
+
+/** The rest of the plan, folded away. The summary says what it does next; its expanded state
+ *  is the native <details> one, which browsers expose to assistive tech themselves. */
+function MoreOptions({ learnerId, steps }: { learnerId: string; steps: Step[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="more-options" onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary>{open ? "Hide other options" : `Show other options (${steps.length})`}</summary>
+      {steps.map((s, i) => <StepCard key={i} learnerId={learnerId} step={s} />)}
+    </details>
   );
 }
 

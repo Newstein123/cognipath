@@ -19,8 +19,8 @@ function useMedia(query: string): boolean {
   return matches;
 }
 
-/** Home's tutor: a panel beside the learning column on wide screens; a floating launcher
- *  that opens it as a dialog on smaller ones. Messages and draft live in lib/tutorChat, so
+/** Home's tutor: a panel beside the learning column on wide screens; on smaller ones a
+ *  launcher, docked along the bottom edge, that opens it as a dialog. Messages and draft live in lib/tutorChat, so
  *  they are the same in both forms and survive closing it. */
 export function TutorPanel({ learnerId }: { learnerId: string }) {
   const wide = useMedia(SIDE_BY_SIDE);
@@ -37,12 +37,14 @@ export function TutorPanel({ learnerId }: { learnerId: string }) {
   }
   return (
     <>
-      <button ref={launcher} type="button" className="tutor-launcher" aria-haspopup="dialog" aria-expanded={open}
-        onClick={() => setOpen(true)}>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8"
-          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
-        Ask the tutor
-      </button>
+      <div className="tutor-dock">
+        <button ref={launcher} type="button" className="tutor-launcher" aria-haspopup="dialog" aria-expanded={open}
+          onClick={() => setOpen(true)}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
+          Ask the tutor
+        </button>
+      </div>
       <TutorDialog open={open} onClose={() => { setOpen(false); launcher.current?.focus(); }}>
         <TutorChat variant="panel" learnerId={learnerId} autoFocus onClose={() => { setOpen(false); launcher.current?.focus(); }} />
       </TutorDialog>

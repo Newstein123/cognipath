@@ -59,6 +59,7 @@ export function GuidedHelp({ learnerId, activityId, onUse }: {
           </button>
         ))}
       </div>
+      {nextLevel < 3 && <p className="why-disabled" style={{ margin: "0 0 4px" }}>Hints open one at a time — try the smaller one first.</p>}
 
       {turns.map((t, i) => (
         t.role === "tutor" ? (

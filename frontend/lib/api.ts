@@ -118,19 +118,32 @@ export interface EvidenceEntry {
   criteria: CriterionResult[]; changes: SkillChange[]; explanation: string;
 }
 
+/** A failed request; `status` is the HTTP status (absent when the backend was unreachable). */
+export class ApiError extends Error {
+  constructor(message: string, readonly status?: number) { super(message); }
+}
+
+/** The backend bounds each Gemini call at 60 s and a lesson makes at most two in a row,
+ *  so nothing should take this long; if it does, stop waiting and say so. */
+const REQUEST_TIMEOUT_MS = 150_000;
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       ...init,
       headers: { "Content-Type": "application/json", ...init?.headers },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-  } catch {
+  } catch (e) {
+    if ((e as Error).name === "TimeoutError") {
+      throw new Error(`No answer after ${REQUEST_TIMEOUT_MS / 1000} seconds, so Cognith stopped waiting. Try again.`);
+    }
     throw new Error(`Cannot reach the Cognith backend at ${BASE}. Is it running?`);
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `Request failed (${res.status})`);
+    throw new ApiError(body.detail ?? `Request failed (${res.status})`, res.status);
   }
   return res.json();
 }

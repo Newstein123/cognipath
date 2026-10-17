@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, param, type Diagnostic, type NextActivities } from "@/lib/api";
 import { ActivityRunner } from "@/components/ActivityRunner";
-import { ErrorBox, Loading, StepCard } from "@/components/ui";
+import { ErrorBox, Loading, PageHead, StepCard } from "@/components/ui";
 
 export default function DiagnosticPage() {
   const id = param(useParams().id);
@@ -45,10 +45,9 @@ export default function DiagnosticPage() {
 
   return (
     <>
-      <div className="spread">
-        <h1>Quick diagnosis</h1>
-        <span className="muted small">{Math.min(index + 1, total)} of {total} · about {diag.minutes} min</span>
-      </div>
+      <PageHead eyebrow="Diagnosis" title="Quick diagnosis">
+        Question {Math.min(index + 1, total)} of {total} · about {diag.minutes} min
+      </PageHead>
       <div className="progress"><span style={{ width: `${(index / total) * 100}%` }} /></div>
 
       {index === 0 && (

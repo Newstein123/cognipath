@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from .config import EMBED_DIM, EMBED_MODEL
+from .config import EMBED_DIM, EMBED_MODEL, GEMINI_TIMEOUT_S
 
 _client: genai.Client | None = None
 
@@ -27,8 +27,25 @@ def get_client() -> genai.Client:
                 "GEMINI_API_KEY is not set. Copy .env.example to .env and add your key "
                 "from https://aistudio.google.com/apikey"
             )
-        _client = genai.Client(api_key=key)
+        _client = genai.Client(api_key=key, http_options=http_options())
     return _client
+
+
+def http_options(**extra) -> types.HttpOptions:
+    """Every Gemini call: bounded in time, never asleep on Retry-After.
+
+    No HTTP status is retried: status 0 never occurs. A 429 here is a quota whose
+    Retry-After can be hours, which the SDK would sleep through uncapped (see
+    config.GEMINI_TIMEOUT_S), and retrying a 5xx spends quota too. attempts=1 because the
+    constructor turns 0 into 1 anyway. Dropped connections and timeouts are not retried
+    either, so each call is one attempt of at most GEMINI_TIMEOUT_S — checked against the
+    SDK in tests/test_provider_failures.py.
+    """
+    return types.HttpOptions(
+        timeout=int(GEMINI_TIMEOUT_S * 1000),  # milliseconds, per attempt
+        retry_options=types.HttpRetryOptions(attempts=1, http_status_codes=[0]),
+        **extra,
+    )
 
 
 def normalize(vectors: np.ndarray) -> np.ndarray:

@@ -32,6 +32,13 @@ EMBED_DIM = 768  # supported range 128-3072; 768/1536/3072 recommended
 # Overridable for A/B testing: COGNITH_MODEL=gemini-3.5-flash-lite python eval.py
 GENERATION_MODEL = os.environ.get("COGNITH_MODEL", "gemini-3.8-flash")
 
+# --- Provider limits ----------------------------------------------------------
+# Every Gemini call is ONE HTTP attempt of at most this many seconds. The SDK's own retry
+# sleeps for whatever the server's Retry-After header says, uncapped: a free-tier daily
+# quota answers 429 with "retry in 8h44m", which left lessons, grading and the tutor
+# pending for hours with no error. A failed call now surfaces, and the learner retries.
+GEMINI_TIMEOUT_S = float(os.environ.get("COGNITH_GEMINI_TIMEOUT_S", "60"))
+
 # --- Retrieval --------------------------------------------------------------
 TOP_K = 5
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, pct, stepHref, type Course, type LearnerCreated, type LearnerSummary, type NextActivities, type OnboardingOptions } from "@/lib/api";
-import { ErrorBox, Loading } from "@/components/ui";
+import { ErrorBox, Loading, ThemeSwitch } from "@/components/ui";
 
 export default function Start() {
   const router = useRouter();
@@ -88,7 +88,7 @@ export default function Start() {
                     <strong>{e.name}</strong>
                     <div className="small muted">{e.reason}</div>
                   </div>
-                  <span className="small">you: {pct(e.selfRated)}</span>
+                  <span className="small muted" style={{ textAlign: "right" }}>starting estimate<br /><strong>{pct(e.selfRated)}</strong></span>
                 </li>
               ))}
             </ul>
@@ -110,10 +110,13 @@ export default function Start() {
               </button>
             </>
           ) : (
-            <button className="btn block" style={{ marginTop: 12 }} disabled={!first}
-              onClick={() => router.push(`/learn/${encodeURIComponent(id)}/diagnostic`)}>
-              Looks good — start the quick diagnosis →
-            </button>
+            <>
+              <button className="btn block" style={{ marginTop: 12 }} disabled={!first}
+                onClick={() => router.push(`/learn/${encodeURIComponent(id)}/diagnostic`)}>
+                Looks good — start the quick diagnosis →
+              </button>
+              {!first && <p className="why-disabled" style={{ marginTop: 6 }}>Preparing your first steps…</p>}
+            </>
           )}
         </div>
       </main>
@@ -181,10 +184,17 @@ export default function Start() {
 
         <ErrorBox error={error} />
         {busy ? <Loading stages={["Building your starting map…"]} /> : (
-          <button className="btn block" style={{ marginTop: 16 }}
-            disabled={!goal.trim() || !name.trim()} onClick={submit}>
-            Discover my learning path →
-          </button>
+          <>
+            <button className="btn block" style={{ marginTop: 16 }}
+              disabled={!goal.trim() || !name.trim()} onClick={submit}>
+              Discover my learning path →
+            </button>
+            {(!goal.trim() || !name.trim()) && (
+              <p className="why-disabled" style={{ marginTop: 6 }}>
+                Add {!name.trim() && !goal.trim() ? "your name and a goal" : !name.trim() ? "your name" : "a goal"} to continue.
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -193,9 +203,9 @@ export default function Start() {
           <h2>Continue as</h2>
           <ul className="list">
             {learners.map((l) => (
-              <li key={l.id} className="spread">
-                <div>
-                  <strong>{l.name}</strong> <span className="small muted">· {l.course.name}</span>
+              <li key={l.id} className="spread" style={{ flexWrap: "nowrap" }}>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ overflowWrap: "anywhere" }}>{l.name}</strong> <span className="small muted">· {l.course.name}</span>
                   <div className="small muted">
                     {l.goal ?? "No goal"} · {l.counts.mastered} mastered, {l.counts.developing} developing
                   </div>
@@ -212,9 +222,12 @@ export default function Start() {
 
 function Brand() {
   return (
-    <div className="brand" style={{ marginBottom: 20 }}>
-      <span className="brand-mark" /> Cognith
-      <span className="muted small" style={{ fontWeight: 400 }}>Learn what you need, not everything.</span>
+    <div className="spread" style={{ marginBottom: 20, alignItems: "flex-end" }}>
+      <div className="brand" style={{ margin: 0, flexWrap: "wrap" }}>
+        <span className="brand-mark" aria-hidden="true" /> Cognith
+        <span className="muted small" style={{ fontWeight: 400 }}>Learn what you need, not everything.</span>
+      </div>
+      <ThemeSwitch tone="on-page" />
     </div>
   );
 }

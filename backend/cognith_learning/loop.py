@@ -105,6 +105,7 @@ class AdaptiveLoop:
         self.profile = profile
         self.resolver = GapResolver(graph, profile)
         self.library = ExperienceLibrary.load(graph)
+        self._mastered: set[str] | None = None
         self.path: list[MilestoneProgress] = []
         self.milestone: MilestoneProgress | None = None
         self._load_path()
@@ -127,6 +128,16 @@ class AdaptiveLoop:
             self.milestone = active(self.path)
         except (FileNotFoundError, KeyError):
             self.path, self.milestone = [], None
+
+    @property
+    def mastered(self) -> set[str]:
+        """Skills mastered under D62/D64 — the same rule the profile and its counts use,
+        so the plan never calls a skill mastered that the learner sees as Developing."""
+        if self._mastered is None:
+            from .mastery import mastered_skills
+
+            self._mastered = mastered_skills(self.profile, self.library)
+        return self._mastered
 
     def stalled(self) -> set[str]:
         """Experiences retried with no improvement.
@@ -262,8 +273,8 @@ class AdaptiveLoop:
                     continue
                 item = items[0]
                 unmet_prereqs = self.profile.blocked().get(cap.id, [])
-                why = (f"You rated yourself {row.confidence:.0%} here and nothing has "
-                       f"checked it.")
+                why = (f"Your starting estimate here is {row.confidence:.0%}, and nothing has "
+                       f"checked it yet.")
                 if unmet_prereqs:
                     why += (f" It also rests on "
                             f"{', '.join(p.name for p in unmet_prereqs)}, which is "
@@ -290,7 +301,7 @@ class AdaptiveLoop:
         done = self.completed()
         ready_apply: LearningExperience | None = None
         for e in self.library.of_type(ExperienceType.APPLY):
-            blocked = self.library.apply_blocked_by(e, self.profile)
+            blocked = self.library.apply_blocked_by(e, self.mastered)
             if blocked:
                 backlog.append((
                     self.graph.get(e.capability_id),
@@ -303,17 +314,14 @@ class AdaptiveLoop:
         missions = self.library.of_type(ExperienceType.MISSION)
         ready_mission: LearningExperience | None = None
         for m in missions:
-            unproven = [
-                c for c in self.mission_prerequisites(m)
-                if (self.profile.row_for(c.id).mastery or 0.0) < DEMONSTRATED_AT
-            ]
+            unproven = [c for c in self.mission_prerequisites(m) if c.id not in self.mastered]
             if unproven:
                 # Recorded whether or not there is room in the plan — this explains an
                 # absence rather than competing for a slot.
                 backlog.append((
                     self.graph.get(m.capability_id),
                     f"mission held back — {', '.join(c.name for c in unproven)} "
-                    f"not yet demonstrated",
+                    f"not yet mastered",
                 ))
             elif ready_mission is None:
                 ready_mission = m
@@ -328,6 +336,17 @@ class AdaptiveLoop:
         # Gaps inside the current milestone come first — closing one moves the learner
         # toward their stated destination, and closing one outside it does not.
         ordered_gaps = sorted(gaps, key=lambda g: not self._in_milestone(g.capability_id))
+        # Evidence at the bar that the mastery rule (D62/D64) does not accept yet: neither
+        # the unit is covered nor the skill's own challenge passed. Such a skill is
+        # Developing, so it still needs settling — even when no criterion was missed, which
+        # is when GapResolver (a threshold on the number) does not list it.
+        unsettled = {r.capability_id for r in rows if r.is_demonstrated and r.capability_id not in self.mastered}
+        listed = {g.capability_id for g in gaps}
+        ordered_gaps += sorted(
+            (Gap(capability_id=r.capability_id, mastery=r.mastery, confidence=r.confidence,
+                 reason="evidence at the bar, not yet mastered")
+             for r in rows if r.capability_id in unsettled and r.capability_id not in listed),
+            key=lambda g: not self._in_milestone(g.capability_id))
         for gap in ordered_gaps:
             if len(steps) >= gap_budget:
                 break
@@ -336,6 +355,33 @@ class AdaptiveLoop:
             practice = self._can_practise(cap.id)
             if not teachable and not practice:
                 backlog.append((cap, "no corpus material and no exercise"))
+                continue
+
+            if cap.id in unsettled:
+                # Settle it the cheapest real way: its own challenge decides the skill
+                # (D61), so prefer that; otherwise covering the unit does (D62).
+                why = (f"Your evidence on {cap.name} reaches {gap.mastery:.0%}, but a skill "
+                       f"counts as mastered only once its unit is covered or its own challenge is passed.")
+                # Only the skill's own exercise decides it; one that merely touches it in a
+                # criterion is evidence, never its challenge (D64).
+                own = [x for x in practice if x.capability_id == cap.id]
+                if own:
+                    stalled = self.stalled()
+                    e = next((x for x in own if x.id not in stalled), own[0])
+                    steps.append(NextStep(
+                        kind=StepKind.PRACTISE, title=e.title, why=why + " Passing this challenge settles it.",
+                        command=f"python practice.py --show '{e.id}'",
+                        capability_id=cap.id, experience_id=e.id, minutes=e.minutes,
+                    ))
+                elif teachable:
+                    steps.append(NextStep(
+                        kind=StepKind.LEARN, title=self._gap_title(cap),
+                        why=why + " It has no challenge yet, so covering the unit is what settles it.",
+                        command=f"python learn.py --student {student} --gap {cap.id}",
+                        capability_id=cap.id,
+                    ))
+                else:
+                    backlog.append((cap, "no challenge of its own and no course material to settle it"))
                 continue
 
             missing = gap.unmet[0].removeprefix("Understands: ") if gap.unmet else None
@@ -440,7 +486,7 @@ class AdaptiveLoop:
                     continue
                 steps.append(NextStep(
                     kind=StepKind.DIAGNOSE, title=f"Verify {cap.name}",
-                    why=(f"Still taken on trust — you rated yourself "
+                    why=(f"Still taken on trust — your starting estimate is "
                          f"{row.confidence:.0%} and nothing has checked it."),
                     command=f"python diagnose.py --student {student}",
                     capability_id=cap.id, experience_id=items[0].id,
@@ -476,8 +522,7 @@ class AdaptiveLoop:
                 if len(steps) >= limit:
                     break
                 prereqs = self.graph.prerequisites_of(cap.id)
-                done = [p for p in prereqs
-                        if (self.profile.row_for(p.id).mastery or 0.0) >= DEMONSTRATED_AT]
+                done = [p for p in prereqs if p.id in self.mastered]
                 win = self._recent_win(prereqs)
                 if win:
                     why = (f"You showed \"{win[1]}\" in {win[0]}. {cap.name} builds on that: "
@@ -624,8 +669,7 @@ class AdaptiveLoop:
         order = list(self.graph.capabilities)
 
         def ready(cid: str) -> bool:
-            return all((self.profile.row_for(p.id).mastery or 0.0) >= DEMONSTRATED_AT
-                       for p in self.graph.prerequisites_of(cid))
+            return all(p.id in self.mastered for p in self.graph.prerequisites_of(cid))
 
         caps = [c for c in self.graph.capabilities.values()
                 if self._can_teach(c.id) and self._in_milestone(c.id)

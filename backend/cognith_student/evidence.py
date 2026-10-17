@@ -29,7 +29,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from cognith_capability.graph import CapabilityGraph
 
@@ -278,7 +278,9 @@ A strong answer to a different question is still unmet.
 
 4. Reasoning is the thing being assessed, not vocabulary. A response that names the right
 term without justifying it is `partial`. A response that reaches the right conclusion by
-sound reasoning in plain language is `met`.
+sound reasoning in plain language is `met`. Any technically correct explanation of the idea
+counts: do not require a particular analogy, metaphor or phrase unless the question itself
+asks for it.
 
 5. Justify every verdict in one sentence, quoting or paraphrasing the part of the response \
 that decided it. For `unmet`, say specifically what was missing.
@@ -327,24 +329,47 @@ class GeminiEvaluator:
             generation_config={"temperature": 0.0,
                                **({"thinking_level": self.thinking} if self.thinking else {})},
         )
-        parsed = _Judgements.model_validate_json(interaction.output_text)
+        return read_judgements(item.rubric, interaction.output_text)
 
-        by_id = {j.criterion_id: j for j in parsed.judgements}
-        results: list[CriterionResult] = []
-        for c in item.rubric:
-            j = by_id.get(c.id)
-            if j is None:
-                # A missing judgement is not an unmet criterion. Saying so is honest;
-                # silently scoring it zero would let an API hiccup look like a weak student.
-                results.append(CriterionResult(c.id, Verdict.UNMET, "NOT JUDGED — model omitted this criterion"))
-                continue
-            try:
-                verdict = Verdict(j.verdict.strip().lower())
-            except ValueError:
-                results.append(CriterionResult(c.id, Verdict.UNMET, f"NOT JUDGED — unrecognised verdict {j.verdict!r}"))
-                continue
-            results.append(CriterionResult(c.id, verdict, j.justification.strip()))
-        return results
+
+class EvaluationError(ValueError):
+    """The model's judgement cannot be used as given: malformed, incomplete or ambiguous.
+
+    Recoverable. It is raised before anything is recorded, so the learner's profile and
+    evidence are untouched and the same answer can simply be submitted again."""
+
+
+def read_judgements(rubric: tuple[RubricCriterion, ...], text: str | None) -> list[CriterionResult]:
+    """Exactly one valid verdict per rubric criterion, or EvaluationError.
+
+    A missing judgement is not an unmet criterion: scoring it zero would let a model
+    hiccup look like a weak student — and, on a challenge, decide the skill. Duplicate or
+    unknown ids mean the model did not judge the criteria it was given."""
+    try:
+        parsed = _Judgements.model_validate_json(text or "")
+    except ValidationError as exc:
+        raise EvaluationError(f"malformed judgement ({exc.error_count()} schema error(s))") from None
+    expected = [c.id for c in rubric]
+    ids = [j.criterion_id.strip() for j in parsed.judgements]
+    problems = []
+    if dupes := sorted({i for i in ids if ids.count(i) > 1}):
+        problems.append(f"judged more than once: {dupes}")
+    if unknown := sorted(set(ids) - set(expected)):
+        problems.append(f"not in the rubric: {unknown}")
+    if missing := [i for i in expected if i not in ids]:
+        problems.append(f"not judged: {missing}")
+    if problems:
+        raise EvaluationError("incomplete judgement — " + "; ".join(problems))
+    by_id = {j.criterion_id.strip(): j for j in parsed.judgements}
+    results: list[CriterionResult] = []
+    for c in rubric:
+        j = by_id[c.id]
+        try:
+            verdict = Verdict(j.verdict.strip().lower())
+        except ValueError:
+            raise EvaluationError(f"unrecognised verdict {j.verdict!r} for {c.id}") from None
+        results.append(CriterionResult(c.id, verdict, j.justification.strip()))
+    return results
 
 
 def attempt_number(student_id: str, experience_id: str) -> int:
@@ -448,7 +473,9 @@ def assess(
 
     `decisive`: a written challenge settles the state on its own (decisions.md D61). A pass
     lifts the skill to at least this answer's score; a fail drops it to at most that score.
-    Without this, weak early lesson evidence outvoted a flawless challenge.
+    Without this, weak early lesson evidence outvoted a flawless challenge. It settles the
+    item's OWN skill only: a criterion on a neighbouring skill is evidence for it, blended
+    like any other, not a verdict — one missed point must not wipe out a mastered skill.
 
     `mastery_cap`: the skill may not rise above this, while the outcome keeps the raw
     score. Diagnosis uses it: one placement answer shows where to start, not mastery.
@@ -475,7 +502,7 @@ def assess(
     for cid, score in scores.items():
         row: StudentCapability = profile.row_for(cid)
         after = next_mastery(row.mastery, score, row.evidence_count)
-        if decisive:
+        if decisive and cid == item.capability_id:
             ceiling = mastery_ceiling(row.evidence_count + 1)
             after = round(min(max(after, score) if score >= DEMONSTRATED_AT else min(after, score),
                               ceiling), 4)

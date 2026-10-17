@@ -252,9 +252,12 @@ def choose_experience(s: Session, kind: ExperienceType, empty: str) -> None:
         locked = [e for e in items if e.id not in ready]
         items = [e for e in items if e.id in ready]
         if locked:
+            from cognith_learning.mastery import mastered_skills
+
+            won = mastered_skills(s.profile, s.library)
             print("\n  Locked until you have evidence in their components:")
             for e in locked:
-                need = ", ".join(c.name for c in s.library.apply_blocked_by(e, s.profile))
+                need = ", ".join(c.name for c in s.library.apply_blocked_by(e, won))
                 print(f"    {e.title}  — needs {need}")
     if not items:
         print(f"\n  {empty}\n")

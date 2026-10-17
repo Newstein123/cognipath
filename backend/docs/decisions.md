@@ -1832,3 +1832,57 @@ is set for BUILD because Next.js bakes it into the browser bundle.
 
 **Revisit when:** the frontend must be served from a CDN with no server, or App Hosting's
 cost or regions stop fitting.
+
+---
+
+## D64 — A challenge decides its own skill only; an incomplete judgement is refused
+
+**Decision:** D61's decisive rule applies to the challenge's own skill
+(`item.capability_id`), and only for exercises and generated challenges. Other skills a
+rubric touches, and every skill in a capstone (APPLY), take the plain blend. The profile's
+"passed its challenge" check counts only a challenge on that skill. A Gemini judgement that
+is malformed, misses a criterion, judges one twice, names an unknown criterion or gives an
+unknown verdict is refused (`EvaluationError`) before anything is recorded; the API answers
+502 and the learner submits again.
+
+**Why:** applied to every rubric skill, D61 turned one point into a verdict. A capstone
+answer missing its single Authentication point set a mastered 85% to 0%, and one met
+Reliability point inside the HTTP exercise made Reliability "mastered". A capstone
+integrates skills already mastered (§12 of learning-experiences.md): its evidence should
+move each skill, not decide it, and its "primary" skill is only the first `requires` entry.
+Separately, a missing judgement was scored unmet, so a model hiccup looked like a weak
+answer — and on a challenge, decided the skill.
+
+**Where:** `assess` (`cognith_student/evidence.py`, `cid == item.capability_id`);
+`decides`, `passed_challenge`, `skill_evidence`, `submit_attempt`, `judge_task`
+(`api/main.py`); `read_judgements` and `EvaluationError` (`cognith_student/evidence.py`);
+`tests/test_assessment_rules.py`.
+
+**Revisit if:** capstones should be able to certify mastery on their own. The blend still
+moves a mastered skill below 70% after one missed capstone point (0.85 → 0.55, because a
+new observation weighs at least 35%); that is the existing weighting, not changed here.
+
+---
+
+## D65 — One mastery rule for the profile, its counts, the plan and feedback
+
+**Decision:** `cognith_learning/mastery.py` is the only place that decides "mastered": evidence
+at `DEMONSTRATED_AT` *and* (no unit material, the unit fully covered, or the skill's own
+latest challenge passed — D62/D64). The profile's badges and counts, the plan's eligibility
+and wording (capstones, missions, "you've mastered …"), and the before/after labels on
+feedback all use it, each against the right snapshot. A skill whose number reaches 0.70
+but which is not mastered is "unsettled": the plan offers its own exercise if it has one
+(the challenge decides it, D61), else its unit's lessons, else a backlog reason.
+Inferred starting estimates are worded as estimates, never as "you rated yourself X%".
+
+**Why:** the seeded `demo` learner read "8 mastered" in the header, 2 in the skill list,
+and "You have mastered Scalability…" beside a Developing badge; and six Developing skills
+got no next step, because gap detection compared only the number. This resolves D62's
+known gap. Thresholds, milestone targets and the meaning of "demonstrated" are unchanged.
+
+**Where:** `mastered_skills` (`cognith_learning/mastery.py`); `AdaptiveLoop.mastered` and
+the unsettled branch of `recommend` (`cognith_learning/loop.py`); `skill_state`,
+`counts`, `labelled`, `attempt_result` (`api/main.py`); `tests/test_mastery_consistency.py`.
+
+**Revisit if:** the History page should label past attempts by this rule — that needs a
+replay of unit coverage and challenges up to each entry, which is not built.

@@ -1,13 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, lessonHref, pct, type Activity, type AttemptResult } from "@/lib/api";
 import { GuidedHelp } from "./GuidedHelp";
 import { joinAnswers, MultiPartAnswer, splitParts } from "./MultiPart";
-import { ErrorBox, Loading, Markdown, StateBadge, StepCard } from "./ui";
+import { ErrorBox, Loading, Markdown, StateBadge, StepCard, VerdictBadge } from "./ui";
 
-const MARK = { met: "✓", partial: "△", unmet: "✗" } as const;
+
+/** An unsent answer survives a failed submit and a page refresh (this tab only). */
+type Draft = { response: string; parts: string[] };
+const draftKey = (learnerId: string, activityId: string) => `cognith-draft:${learnerId}:${activityId}`;
+function readDraft(key: string): Draft | null {
+  try { return JSON.parse(sessionStorage.getItem(key) ?? "null"); } catch { return null; }
+}
+function writeDraft(key: string, draft: Draft | null) {
+  try {
+    if (draft && (draft.response.trim() || draft.parts.some((a) => a?.trim()))) sessionStorage.setItem(key, JSON.stringify(draft));
+    else sessionStorage.removeItem(key);
+  } catch { /* storage unavailable: the answer still lives in this page */ }
+}
 
 /** Prompt + rubric + answer box. On submit, shows the judged result in place. */
 export function ActivityRunner({
@@ -22,10 +34,11 @@ export function ActivityRunner({
   /** Off during the diagnosis: leaving mid-way would lose the learner's place. */
   showTeach?: boolean;
 }) {
-  const [response, setResponse] = useState("");
+  const key = draftKey(learnerId, activity.id);
+  const [response, setResponse] = useState(() => readDraft(key)?.response ?? "");
   // Multi-part questions — "(a) … (b) …" — get one answer box per part.
   const split = useMemo(() => splitParts(activity.prompt), [activity.prompt]);
-  const [partAnswers, setPartAnswers] = useState<string[]>([]);
+  const [partAnswers, setPartAnswers] = useState<string[]>(() => readDraft(key)?.parts ?? []);
   const answerText = split ? joinAnswers(split.parts, partAnswers) : response;
   const hasAnswer = split ? partAnswers.some((a) => a?.trim()) : !!response.trim();
   const blank = split ? split.parts.filter((_, k) => !partAnswers[k]?.trim()).map((p) => p.label) : [];
@@ -34,12 +47,14 @@ export function ActivityRunner({
   const [result, setResult] = useState<AttemptResult | null>(null);
   // Guided-help requests so far; sent with the answer, which then counts as assisted.
   const [helpUsed, setHelpUsed] = useState(0);
+  useEffect(() => { if (!result) writeDraft(key, { response, parts: partAnswers }); }, [key, response, partAnswers, result]);
 
   async function submit() {
     setBusy(true);
     setError(null);
     try {
       setResult(await api.attempt(learnerId, activity.id, answerText, helpUsed));
+      writeDraft(key, null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -50,23 +65,28 @@ export function ActivityRunner({
   return (
     <div>
       <div className="card">
-        <div className="spread">
-          <h2 style={{ margin: 0 }}>{activity.title}</h2>
-          <span className="muted small">{activity.level} · about {activity.minutes} min</span>
+        <h2 style={{ marginBottom: 4 }}>{activity.title}</h2>
+        <div className="meta">
+          <span style={{ textTransform: "capitalize" }}>{activity.level}</span>
+          {activity.minutes > 0 && <span>about {activity.minutes} min</span>}
+          <span>marked on {activity.criteria.length} points</span>
         </div>
-        {!split && (
+        {/* A multi-part question shows its parts beside the answer boxes; once answered,
+            the whole question stays visible above the feedback. */}
+        {(!split || result) && (
           <div className="prompt md" style={{ marginTop: 14, whiteSpace: "normal" }}><Markdown text={activity.prompt} /></div>
         )}
 
         {/* Criteria often state the expected answer, so they are revealed only in the
             feedback, each with its verdict. */}
         <p className="small muted" style={{ marginTop: 14 }}>
-          Marked on {activity.criteria.length} points, shown with your feedback after you submit.
+          The points are shown with your feedback after you submit.
           Show your working: method counts, not just the final answer.
         </p>
 
         {!result && (
-          <>
+          <div className="answer-area">
+            {split && <h3 style={{ margin: 0 }}>Your answers</h3>}
             {split ? (
               <MultiPartAnswer intro={split.intro} parts={split.parts} answers={partAnswers}
                 onChange={setPartAnswers} disabled={busy} />
@@ -82,17 +102,18 @@ export function ActivityRunner({
             )}
             <ErrorBox error={error} />
             {busy ? (
-              <Loading stages={["Reading your answer…", "Judging each criterion…", "Updating your skill profile…"]} />
+              <Loading stages={["Marking your answer against each point…"]} />
             ) : (
               <div className="row" style={{ marginTop: 12 }}>
-                <button className="btn" disabled={!hasAnswer} onClick={submit}>Submit answer</button>
+                <button className="btn" disabled={!hasAnswer} onClick={submit}>{error ? "Try again" : "Submit answer"}</button>
+                {!hasAnswer && <span className="why-disabled">Write your answer to submit.</span>}
                 {split && hasAnswer && blank.length > 0 && (
                   <span className="small muted">Not answered yet: {blank.map((b) => `(${b})`).join(", ")}</span>
                 )}
                 {helpUsed > 0 && <span className="small muted">Submitted with help — counts as assisted.</span>}
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
@@ -141,15 +162,13 @@ export function AttemptResultView({
             Attempt {result.attempt} · {met} of {result.criteria.length} criteria met
           </span>
         </div>
-        <ul className="list" style={{ marginTop: 10 }}>
+        <ul className="list criteria" style={{ marginTop: 10 }}>
           {result.criteria.map((c) => (
             <li key={c.id}>
-              <div className="row" style={{ alignItems: "flex-start", flexWrap: "nowrap" }}>
-                <span className={`badge ${c.verdict}`}>{MARK[c.verdict]}</span>
-                <div className="md-inline" style={{ minWidth: 0 }}>
-                  <Markdown text={c.criterion} />
-                  <div className="small muted"><Markdown text={c.justification} /></div>
-                </div>
+              <VerdictBadge verdict={c.verdict} />
+              <div className="md-inline">
+                <Markdown text={c.criterion} />
+                <div className="small muted"><Markdown text={c.justification} /></div>
               </div>
             </li>
           ))}
@@ -158,9 +177,9 @@ export function AttemptResultView({
 
       <div className="card">
         <h2>How your skills changed</h2>
-        <ul className="list">
+        <ul className="list changes">
           {result.changes.map((c) => (
-            <li key={c.capabilityId} className="spread">
+            <li key={c.capabilityId}>
               <strong>{c.name}</strong>
               <span className="row" style={{ gap: 8 }}>
                 <StateBadge state={c.stateBefore} />
@@ -199,8 +218,7 @@ export function AttemptResultView({
 
       {showNext && result.next.steps[0] && (
         <>
-          <h2>What&apos;s next</h2>
-          <StepCard learnerId={learnerId} step={result.next.steps[0]} primary />
+          <StepCard learnerId={learnerId} step={result.next.steps[0]} primary label="What's next" />
         </>
       )}
       {showNext && (

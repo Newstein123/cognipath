@@ -41,6 +41,8 @@ class Result:
     gate: str = ""
     prompt: str | None = None
     raw: dict[str, Any] | None = None
+    #: The provider exception behind gate="api_error", so a caller can say what failed.
+    error: Exception | None = None
 
     @property
     def cited_hits(self) -> list[Hit]:
@@ -116,6 +118,7 @@ def answer(question: str, hits: list[Hit], min_score: float = MIN_SCORE) -> Resu
             f"{type(exc).__name__}: {exc}",
             prompt=prompt,
         )
+        result.error = exc
         result.answer = (
             "The AI service is unavailable, so this answer is not generated. "
             "Here are the most relevant excerpts from the learning materials."

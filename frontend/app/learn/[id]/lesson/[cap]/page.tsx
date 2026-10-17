@@ -6,8 +6,8 @@ import { Suspense, useEffect, useState } from "react";
 import { activityHref, api, param, type AttemptResult, type Lesson, type Step, type UnitInfo } from "@/lib/api";
 import { GuidedLesson, LessonOutcome } from "@/components/GuidedLesson";
 import { UnitProgress } from "@/components/UnitProgress";
-import { TutorBox } from "@/components/TutorBox";
-import { ErrorBox, Loading, Markdown, Sources, StepCard } from "@/components/ui";
+import { TutorChat } from "@/components/TutorChat";
+import { ErrorBox, Loading, Markdown, PageHead, Sources, StepCard } from "@/components/ui";
 
 export default function LessonPage() {
   return <Suspense><LessonView /></Suspense>;
@@ -32,19 +32,33 @@ function LessonView() {
   // Coverage after finishing a part (decides "continue" vs the challenge).
   const [unitAfter, setUnitAfter] = useState<UnitInfo | null>(null);
   const [partReq, setPartReq] = useState<number | null>(null);
+  // Bumped by "Try again" to re-request the same lesson after a failure.
+  const [attempt, setAttempt] = useState(0);
+  // The skill's name from the profile, so the title is readable before (or without) a lesson.
+  const [skillName, setSkillName] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    setLesson(null); setFinished(false); setOutcome(null); setUnitAfter(null);
-    api.lesson(id, cap, { fromActivityId: retryParam, full, part: partReq }).then(setLesson).catch((e) => setError(e.message));
+    api.profile(id).then((p) => setSkillName(p.skills.find((s) => s.capabilityId === cap)?.name ?? null))
+      .catch(() => {});
+  }, [id, cap]);
+
+  useEffect(() => {
+    // A superseded request (StrictMode's first mount, or a part change) must not land.
+    let current = true;
+    setLesson(null); setError(null); setFinished(false); setOutcome(null); setUnitAfter(null);
+    api.lesson(id, cap, { fromActivityId: retryParam, full, part: partReq })
+      .then((l) => { if (current) setLesson(l); })
+      .catch((e) => { if (current) setError(e.message); });
     api.next(id, 6).then((n) => {
       const doable = n.steps.filter((s) => s.activityId && s.capabilityId === cap);
-      setPractice(doable[0] ?? null);
+      if (current) setPractice(doable[0] ?? null);
     }).catch(() => {});
-  }, [id, cap, retryParam, full, partReq]);
+    return () => { current = false; };
+  }, [id, cap, retryParam, full, partReq, attempt]);
 
   const retry = retryParam ?? lesson?.retryActivityId ?? null;
-  const name = lesson?.name ?? cap;
+  const name = lesson?.name ?? skillName ?? "this skill";
   const guided = !!lesson?.sections?.length;
   const unit = unitAfter ?? lesson?.unit ?? null;
   // The challenge proves the WHOLE unit, so it waits until every concept has been taught.
@@ -73,8 +87,7 @@ function LessonView() {
 
   return (
     <>
-      <p className="small muted" style={{ marginBottom: 4 }}>Lesson</p>
-      <h1>{name}</h1>
+      <PageHead eyebrow="Lesson" title={lesson?.name ?? skillName ?? "Lesson"} />
       {unit && lesson?.unit?.part ? <UnitProgress unit={unit} current={finished ? undefined : lesson.unit.part} /> : null}
       {lesson?.pitch && (
         <p className="small" style={{ marginTop: -4 }}>
@@ -84,6 +97,11 @@ function LessonView() {
         </p>
       )}
       <ErrorBox error={error} />
+      {error && !lesson && (
+        <div className="row" style={{ marginTop: 8 }}>
+          <button className="btn" onClick={() => setAttempt((n) => n + 1)}>Try again</button>
+        </div>
+      )}
 
       {lesson && lesson.missed.length > 0 && !finished && (
         <div className="card primary">
@@ -108,15 +126,12 @@ function LessonView() {
 
       {!lesson && !error && (
         <div className="card">
-          <Loading stages={[
-            "Finding the parts of the course material you need…",
-            "Planning what to ask you first…",
-            "Preparing examples and diagrams…",
-          ]} />
+          <Loading stages={["Writing your lesson from the course material…"]} />
         </div>
       )}
 
       {lesson && guided && !finished && (
+        <div className="reading">
         <GuidedLesson learnerId={id} capabilityId={cap} hook={lesson.hook}
           sections={lesson.sections!} teachFirst={lesson.teachFirst}
           onConceptDone={() => api.unit(id, cap).then(setUnitAfter).catch(() => {})}
@@ -124,6 +139,7 @@ function LessonView() {
             setOutcome(r); setFinished(true); window.scrollTo(0, 0);
             api.unit(id, cap).then(setUnitAfter).catch(() => {});
           }} />
+        </div>
       )}
       {finished && outcome && <LessonOutcome result={outcome} />}
       {finished && unit && !unitDone && nextPart && (
@@ -143,7 +159,7 @@ function LessonView() {
       )}
 
       {lesson && !guided && (
-        <div className="card">
+        <div className="card reading">
           <h2>Explanation</h2>
           {lesson.answered ? <Markdown text={lesson.explanation} /> : (
             <div className="notice">
@@ -178,7 +194,7 @@ function LessonView() {
       )}
 
       {lesson && (
-        <TutorBox learnerId={id} capabilityId={cap} presets={guided ? [] : presets}
+        <TutorChat variant="inline" learnerId={id} capabilityId={cap} presets={guided ? [] : presets}
           title="Ask the tutor" placeholder={`Ask a specific question about ${name}…`} />
       )}
 

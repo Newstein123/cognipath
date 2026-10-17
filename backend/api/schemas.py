@@ -5,7 +5,7 @@ Field names are camelCase on the wire to match the existing record shapes
 
 Skill states are the three the product talks about. The engine has four internally;
 `claimed` and `unknown` both surface as `unknown` here, with `selfRated` carrying the
-claim so the UI can still say "you rated yourself 70% — not yet verified".
+starting estimate so the UI can still say "starting estimate 70% — not yet verified".
 """
 
 from __future__ import annotations

@@ -17,6 +17,10 @@ Same contract as the knowledge layer and the challenge generator:
        was not sent rejects the lesson, which falls back to the plain explanation.
     3. `answerable: false` is a legitimate outcome — the caller falls back.
     4. A malformed diagram is dropped; it never rejects the lesson.
+    5. An applied task whose criteria are not tied to what its prompt asks, or whose
+       stated count ("the two errors") disagrees with its answer, rejects the lesson
+       (see task_problems) — the learner is never marked against a request they weren't
+       given.
 
 Quiz questions are practice, not evidence: they never touch mastery. The evidence comes
 from the follow-up challenge, judged by the per-criterion evaluator as before.
@@ -24,6 +28,7 @@ from the follow-up challenge, judged by the per-criterion evaluator as before.
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -78,8 +83,17 @@ class AppliedTask(BaseModel):
                     "returned; debug = find what is wrong; choose = pick an option and justify.")
     prompt: str = Field(description="A short NEW situation (not the worked example), "
                                     "answerable in under 2 minutes, in 1–3 sentences.")
-    criteria: list[str] = Field(description="1–2 things a correct answer must contain.")
-    model_answer: str = Field(description="A short correct answer, shown after the attempt.")
+    criteria: list[str] = Field(description="1–2 things a correct answer must contain. Each "
+                                "checks ONE thing the prompt explicitly asks for, as an idea — "
+                                "never a particular analogy, phrase or wording.")
+    asks: list[str] = Field(description="One per criterion, in the same order: the words of the "
+                            "prompt that ask for it, copied exactly from the prompt.")
+    answer_points: list[str] = Field(description="Every distinct item a complete answer gives "
+                                     "(e.g. each error in the scenario with its fix). If the "
+                                     "prompt names a number ('the two errors'), exactly that many, "
+                                     "and the scenario contains exactly that many.")
+    model_answer: str = Field(description="A short correct answer that meets every criterion, "
+                                          "shown after the attempt.")
 
 
 class Section(BaseModel):
@@ -136,6 +150,15 @@ was not supplied.
 5. `task` is the real check after teaching: an APPLIED task in a new situation — vary \
 the kind across concepts (explain / predict / debug / choose); keep it short; 1–2 \
 criteria a marker can judge from a typed answer; a short model answer.
+   - Every criterion checks something the prompt EXPLICITLY asks for; quote that request \
+in `asks`. Never require anything the prompt does not ask (an extra fact, a role nobody \
+asked about).
+   - Criteria name the idea, not the wording: any technically correct explanation of it \
+must pass. Do not require the lesson's analogy or a set phrase unless the prompt asks for it.
+   - If the prompt names a number ("identify the two errors"), the scenario contains \
+exactly that many and `answer_points` lists exactly that many. Ask for one count at most.
+   - The criteria and model answer use only facts from the excerpts, and the model \
+answer meets every criterion.
 6. `probe` and `check`: exactly 4 options each, one correct; wrong options are \
 realistic MISCONCEPTIONS a learner might hold; `explanation` says why the right one is \
 right. The probe is friendly and answerable from everyday intuition where possible; the \
@@ -163,6 +186,59 @@ def clean_diagram(d: Diagram) -> Diagram | None:
     return None
 
 
+# "identify the two errors", "list three reasons", "find both mistakes" — an exact count of
+# items the learner must give. "At least two" is not exact, and a number that is not asked
+# for ("a system with two servers") is not a count of the answer.
+_COUNTS = {"both": 2, "two": 2, "three": 3, "four": 4, "five": 5,
+           "2": 2, "3": 3, "4": 4, "5": 5}
+_ASKED_COUNT = re.compile(
+    r"\b(?:identify|name|list|give|find|spot|state|explain|describe|fix|correct|point out|"
+    r"suggest|what are)\s+(?:(?:the|all|exactly|these|those|its|their)\s+){0,2}"
+    r"(both|two|three|four|five|[2-5])\b", re.I)
+
+
+def _norm(text: str) -> str:
+    text = text.replace("‘", "'").replace("’", "'").replace("“", '"').replace("”", '"')
+    return " ".join(text.lower().split()).strip(" .,:;?!")
+
+
+def asked_counts(prompt: str) -> set[int]:
+    """The exact numbers of items the prompt asks the learner for."""
+    return {_COUNTS[m.group(1).lower()] for m in _ASKED_COUNT.finditer(prompt)}
+
+
+def task_problems(task: AppliedTask) -> list[str]:
+    """Structural problems with an applied task; empty when it can be marked fairly.
+
+    These are the checks a program can make: each criterion quotes the part of the prompt
+    that asks for it, and a count the prompt states matches the answer's items. Whether
+    a criterion really asks no more than its quote, or the scenario really has that many
+    errors, is semantic — rule 5 of the instruction asks for it, and nothing here proves it.
+    """
+    problems = []
+    if not 1 <= len(task.criteria) <= 3 or len(task.prompt.strip()) < 20:
+        problems.append("task needs a prompt and 1–3 criteria")
+    if not task.model_answer.strip():
+        problems.append("task needs a model answer")
+    if len(task.asks) != len(task.criteria):
+        problems.append(f"task has {len(task.criteria)} criteria but {len(task.asks)} asks; "
+                        "quote the prompt's request for each criterion")
+    prompt = _norm(task.prompt)
+    for n, ask in enumerate(task.asks, 1):
+        if len(_norm(ask).split()) < 2 or _norm(ask) not in prompt:
+            problems.append(f"task criterion {n} is not something the prompt asks for "
+                            f"({ask!r} is not quoted from the prompt)")
+    counts = asked_counts(task.prompt)
+    if len(counts) > 1:
+        problems.append(f"task asks for several different counts {sorted(counts)}; ask for one")
+    elif counts and len(task.answer_points) != (n := counts.pop()):
+        problems.append(f"task asks for {n} items but its answer has {len(task.answer_points)}; "
+                        "the scenario, the prompt's count and the answer must agree")
+    if not task.answer_points:
+        problems.append("task needs its answer points")
+    return problems
+
+
 def validate(lesson: StructuredLesson, sent_ids: set[str],
              sections: tuple[int, int] = (MIN_SECTIONS, MAX_SECTIONS)) -> list[str]:
     problems = []
@@ -176,8 +252,7 @@ def validate(lesson: StructuredLesson, sent_ids: set[str],
         for name, q in (("probe", sec.probe), ("check", sec.check)):
             if len(q.options) != 4 or not 0 <= q.answer_index < 4:
                 problems.append(f"section {i} {name} needs 4 options and a valid answer_index")
-        if not 1 <= len(sec.task.criteria) <= 3 or len(sec.task.prompt.strip()) < 20:
-            problems.append(f"section {i} task needs a prompt and 1–3 criteria")
+        problems.extend(f"section {i} {p}" for p in task_problems(sec.task))
     return problems
 
 

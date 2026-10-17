@@ -323,9 +323,9 @@ class DiagnosticEngine:
             if claim_support:
                 notes.append("underpins an unverified claim")
             if row.is_unverified:
-                notes.append(f"claimed {row.confidence:.0%}, never checked")
+                notes.append(f"starting estimate {row.confidence:.0%}, never checked")
             if calibration > 0:
-                notes.append(f"claim sat {calibration:+.2f} above the evidence")
+                notes.append(f"starting estimate sat {calibration:.0%} above the evidence")
 
             factors = {
                 "uncertainty": w["uncertainty"] * uncertainty,

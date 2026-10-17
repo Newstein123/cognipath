@@ -3,9 +3,8 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, param, pct, type EvidenceEntry } from "@/lib/api";
-import { ErrorBox, Loading, StateBadge } from "@/components/ui";
+import { ErrorBox, Loading, PageHead } from "@/components/ui";
 
-const MARK = { met: "✓", partial: "△", unmet: "✗" } as const;
 
 export default function HistoryPage() {
   const id = param(useParams().id);
@@ -21,25 +20,34 @@ export default function HistoryPage() {
 
   return (
     <>
-      <h1>Your evidence</h1>
-      <p className="muted">Every answer you gave, how it was judged, and what it changed. Newest first.</p>
-      {entries.length === 0 && <p className="muted">No evidence yet — take the diagnosis to start.</p>}
+      <PageHead eyebrow="History" title="Your evidence">
+        Every answer you gave, how it was judged, and what it changed. Newest first.
+      </PageHead>
+      {entries.length === 0 && <div className="card"><p className="muted" style={{ margin: 0 }}>No evidence yet — take the diagnosis to start.</p></div>}
       {entries.map((e, i) => (
         <details className="card" key={i}>
           <summary>
-            <strong>{e.activityId}</strong>{" "}
-            <span className="small muted">
-              attempt {e.attempt} · {new Date(e.createdAt).toLocaleString()} ·{" "}
-              {e.criteria.map((c) => MARK[c.verdict]).join(" ")}
-            </span>
+            <strong>{e.changes.map((c) => c.name).join(", ") || e.activityId}</strong>
+            <div className="meta" style={{ marginTop: 4 }}>
+              <span>Attempt {e.attempt}</span>
+              <span>{new Date(e.createdAt).toLocaleString()}</span>
+              <span>
+                {e.criteria.filter((c) => c.verdict === "met").length} of {e.criteria.length} points met
+                {e.criteria.some((c) => c.verdict === "partial") &&
+                  `, ${e.criteria.filter((c) => c.verdict === "partial").length} partly`}
+              </span>
+            </div>
           </summary>
           <div style={{ marginTop: 12 }}>
             <ul className="list">
               {e.changes.map((c) => (
-                <li key={c.capabilityId} className="spread">
+                <li key={c.capabilityId} className="spread" style={{ alignItems: "flex-start" }}>
                   <strong>{c.name}</strong>
-                  <span className="row" style={{ gap: 6 }}>
-                    <StateBadge state={c.stateBefore} /> {pct(c.masteryBefore)} → <StateBadge state={c.stateAfter} /> {pct(c.masteryAfter)}
+                  {/* The estimate as recorded at the time. No Mastered/Developing badge: that
+                      also depends on unit coverage and challenges at the time, which the log
+                      doesn't keep, so a badge here would be a guess. */}
+                  <span className="small muted">
+                    Recorded estimate {pct(c.masteryBefore)} → <strong>{pct(c.masteryAfter)}</strong>
                   </span>
                 </li>
               ))}

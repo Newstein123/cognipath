@@ -32,6 +32,7 @@ from cognith_learning.generator import ChallengeGenerator, GenerationError, to_r
 from cognith_learning.learner_context import learner_context
 from cognith_learning.knowledge import Gap, GapResolver
 from cognith_learning.loop import AdaptiveLoop, LoopState
+from cognith_learning.mastery import mastered_skills
 from cognith_rag.config import GENERATION_MODEL, TOP_K
 from cognith_rag.generate import Result, answer
 from cognith_rag.store import Hit, Store
@@ -216,8 +217,18 @@ def state_of_mastery(mastery: float | None) -> s.SkillState:
     return s.SkillState.MASTERED if mastery >= DEMONSTRATED_AT else s.SkillState.DEVELOPING
 
 
-def counts(profile: CapabilityProfile) -> s.SkillCounts:
-    states = [state_of(r.status) for r in profile.all_rows()]
+def skill_state(row: StudentCapability, mastered: set[str]) -> s.SkillState:
+    """The learner-facing state: mastered under D62/D63 (cognith_learning.mastery), else
+    developing once assessed, else not verified yet."""
+    if row.capability_id in mastered:
+        return s.SkillState.MASTERED
+    return s.SkillState.UNKNOWN if row.mastery is None else s.SkillState.DEVELOPING
+
+
+def counts(profile: CapabilityProfile, mastered: set[str] | None = None) -> s.SkillCounts:
+    if mastered is None:
+        mastered = mastered_skills(profile, library())
+    states = [skill_state(r, mastered) for r in profile.all_rows()]
     return s.SkillCounts(
         mastered=states.count(s.SkillState.MASTERED),
         developing=states.count(s.SkillState.DEVELOPING),
@@ -232,9 +243,9 @@ def course_model(course_id: str | None = None) -> s.Course:
                     description=c.get("description", ""), inline_math=bool(c.get("inline_math")))
 
 
-def summary(profile: CapabilityProfile) -> s.LearnerSummary:
+def summary(profile: CapabilityProfile, mastered: set[str] | None = None) -> s.LearnerSummary:
     st = profile.student
-    return s.LearnerSummary(id=st.id, name=st.name, goal=st.goal, counts=counts(profile),
+    return s.LearnerSummary(id=st.id, name=st.name, goal=st.goal, counts=counts(profile, mastered),
                             course=course_model())
 
 
@@ -252,8 +263,10 @@ def explain_skill(row: StudentCapability, gap: Gap | None) -> str:
             text += f' Still to develop: "{gap.unmet[0].removeprefix("Understands: ")}".'
         return text
     if row.status is MasteryStatus.CLAIMED:
-        return (f"You rated yourself {row.confidence:.0%}. Not verified yet — "
-                f"that is a starting estimate, not a result.")
+        # `confidence` is inferred at onboarding (level, technologies, what they wrote) —
+        # an estimate, never a percentage the learner typed.
+        return (f"Your starting estimate is {row.confidence:.0%}; it hasn't been verified yet, "
+                f"so it's a starting point, not a result.")
     return "Nothing known yet. Not a weakness — just unexplored."
 
 
@@ -268,18 +281,15 @@ def skill_profile(profile: CapabilityProfile, loop: AdaptiveLoop | None = None) 
         if st.capability_id and st.capability_id not in step_for:
             step_for[st.capability_id] = st
     history = skill_evidence(profile.student.id)
+    won = loop.mastered  # the same rule the plan and the counts use
     skills = []
     for row in profile.all_rows():
         cap = graph().get(row.capability_id)
-        state, why = state_of(row.status), explain_skill(row, gaps.get(cap.id))
+        state, why = skill_state(row, won), explain_skill(row, gaps.get(cap.id))
         up = units.progress(profile.student.id, cap.id) if cap.knowledge_docs else None
         if up and up.done:
             why += f" Covered {up.done} of {up.total} ideas in this unit."
-        # Mastery means the whole unit was taught, or a unit challenge was passed outright
-        # after a strong diagnosis — not one strong answer on part of it.
-        if (state is s.SkillState.MASTERED and up and not up.complete
-                and not passed_challenge(history.get(cap.id, []))):
-            state = s.SkillState.DEVELOPING
+        if row.is_demonstrated and cap.id not in won:
             why += " Finish the unit, or pass its challenge, to master it."
         gap = gaps.get(cap.id)
         skills.append(s.Skill(
@@ -295,7 +305,7 @@ def skill_profile(profile: CapabilityProfile, loop: AdaptiveLoop | None = None) 
             if up else None,
             next_step=step_for.get(cap.id),
         ))
-    return s.SkillProfile(learner=summary(profile), position=loop.position(), skills=skills,
+    return s.SkillProfile(learner=summary(profile, won), position=loop.position(), skills=skills,
                           next_step=plan.steps[0] if plan.steps else None)
 
 
@@ -304,14 +314,6 @@ def decides(item: LearningExperience | None, capability_id: str) -> bool:
     (decisions.md D61)? Exercises and generated challenges, for their own skill only."""
     return (item is not None and item.capability_id == capability_id
             and item.type in (ExperienceType.EXERCISE, ExperienceType.GENERATED))
-
-
-def passed_challenge(entries: list[s.SkillEvidence]) -> bool:
-    """Was the latest written challenge or exercise on this skill passed (70%+ of points)?
-    Only one whose own skill this is: a criterion of another skill's exercise, or a
-    capstone, is evidence for this skill but not its challenge."""
-    latest = next((e for e in entries if e.decides), None)
-    return bool(latest and latest.total and latest.met / latest.total >= DEMONSTRATED_AT)
 
 
 def skill_evidence(learner_id: str) -> dict[str, list[s.SkillEvidence]]:
@@ -343,8 +345,7 @@ def skill_evidence(learner_id: str) -> dict[str, list[s.SkillEvidence]]:
                 continue
             rows.append(s.SkillEvidence(title=title, kind=kind, created_at=ev["createdAt"],
                                         met=shown, partial=0 if kind == "lesson" else partly,
-                                        total=n_all, assisted=assisted,
-                                        decides=kind != "lesson" and decides(exp, o["capabilityId"])))
+                                        total=n_all, assisted=assisted))
     return out
 
 
@@ -564,6 +565,7 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
     # evidence blends into each of them like any other evidence.
     placing = item.type is ExperienceType.DIAGNOSTIC
     deciding = decides(item, item.capability_id)
+    before = mastered_skills(profile, library())  # the "before" labels, as the profile showed them
     try:
         result = assess(profile, item, req.response, judge, max_observed=cap_for_help,
                         decisive=deciding, mastery_cap=PLACEMENT_CAP if placing else None)
@@ -591,13 +593,24 @@ def submit_attempt(learner_id: str, req: s.AttemptRequest,
             "you missed, then try a new challenge.")
     profile.save()
     save_evidence(result)
-    return attempt_result(profile, item, result)
+    return attempt_result(profile, item, result, before)
 
 
-def attempt_result(profile: CapabilityProfile, item: LearningExperience, result) -> s.AttemptResult:
+def labelled(capability_id: str, mastery: float | None, mastered: set[str]) -> s.SkillState:
+    """A before/after label under the mastery rule, for the matching snapshot."""
+    if mastery is None:
+        return s.SkillState.UNKNOWN
+    return s.SkillState.MASTERED if capability_id in mastered else s.SkillState.DEVELOPING
+
+
+def attempt_result(profile: CapabilityProfile, item: LearningExperience, result,
+                   before: set[str]) -> s.AttemptResult:
+    """`before`: skills mastered before this attempt; "after" comes from the saved profile
+    and evidence, so the labels match what the profile shows either side of the attempt."""
     texts = {c.id: c.criterion for c in item.rubric}
     caps = {c.id: c.capability_id for c in item.rubric}
     loop = AdaptiveLoop(graph(), profile)
+    after = loop.mastered
     teachable = [o for o in result.outcomes
                  if (o.unmet or o.partial) and graph().get(o.capability_id).knowledge_docs]
     weakest = min(teachable, key=lambda o: o.score, default=None)
@@ -612,8 +625,8 @@ def attempt_result(profile: CapabilityProfile, item: LearningExperience, result)
                                name=graph().get(o.capability_id).name,
                                score=round(o.score, 4), mastery_before=o.mastery_before,
                                mastery_after=o.mastery_after,
-                               state_before=state_of_mastery(o.mastery_before),
-                               state_after=state_of_mastery(o.mastery_after))
+                               state_before=labelled(o.capability_id, o.mastery_before, before),
+                               state_after=labelled(o.capability_id, o.mastery_after, after))
                  for o in result.outcomes],
         explanation=result.explanation,
         teach=s.TeachHint(capability_id=weakest.capability_id,
@@ -1010,6 +1023,7 @@ def lesson_result(learner_id: str, req: s.LessonResultRequest):
 
     profile = load_profile(learner_id)
     cap = capability_or_404(req.capability_id)
+    before = mastered_skills(profile, library())  # before the checks change unit coverage
     eid = f"checks-{cap.id}-{uuid.uuid4().hex[:8]}"
     rubric = tuple(RubricCriterion(id=f"{eid}-c{i}", criterion=f"Understands: {c.title}",
                                    capability_id=cap.id)
@@ -1030,7 +1044,7 @@ def lesson_result(learner_id: str, req: s.LessonResultRequest):
     result = assess(profile, item, response, judge, max_observed=0.6)
     profile.save()
     save_evidence(result)
-    return attempt_result(profile, item, result)
+    return attempt_result(profile, item, result, before)
 
 
 @app.post("/api/learners/{learner_id}/help", response_model=s.Help)
@@ -1120,6 +1134,9 @@ def get_evidence(learner_id: str):
                 capability_id=texts.get(r["criterionId"], ("", ev["capabilityId"]))[1],
                 verdict=s.Verdict(r["verdict"]), justification=r.get("justification", ""))
                 for r in ev.get("results", [])],
+            # Past entries carry only the recorded estimates; their states here are the bare
+            # threshold (no replay of coverage or challenges), so the History page shows the
+            # numbers and no mastery badge.
             changes=[s.SkillChange(
                 capability_id=o["capabilityId"], name=graph().get(o["capabilityId"]).name,
                 score=o["score"], mastery_before=o["masteryBefore"],

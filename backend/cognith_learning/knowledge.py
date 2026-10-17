@@ -217,7 +217,7 @@ class GapResolver:
             elif criteria and row.mastery is not None:
                 reason = "met the capability overall, but specific criteria were missed"
             elif include_unverified and row.is_unverified:
-                reason = f"claimed {row.confidence:.0%} but never verified"
+                reason = f"starting estimate {row.confidence:.0%}, never verified"
             else:
                 continue
             found.append(Gap(

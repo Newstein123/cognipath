@@ -129,7 +129,7 @@ def show_verify(path: list[MilestoneProgress], graph: CapabilityGraph,
         cap = graph.get(r.capability_id)
         testable = [e for e in library.for_capability(cap.id)
                     if e.type is ExperienceType.DIAGNOSTIC]
-        reason = ("you rated yourself " + pct(r.row.confidence) + " and nothing checked it"
+        reason = ("your starting estimate is " + pct(r.row.confidence) + " and nothing checked it"
                   if r.state is RequirementState.CLAIMED
                   else "nothing is known about it at all")
         print(f"  {cap.name}   — {reason}")

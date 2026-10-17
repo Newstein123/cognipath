@@ -347,13 +347,11 @@ class ExperienceLibrary:
                 out.append(e)
         return out
 
-    def apply_blocked_by(self, experience: LearningExperience, profile) -> list[Capability]:
-        """Which of an apply scenario's components are not mastered yet. A capstone is the
-        step after mastery: one diagnosis answer per topic is not enough to integrate them."""
-        from cognith_student.models import DEMONSTRATED_AT
-
-        return [self.graph.get(c) for c in experience.requires
-                if (profile.row_for(c).mastery or 0.0) < DEMONSTRATED_AT]
+    def apply_blocked_by(self, experience: LearningExperience, mastered: set[str]) -> list[Capability]:
+        """Which of an apply scenario's components are not mastered yet (`mastered` from
+        cognith_learning.mastery). A capstone is the step after mastery: one diagnosis
+        answer per topic is not enough to integrate them."""
+        return [self.graph.get(c) for c in experience.requires if c not in mastered]
 
     def practice_for(self, capability_id: str) -> list[LearningExperience]:
         """Exercises only — what to offer once a gap is known and explained."""

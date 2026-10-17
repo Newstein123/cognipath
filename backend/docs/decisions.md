@@ -1812,3 +1812,23 @@ and the placement step (`cognith_learning/loop.py`);
 **Known gap:** learners diagnosed before this change can still hold a stored 70% from a
 diagnosis. Their profile shows Developing, but the plan treats the unit as done. New
 learners are not affected.
+
+---
+
+## D63 — The frontend deploys to Firebase App Hosting, not static Hosting
+
+**Decision:** the Next.js app deploys to Firebase App Hosting (`frontend/apphosting.yaml`),
+which runs `next build` and serves it as-is. Plain Firebase Hosting, which serves static
+files only, was rejected.
+
+**Why:** every learner page sits under `/learn/[id]/…`, and learners are created at
+runtime. A static export needs every `id` at build time (`generateStaticParams`), which
+cannot exist for them; `next build` lists all seven `/learn` routes as rendered on
+demand. Making them static means moving the ids into query strings across every page,
+two days before the deadline. App Hosting needs no source change. `NEXT_PUBLIC_API_URL`
+is set for BUILD because Next.js bakes it into the browser bundle.
+
+**Where:** `frontend/apphosting.yaml`, `DEPLOY.md` Part D.
+
+**Revisit when:** the frontend must be served from a CDN with no server, or App Hosting's
+cost or regions stop fitting.

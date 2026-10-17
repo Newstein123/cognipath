@@ -1,7 +1,11 @@
 # Firestore storage — handoff for Onyx
 
-**Status:** not built. **Owner:** Onyx. **Needed by:** 17 Oct, so the deployed demo
-keeps learner progress. Fallback at the end if it slips.
+**Status:** built 16 Oct. `FirestoreStorage` in `cognith_student/storage.py` follows the
+starting point below; the copy script is `seed_firestore.py`; deploy steps are in
+[DEPLOY.md](../../DEPLOY.md). Both Testing commands below pass on the emulator
+(emulator 1.22.0), and so does plain `pytest tests/`, apart from the two tests that need
+the local-only `courses/mat221`. `seed_firestore.py` copies all five seed learners
+unchanged. Not yet run against a real project's Firestore; DEPLOY.md Part F checks that.
 
 ## Why this matters
 
@@ -129,7 +133,8 @@ COGNITH_TEST_STORAGE=firestore .venv/bin/python -m pytest tests/                
 ## Copying the demo learners into Firestore
 
 Run this once per environment after deploying. It copies only the seed learners, never
-local test learners:
+local test learners. Built as `seed_firestore.py`, which also skips learners already in
+Firestore so a second run cannot duplicate evidence:
 
 ```python
 from cognith_student.storage import FileStorage, FirestoreStorage
@@ -171,10 +176,10 @@ service cloud.firestore {
 
 ## Also before deploying
 
-`backend/.dockerignore` currently copies all of `data/` and `courses/mat221/` into the
-image. Exclude `courses/mat221/` (the lecturer's material must not be public) and the
-non-seed learner files. With Firestore on, the image doesn't need `data/students` or
-`data/evidence` at all, apart from the copy script above.
+Done. `backend/.dockerignore` now excludes `courses/mat221/`, `data/generated/` and every
+learner file except the committed seeds. The seeds stay in the image so the file-storage
+fallback still has the demo learners. Everything else under `courses/` ships unchanged:
+it is the knowledge engine's read-only data.
 
 ## Fallback if this isn't ready by 17 Oct
 

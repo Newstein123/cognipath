@@ -30,6 +30,11 @@ npm run dev                                  # http://localhost:3000
 
 Expects the backend on `http://localhost:8000` (override with `NEXT_PUBLIC_API_URL`).
 
+## Deploying
+
+Backend on Cloud Run, frontend on Firebase App Hosting, learners in Firestore: see
+[DEPLOY.md](DEPLOY.md).
+
 ## Demo without touching the seeded data
 
 ```bash

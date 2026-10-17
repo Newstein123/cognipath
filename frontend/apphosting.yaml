@@ -10,7 +10,7 @@ env:
   # Next.js bakes NEXT_PUBLIC_* into the browser bundle at build time, so BUILD is
   # required; changing it needs a new rollout, not just a restart.
   - variable: NEXT_PUBLIC_API_URL
-    value: https://REPLACE-WITH-CLOUD-RUN-URL.run.app
+    value: https://cognith-api-985996716129.us-central1.run.app
     availability:
       - BUILD
       - RUNTIME

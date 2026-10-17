@@ -5,12 +5,11 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, param, stepHref, type NextActivities, type SkillProfile, type Step, type UnitInfo } from "@/lib/api";
 import { ErrorBox, KindBadge, Loading, PageHead, StateLabel, StepCard } from "@/components/ui";
-import { TutorPanel } from "@/components/TutorPanel";
 
 /** Home: who you are and where you're heading, how far you've got, and the one thing to do
  *  next — with an alternative if you'd rather. The full skill picture lives on the Skill
  *  profile, past answers in History. Nothing here is generated, so Home spends no AI quota;
- *  the tutor beside it asks only when the learner sends a question. */
+ *  the tutor (opened from the header) asks only when the learner sends a question. */
 
 const CONCEPT: Record<string, string> = {
   met: "Shown", partial: "Shown after a second explanation", unmet: "Covered, not shown yet",
@@ -63,41 +62,38 @@ export default function Home() {
     && profile.skills.find((s) => s.capabilityId === top.capabilityId)?.coverage);
 
   return (
-    <div className="home-layout">
-      <div className="home">
-        <PageHead eyebrow={learner.course.name} title={`Hi ${learner.name}`}>
-          {learner.goal ? <>Working toward <strong>{learner.goal}</strong></> : null}
-        </PageHead>
+    <div className="home">
+      <PageHead eyebrow={learner.course.name} title={`Hi ${learner.name}`}>
+        {learner.goal ? <>Working toward <strong>{learner.goal}</strong></> : null}
+      </PageHead>
 
-        <section className="summary" aria-labelledby="summary-h">
-          <h2 id="summary-h" className="visually-hidden">Your skills</h2>
-          <ul className="summary-counts">
-            {(["mastered", "developing", "unknown"] as const).map((st) => (
-              <li key={st} aria-describedby={st === "unknown" && learner.counts.unknown > 0 ? "unknown-note" : undefined}>
-                <strong>{learner.counts[st]}</strong> <StateLabel state={st} />
-              </li>
-            ))}
-          </ul>
-          <Link href={`${base}/profile`} className="summary-link">View skill profile →</Link>
-          {learner.counts.unknown > 0 && (
-            <p className="summary-note" id="unknown-note">
-              <span className="state-text unknown" aria-hidden="true">○</span> These skills haven&apos;t been assessed yet.
-            </p>
-          )}
-        </section>
-
-        <NextCard learnerId={id} step={top} plan={plan} planError={planError} hasUnit={hasUnit}
-          onRetry={() => setPlanTry((n) => n + 1)} />
-
-        {alternatives.length > 0 && (
-          <section className="alternatives" aria-labelledby="alt-h">
-            <h2 id="alt-h">Or try instead</h2>
-            <StepCard learnerId={id} step={alternatives[0]} />
-            {alternatives.length > 1 && <MoreOptions learnerId={id} steps={alternatives.slice(1)} />}
-          </section>
+      <section className="summary" aria-labelledby="summary-h">
+        <h2 id="summary-h" className="visually-hidden">Your skills</h2>
+        <ul className="summary-counts">
+          {(["mastered", "developing", "unknown"] as const).map((st) => (
+            <li key={st} aria-describedby={st === "unknown" && learner.counts.unknown > 0 ? "unknown-note" : undefined}>
+              <strong>{learner.counts[st]}</strong> <StateLabel state={st} />
+            </li>
+          ))}
+        </ul>
+        <Link href={`${base}/profile`} className="summary-link">View skill profile →</Link>
+        {learner.counts.unknown > 0 && (
+          <p className="summary-note" id="unknown-note">
+            <span className="state-text unknown" aria-hidden="true">○</span> These skills haven&apos;t been assessed yet.
+          </p>
         )}
-      </div>
-      <TutorPanel learnerId={id} />
+      </section>
+
+      <NextCard learnerId={id} step={top} plan={plan} planError={planError} hasUnit={hasUnit}
+        onRetry={() => setPlanTry((n) => n + 1)} />
+
+      {alternatives.length > 0 && (
+        <section className="alternatives" aria-labelledby="alt-h">
+          <h2 id="alt-h">Or try instead</h2>
+          <StepCard learnerId={id} step={alternatives[0]} />
+          {alternatives.length > 1 && <MoreOptions learnerId={id} steps={alternatives.slice(1)} />}
+        </section>
+      )}
     </div>
   );
 }

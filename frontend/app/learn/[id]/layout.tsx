@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, param, type Course } from "@/lib/api";
 import { setInlineMath } from "@/lib/settings";
 import { ThemeSwitch } from "@/components/ui";
+import { SIDE_BY_SIDE, TutorModal, TutorRail, TutorToggle, useMedia } from "@/components/TutorPanel";
 
 // 24×24 outline icons, drawn in currentColor so they follow the link's state.
 const ICON: Record<string, React.ReactNode> = {
@@ -32,6 +33,13 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
   const [menuOpen, setMenuOpen] = useState(false);
   const sidebar = useRef<HTMLElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
+  // The tutor: closed until asked for. Beside the page on wide screens, a dialog otherwise.
+  const [tutorOpen, setTutorOpen] = useState(false);
+  const tutorButton = useRef<HTMLButtonElement>(null);
+  const wide = useMedia(SIDE_BY_SIDE);
+  // Another learner, or a change between the side-by-side and dialog forms, starts closed.
+  useEffect(() => { setTutorOpen(false); }, [id, wide]);
+  const closeTutor = () => { setTutorOpen(false); tutorButton.current?.focus(); };
   useEffect(() => {
     api.profile(id).then((p) => {
       setInlineMath(p.learner.course.inlineMath); setCourse(p.learner.course); setLearnerName(p.learner.name);
@@ -99,9 +107,14 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
   ];
   const isActive = (href: string) =>
     href === base ? path === base : path.startsWith(href);
+  // Offered on Home, the skill profile and history. Not on the tutor page (it is the chat),
+  // in a lesson (it has its own chat, scoped to that topic), or during a diagnosis or
+  // challenge (an attempt is answered without the tutor beside it).
+  const tutorHere = !!course && [base, `${base}/profile`, `${base}/history`].includes(path);
+  const rail = tutorHere && wide;
 
   return (
-    <div className="shell">
+    <div className={rail ? (tutorOpen ? "shell has-tutor tutor-open" : "shell has-tutor") : "shell"}>
       {/* Mobile only (CSS): catches the first outside tap so it closes the menu and nothing else. */}
       <div className={menuOpen ? "backdrop open" : "backdrop"} aria-hidden="true" onClick={() => setMenuOpen(false)} />
       <aside ref={sidebar} className={menuOpen ? "sidebar open" : "sidebar"}
@@ -135,8 +148,17 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
       </aside>
-      {/* Home is wide: the learning column and the tutor panel side by side (globals.css). */}
-      <main className={path === base ? "main wide" : "main"} id="main" inert={menuOpen}>{course ? children : null}</main>
+      {/* Home's content is centred, up to about 1100px (globals.css). */}
+      <main className={path === base ? "main wide" : "main"} id="main" inert={menuOpen}>
+        {tutorHere && (
+          <div className="learner-bar">
+            <TutorToggle open={tutorOpen} onToggle={() => setTutorOpen((o) => !o)} buttonRef={tutorButton} />
+          </div>
+        )}
+        {course ? children : null}
+      </main>
+      {rail && <TutorRail learnerId={id} open={tutorOpen} onClose={closeTutor} />}
+      {tutorHere && !wide && <TutorModal learnerId={id} open={tutorOpen} onClose={closeTutor} />}
     </div>
   );
 }

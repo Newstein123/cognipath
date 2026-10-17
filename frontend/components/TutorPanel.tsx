@@ -41,7 +41,9 @@ export function TutorToggle({ open, onToggle, buttonRef }: {
 /** Wide screens: a column beside the page. It stays mounted so opening and closing can
  *  animate (the page grid widens the column, .shell.has-tutor); closed, it is hidden and
  *  inert. Focus goes to the composer on open; Escape or Close hands it back to the toggle. */
-export function TutorRail({ learnerId, open, onClose }: { learnerId: string; open: boolean; onClose: () => void }) {
+export function TutorRail({ learnerId, capabilityId, open, onClose }: {
+  learnerId: string; capabilityId?: string; open: boolean; onClose: () => void;
+}) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     if (open) ref.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus({ preventScroll: true });
@@ -50,17 +52,19 @@ export function TutorRail({ learnerId, open, onClose }: { learnerId: string; ope
     <aside ref={ref} id={TUTOR_ID} className={open ? "tutor-rail open" : "tutor-rail"} aria-label="Tutor"
       inert={!open} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
       <div className="tutor-rail-inner">
-        <TutorChat variant="panel" learnerId={learnerId} autoFocus onClose={onClose} />
+        <TutorChat variant="panel" learnerId={learnerId} capabilityId={capabilityId} autoFocus onClose={onClose} />
       </div>
     </aside>
   );
 }
 
 /** Narrower screens: the same chat in a modal dialog. */
-export function TutorModal({ learnerId, open, onClose }: { learnerId: string; open: boolean; onClose: () => void }) {
+export function TutorModal({ learnerId, capabilityId, open, onClose }: {
+  learnerId: string; capabilityId?: string; open: boolean; onClose: () => void;
+}) {
   return (
     <TutorDialog open={open} onClose={onClose}>
-      <TutorChat variant="panel" learnerId={learnerId} autoFocus onClose={onClose} />
+      <TutorChat variant="panel" learnerId={learnerId} capabilityId={capabilityId} autoFocus onClose={onClose} />
     </TutorDialog>
   );
 }
@@ -114,6 +118,9 @@ function TutorDialog({ open, onClose, children }: { open: boolean; onClose: () =
       d.removeEventListener("keydown", onKey);
       vv?.removeEventListener("resize", fit);
       vv?.removeEventListener("scroll", fit);
+      // Close first: the browser then returns focus to the toggle while the page is still
+      // held, and the scroll restored below is where the learner was, not the toggle.
+      if (d.open) d.close();
       d.style.height = ""; d.style.top = "";
       Object.assign(body.style, before);
       window.scrollTo(0, y);

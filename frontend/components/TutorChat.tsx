@@ -2,25 +2,25 @@
 
 import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import type { TutorAnswer } from "@/lib/api";
-import { ask, chatKey, setDraft, useChat, type ChatMessage } from "@/lib/tutorChat";
+import { ask, chatKey, setDraft, useChat, useChatExtras, type ChatMessage } from "@/lib/tutorChat";
 import { ErrorBox, Loading, Markdown, Sources } from "./ui";
 
 /** The tutor as a conversation: the learner's questions and the tutor's answers as
- *  bubbles, a composer at the bottom. One component for the Home panel, the tutor page and
- *  a lesson. Nothing is sent until the learner submits — opening it calls nothing. */
+ *  bubbles, a composer at the bottom. One component for the header's panel or dialog and the
+ *  tutor page. Nothing is sent until the learner submits — opening it calls nothing. */
 export function TutorChat({
-  learnerId, capabilityId, presets = [], placeholder, title = "Ask the tutor",
+  learnerId, capabilityId, presets: presetsProp, placeholder: placeholderProp, title = "Ask the tutor",
   variant, onClose, autoFocus = false,
 }: {
   learnerId: string;
   /** Keeps answers inside one capability's material, e.g. during its lesson. */
   capabilityId?: string;
-  /** One-click follow-ups, e.g. "Show me an example". */
+  /** One-click follow-ups, e.g. "Show me an example". Default: what the page set (setChatExtras). */
   presets?: { label: string; question: string }[];
   placeholder?: string;
   title?: string;
-  /** panel: Home's side panel or dialog · page: the tutor page · inline: inside a lesson. */
-  variant: "panel" | "page" | "inline";
+  /** panel: the header's side panel or dialog · page: the tutor page. */
+  variant: "panel" | "page";
   /** Shown as a Close button (the dialog). */
   onClose?: () => void;
   /** Marks the composer as where a dialog puts focus when it opens. */
@@ -28,6 +28,9 @@ export function TutorChat({
 }) {
   const key = chatKey(learnerId, capabilityId);
   const { messages, draft, busy } = useChat(key);
+  const extras = useChatExtras(key);
+  const presets = presetsProp ?? extras.presets ?? [];
+  const placeholder = placeholderProp ?? extras.placeholder;
   const ids = useId();
   const log = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);

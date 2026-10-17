@@ -6,7 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { activityHref, api, param, type AttemptResult, type Lesson, type Step, type UnitInfo } from "@/lib/api";
 import { GuidedLesson, LessonOutcome } from "@/components/GuidedLesson";
 import { UnitProgress } from "@/components/UnitProgress";
-import { TutorChat } from "@/components/TutorChat";
+import { chatKey, setChatExtras } from "@/lib/tutorChat";
 import { ErrorBox, Loading, Markdown, PageHead, Sources, StepCard } from "@/components/ui";
 
 export default function LessonPage() {
@@ -79,11 +79,21 @@ function LessonView() {
     }
   }
 
-  const presets = [
-    { label: "Explain it more simply", question: `Explain the most important idea of ${name} in plain words for a beginner.` },
-    { label: "Show me another example", question: `Give a concrete example from the material that shows ${name} in practice.` },
-    { label: "Common mistakes", question: `What mistakes do people commonly make with ${name}, and how do you avoid them?` },
-  ];
+  // The header's tutor (opened from the layout) is scoped to this topic; this page adds its
+  // placeholder and, when there is no guided lesson, its one-click questions.
+  useEffect(() => {
+    if (!lesson) return;
+    const key = chatKey(id, cap);
+    setChatExtras(key, {
+      placeholder: `Ask a specific question about ${name}…`,
+      presets: guided ? [] : [
+        { label: "Explain it more simply", question: `Explain the most important idea of ${name} in plain words for a beginner.` },
+        { label: "Show me another example", question: `Give a concrete example from the material that shows ${name} in practice.` },
+        { label: "Common mistakes", question: `What mistakes do people commonly make with ${name}, and how do you avoid them?` },
+      ],
+    });
+    return () => setChatExtras(key, null);
+  }, [id, cap, lesson, guided, name]);
 
   return (
     <>
@@ -191,11 +201,6 @@ function LessonView() {
             </div>
           )}
         </div>
-      )}
-
-      {lesson && (
-        <TutorChat variant="inline" learnerId={id} capabilityId={cap} presets={guided ? [] : presets}
-          title="Ask the tutor" placeholder={`Ask a specific question about ${name}…`} />
       )}
 
       {showChallenge && practice && practice.activityId !== retry && (

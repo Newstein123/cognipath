@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, param, type Course } from "@/lib/api";
 import { setInlineMath } from "@/lib/settings";
 import { ThemeSwitch } from "@/components/ui";
+import { SIDE_BY_SIDE, TutorModal, TutorRail, TutorToggle, useMedia } from "@/components/TutorPanel";
 
 // 24×24 outline icons, drawn in currentColor so they follow the link's state.
 const ICON: Record<string, React.ReactNode> = {
@@ -24,7 +25,8 @@ function Icon({ name }: { name: string }) {
 }
 
 export default function LearnerLayout({ children }: { children: React.ReactNode }) {
-  const id = param(useParams().id);
+  const params = useParams();
+  const id = param(params.id);
   const path = usePathname();
   // The learner's course decides display settings (inline maths); render once known.
   const [course, setCourse] = useState<Course | null>(null);
@@ -32,6 +34,18 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
   const [menuOpen, setMenuOpen] = useState(false);
   const sidebar = useRef<HTMLElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
+  // The tutor: closed until asked for. Beside the page on wide screens, a dialog otherwise.
+  const [tutorOpen, setTutorOpen] = useState(false);
+  const tutorButton = useRef<HTMLButtonElement>(null);
+  const wide = useMedia(SIDE_BY_SIDE);
+  // In a lesson the tutor answers from that topic's material only: its own conversation,
+  // never the course-wide one. The topic comes from the route, so it is right from the start.
+  const lessonCap = path.startsWith(`/learn/${encodeURIComponent(id)}/lesson/`) && params.cap ? param(params.cap) : undefined;
+  // Another learner or topic, or a change between the side-by-side and dialog forms, starts closed.
+  useEffect(() => { setTutorOpen(false); }, [id, wide, lessonCap]);
+  // Focus goes back to the toggle without scrolling to it: closing must leave a learner
+  // where they were reading, e.g. far down a lesson.
+  const closeTutor = () => { setTutorOpen(false); tutorButton.current?.focus({ preventScroll: true }); };
   useEffect(() => {
     api.profile(id).then((p) => {
       setInlineMath(p.learner.course.inlineMath); setCourse(p.learner.course); setLearnerName(p.learner.name);
@@ -99,9 +113,14 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
   ];
   const isActive = (href: string) =>
     href === base ? path === base : path.startsWith(href);
+  // Offered on Home, the skill profile, history and lessons (scoped to the lesson's topic).
+  // Not on the tutor page (it is the chat) or during a diagnosis or challenge (an attempt is
+  // answered without the tutor beside it).
+  const tutorHere = !!course && (!!lessonCap || [base, `${base}/profile`, `${base}/history`].includes(path));
+  const rail = tutorHere && wide;
 
   return (
-    <div className="shell">
+    <div className={rail ? (tutorOpen ? "shell has-tutor tutor-open" : "shell has-tutor") : "shell"}>
       {/* Mobile only (CSS): catches the first outside tap so it closes the menu and nothing else. */}
       <div className={menuOpen ? "backdrop open" : "backdrop"} aria-hidden="true" onClick={() => setMenuOpen(false)} />
       <aside ref={sidebar} className={menuOpen ? "sidebar open" : "sidebar"}
@@ -135,8 +154,17 @@ export default function LearnerLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
       </aside>
-      {/* Home is wide: the learning column and the tutor panel side by side (globals.css). */}
-      <main className={path === base ? "main wide" : "main"} id="main" inert={menuOpen}>{course ? children : null}</main>
+      {/* Home's content is centred, up to about 1100px (globals.css). */}
+      <main className={path === base ? "main wide" : "main"} id="main" inert={menuOpen}>
+        {tutorHere && (
+          <div className="learner-bar">
+            <TutorToggle open={tutorOpen} onToggle={() => setTutorOpen((o) => !o)} buttonRef={tutorButton} />
+          </div>
+        )}
+        {course ? children : null}
+      </main>
+      {rail && <TutorRail learnerId={id} capabilityId={lessonCap} open={tutorOpen} onClose={closeTutor} />}
+      {tutorHere && !wide && <TutorModal learnerId={id} capabilityId={lessonCap} open={tutorOpen} onClose={closeTutor} />}
     </div>
   );
 }

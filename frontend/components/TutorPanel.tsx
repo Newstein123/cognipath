@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { TutorChat } from "./TutorChat";
 
-/** Width at which Home has room for the tutor beside the learning column (sidebar 248 +
- *  padding + a ≥ 560px column + gap + a 360px panel). Narrower, the tutor is a launcher. */
-const SIDE_BY_SIDE = "(min-width: 1280px)";
+/** Width at which the tutor fits beside the page (sidebar 248 + padding + a >= 560px
+ *  column + a 360px panel). Narrower, it opens as a dialog instead. */
+export const SIDE_BY_SIDE = "(min-width: 1280px)";
 
-function useMedia(query: string): boolean {
-  const [matches, setMatches] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+/** Starts false on the server and the first client render (no hydration mismatch); the
+ *  real value arrives one effect later, while the tutor is still closed. */
+export function useMedia(query: string): boolean {
+  const [matches, setMatches] = useState(false);
   useEffect(() => {
     const m = window.matchMedia(query);
     const onChange = () => setMatches(m.matches);
@@ -19,36 +21,51 @@ function useMedia(query: string): boolean {
   return matches;
 }
 
-/** Home's tutor: a panel beside the learning column on wide screens; on smaller ones a
- *  launcher, docked along the bottom edge, that opens it as a dialog. Messages and draft live in lib/tutorChat, so
- *  they are the same in both forms and survive closing it. */
-export function TutorPanel({ learnerId }: { learnerId: string }) {
-  const wide = useMedia(SIDE_BY_SIDE);
-  const [open, setOpen] = useState(false);
-  const launcher = useRef<HTMLButtonElement>(null);
-  useEffect(() => { if (wide) setOpen(false); }, [wide]);
+export const TUTOR_ID = "tutor-panel";
 
-  if (wide) {
-    return (
-      <aside className="home-tutor" aria-label="Tutor">
-        <TutorChat variant="panel" learnerId={learnerId} />
-      </aside>
-    );
-  }
+/** The header's "Ask the tutor" button. Opening or closing the tutor sends nothing: the
+ *  conversation and draft live in lib/tutorChat and survive both. */
+export function TutorToggle({ open, onToggle, buttonRef }: {
+  open: boolean; onToggle: () => void; buttonRef: React.RefObject<HTMLButtonElement | null>;
+}) {
   return (
-    <>
-      <div className="tutor-dock">
-        <button ref={launcher} type="button" className="tutor-launcher" aria-haspopup="dialog" aria-expanded={open}
-          onClick={() => setOpen(true)}>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8"
-            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
-          Ask the tutor
-        </button>
+    <button ref={buttonRef} type="button" className="tutor-toggle" aria-expanded={open} aria-controls={TUTOR_ID}
+      onClick={onToggle}>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
+      Ask the tutor
+    </button>
+  );
+}
+
+/** Wide screens: a column beside the page. It stays mounted so opening and closing can
+ *  animate (the page grid widens the column, .shell.has-tutor); closed, it is hidden and
+ *  inert. Focus goes to the composer on open; Escape or Close hands it back to the toggle. */
+export function TutorRail({ learnerId, capabilityId, open, onClose }: {
+  learnerId: string; capabilityId?: string; open: boolean; onClose: () => void;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (open) ref.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus({ preventScroll: true });
+  }, [open]);
+  return (
+    <aside ref={ref} id={TUTOR_ID} className={open ? "tutor-rail open" : "tutor-rail"} aria-label="Tutor"
+      inert={!open} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
+      <div className="tutor-rail-inner">
+        <TutorChat variant="panel" learnerId={learnerId} capabilityId={capabilityId} autoFocus onClose={onClose} />
       </div>
-      <TutorDialog open={open} onClose={() => { setOpen(false); launcher.current?.focus(); }}>
-        <TutorChat variant="panel" learnerId={learnerId} autoFocus onClose={() => { setOpen(false); launcher.current?.focus(); }} />
-      </TutorDialog>
-    </>
+    </aside>
+  );
+}
+
+/** Narrower screens: the same chat in a modal dialog. */
+export function TutorModal({ learnerId, capabilityId, open, onClose }: {
+  learnerId: string; capabilityId?: string; open: boolean; onClose: () => void;
+}) {
+  return (
+    <TutorDialog open={open} onClose={onClose}>
+      <TutorChat variant="panel" learnerId={learnerId} capabilityId={capabilityId} autoFocus onClose={onClose} />
+    </TutorDialog>
   );
 }
 
@@ -101,6 +118,9 @@ function TutorDialog({ open, onClose, children }: { open: boolean; onClose: () =
       d.removeEventListener("keydown", onKey);
       vv?.removeEventListener("resize", fit);
       vv?.removeEventListener("scroll", fit);
+      // Close first: the browser then returns focus to the toggle while the page is still
+      // held, and the scroll restored below is where the learner was, not the toggle.
+      if (d.open) d.close();
       d.style.height = ""; d.style.top = "";
       Object.assign(body.style, before);
       window.scrollTo(0, y);
@@ -108,7 +128,7 @@ function TutorDialog({ open, onClose, children }: { open: boolean; onClose: () =
   }, [open]);
 
   return (
-    <dialog ref={ref} className="tutor-dialog" aria-label="Ask the tutor"
+    <dialog ref={ref} id={TUTOR_ID} className="tutor-dialog" aria-label="Ask the tutor"
       onCancel={(e) => { e.preventDefault(); onClose(); }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       {open && children}

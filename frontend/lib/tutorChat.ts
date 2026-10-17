@@ -43,6 +43,21 @@ export function useChat(key: string): Chat {
   return useSyncExternalStore((l) => subscribe(key, l), () => read(key), () => EMPTY);
 }
 
+/** What the page a conversation belongs to adds to it: a lesson's placeholder and its
+ *  one-click questions. Set by that page while it is open; the chat itself owns nothing here. */
+export interface ChatExtras { placeholder?: string; presets?: { label: string; question: string }[] }
+const NO_EXTRAS: ChatExtras = {};
+const extras = new Map<string, ChatExtras>();
+
+export function setChatExtras(key: string, value: ChatExtras | null) {
+  if (value) extras.set(key, value); else extras.delete(key);
+  listeners.get(key)?.forEach((l) => l());
+}
+
+export function useChatExtras(key: string): ChatExtras {
+  return useSyncExternalStore((l) => subscribe(key, l), () => extras.get(key) ?? NO_EXTRAS, () => NO_EXTRAS);
+}
+
 export function setDraft(key: string, draft: string) {
   write(key, (c) => ({ ...c, draft }));
 }

@@ -13,6 +13,17 @@ Browser ──▶ App Hosting (Next.js) ──fetch──▶ Cloud Run: cognith-
 
 Do the parts in order. Part A is clicking in the console; the rest is a few commands.
 
+## Live deployment
+
+| What | Where |
+|---|---|
+| Project | `cognithpath`, region `us-central1` |
+| Frontend | <https://cognith-web--cognithpath.us-central1.hosted.app> |
+| Backend | <https://cognith-api-985996716129.us-central1.run.app> (`/health`) |
+
+To update it, see [Updating later](#updating-later). The rest of this guide sets up a new
+project from scratch.
+
 ## Names used in this guide
 
 | What | Value |
@@ -31,8 +42,8 @@ Do the parts in order. Part A is clicking in the console; the rest is a few comm
 - A Google account.
 - A payment card. Cloud Run and App Hosting need the Blaze (pay-as-you-go) plan.
 - A Gemini API key, or create one in A5.
-- Admin rights on the GitHub repo `Newstein123/cognipath`, to install the Firebase GitHub app in D2.
-- On your laptop: `gcloud`, Python 3.10+, git. Docker is not needed; Cloud Build builds the image.
+- On your laptop: `gcloud`, Python 3.10+, Node.js (for the Firebase CLI), git. Docker is
+  not needed; Cloud Build builds the images.
 - About 45 minutes. The first deploy of each part takes 5–10 minutes.
 
 ---
@@ -164,32 +175,60 @@ learners that are already there.
 
 ### D1. Point the frontend at the backend
 
-In `frontend/apphosting.yaml`, replace `https://REPLACE-WITH-CLOUD-RUN-URL.run.app` with your
-`API_URL`, with no trailing slash. Commit and push to `main`.
+In `frontend/apphosting.yaml`, set the `NEXT_PUBLIC_API_URL` value to your `API_URL`, with
+no trailing slash.
 
-Next.js puts this URL into the browser code **at build time**, so it must be pushed before
-the first rollout. Changing it later needs a new rollout, which a push to `main` triggers.
+Next.js puts this URL into the browser code **at build time**, so it must be set before
+the first deploy. Changing it later needs a new deploy, not just a restart.
 
-### D2. Create the App Hosting backend
+### D2. Deploy from your laptop
 
-1. In the Firebase console open **App Hosting** (under **Build**, or **Hosting &
-   Serverless**; the search box finds it). Click **Get started** (or **Create backend**).
-2. **Region:** `us-central1`.
-3. **Repository:** click **Connect to GitHub**, authorise, then install the Firebase App
-   Hosting GitHub app on `Newstein123/cognipath`. This needs admin rights on that repo.
-   Select the repo.
-4. **Deployment settings:**
-   - App root directory: `/frontend`
-   - Live branch: `main`
-   - Automatic rollouts: **on**
-5. **Backend name:** `cognith-web`.
-6. If asked to associate a Firebase web app, let it create one. The code doesn't use it,
-   but it does no harm.
-7. Click **Finish and deploy**. The first rollout takes 5–10 minutes; the **Rollouts** tab
-   shows progress and build logs.
+This deploys the files on your laptop, so it needs no GitHub connection. It is how the
+live app was deployed. The CLI uploads `frontend/` only, minus what `frontend/.gitignore`
+excludes, and App Hosting builds it in the cloud.
 
-When it finishes, the backend's dashboard shows a URL like
+```bash
+npm install -g firebase-tools
+firebase login                                  # the Google account that owns the project
+cd frontend
+firebase init apphosting --project PROJECT_ID   # first time in a new project only
+firebase deploy --only apphosting
+```
+
+`frontend/firebase.json` and `frontend/.firebaserc` are committed for the project
+`cognithpath`, so someone with access to that project only needs `firebase login` and
+`firebase deploy --only apphosting`. In a new project, run `firebase init apphosting`
+from `frontend/` and answer:
+
+| Question | Answer |
+|---|---|
+| Please select an option | **Create a new backend** |
+| Select a primary region | **us-central1** |
+| Provide a name for your backend | **cognith-web** |
+| Which runtime do you want to use? | the first option, **Node.js (default)** |
+| Specify your app's root directory relative to your firebase.json directory | press **Enter** (keeps `/`) |
+| File apphosting.yaml already exists. Overwrite? | **N.** Yes would erase the backend URL from D1. |
+| Install agent skills for Firebase? | **n** |
+
+`firebase deploy` takes 5–10 minutes and ends with **Deploy complete!**. The site is at
 `https://cognith-web--PROJECT_ID.us-central1.hosted.app`. That is your `WEB_URL`.
+
+### D3. Optional: deploy automatically on every push to `main`
+
+App Hosting can instead build from GitHub on every push. This needs the Firebase App
+Hosting GitHub app installed on the repo. `Newstein123/cognipath` belongs to a personal
+account, so only its owner can install it.
+
+1. In the Firebase console open **App Hosting**. Click **Get started** (or **Create
+   backend**).
+2. **Region:** `us-central1`.
+3. **Repository:** click **Connect to GitHub**, authorise, install the Firebase App Hosting
+   GitHub app on the repo, and select it.
+4. **Deployment settings:** app root directory `/frontend`, live branch `main`, automatic
+   rollouts **on**.
+5. **Backend name:** a new one, e.g. `cognith-web-git`. Its URL differs from D2's, so add it
+   to CORS in Part E.
+6. Click **Finish and deploy**.
 
 ---
 
@@ -233,7 +272,8 @@ gcloud run services update cognith-api --region us-central1 \
 ## Updating later
 
 - **Backend:** run the Part C command again from `backend/`. Existing settings carry over.
-- **Frontend:** push to `main`. App Hosting rolls it out on its own.
+- **Frontend:** `cd frontend && firebase deploy --only apphosting` (D2). With D3 set up,
+  a push to `main` rolls it out instead.
 - **Course material:** rebuild the index locally with `.venv/bin/python build_pack.py <course-id>`,
   commit, then redeploy the backend. The index is never built on Cloud Run.
 
@@ -244,7 +284,8 @@ Logs: Cloud Run → **cognith-api** → **Logs**. App Hosting → **cognith-web*
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Browser console says "blocked by CORS policy" | `COGNITH_CORS_ORIGINS` does not match `WEB_URL` exactly | Part E: `https://`, no trailing slash |
-| The frontend calls `localhost:8000` or the placeholder URL | `apphosting.yaml` was not updated before the rollout | D1, push, wait for the rollout |
+| The frontend calls `localhost:8000` or the wrong backend | `apphosting.yaml` had another URL when it was built | D1, then deploy again (D2) |
+| `firebase deploy` says it has no backend, or deploys to another project | `.firebaserc` names another project | Run it from `frontend/` with `--project PROJECT_ID` |
 | `/health` shows `"storage": "file"` | The env var is missing | Run the Part C command again |
 | 500 errors; logs show `403` / `PermissionDenied` from Firestore | The service account lacks **Cloud Datastore User**, or the database ID is not `(default)` | A6 / A3 |
 | Lessons and tutor fail; logs mention the secret or `GEMINI_API_KEY` | The service account lacks **Secret Manager Secret Accessor**, or the secret has a different name | A5 / A6 |

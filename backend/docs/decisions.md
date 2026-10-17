@@ -1813,7 +1813,29 @@ and the placement step (`cognith_learning/loop.py`);
 diagnosis. Their profile shows Developing, but the plan treats the unit as done. New
 learners are not affected.
 
-## D63 — A challenge decides its own skill only; an incomplete judgement is refused
+---
+
+## D63 — The frontend deploys to Firebase App Hosting, not static Hosting
+
+**Decision:** the Next.js app deploys to Firebase App Hosting (`frontend/apphosting.yaml`),
+which runs `next build` and serves it as-is. Plain Firebase Hosting, which serves static
+files only, was rejected.
+
+**Why:** every learner page sits under `/learn/[id]/…`, and learners are created at
+runtime. A static export needs every `id` at build time (`generateStaticParams`), which
+cannot exist for them; `next build` lists all seven `/learn` routes as rendered on
+demand. Making them static means moving the ids into query strings across every page,
+two days before the deadline. App Hosting needs no source change. `NEXT_PUBLIC_API_URL`
+is set for BUILD because Next.js bakes it into the browser bundle.
+
+**Where:** `frontend/apphosting.yaml`, `DEPLOY.md` Part D.
+
+**Revisit when:** the frontend must be served from a CDN with no server, or App Hosting's
+cost or regions stop fitting.
+
+---
+
+## D64 — A challenge decides its own skill only; an incomplete judgement is refused
 
 **Decision:** D61's decisive rule applies to the challenge's own skill
 (`item.capability_id`), and only for exercises and generated challenges. Other skills a
@@ -1840,11 +1862,13 @@ answer — and on a challenge, decided the skill.
 moves a mastered skill below 70% after one missed capstone point (0.85 → 0.55, because a
 new observation weighs at least 35%); that is the existing weighting, not changed here.
 
-## D64 — One mastery rule for the profile, its counts, the plan and feedback
+---
+
+## D65 — One mastery rule for the profile, its counts, the plan and feedback
 
 **Decision:** `cognith_learning/mastery.py` is the only place that decides "mastered": evidence
 at `DEMONSTRATED_AT` *and* (no unit material, the unit fully covered, or the skill's own
-latest challenge passed — D62/D63). The profile's badges and counts, the plan's eligibility
+latest challenge passed — D62/D64). The profile's badges and counts, the plan's eligibility
 and wording (capstones, missions, "you've mastered …"), and the before/after labels on
 feedback all use it, each against the right snapshot. A skill whose number reaches 0.70
 but which is not mastered is "unsettled": the plan offers its own exercise if it has one

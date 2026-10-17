@@ -218,7 +218,7 @@ def state_of_mastery(mastery: float | None) -> s.SkillState:
 
 
 def skill_state(row: StudentCapability, mastered: set[str]) -> s.SkillState:
-    """The learner-facing state: mastered under D62/D63 (cognith_learning.mastery), else
+    """The learner-facing state: mastered under D62/D64 (cognith_learning.mastery), else
     developing once assessed, else not verified yet."""
     if row.capability_id in mastered:
         return s.SkillState.MASTERED

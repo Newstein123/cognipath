@@ -4,3 +4,24 @@ __pycache__
 *.pyc
 tests
 .pytest_cache
+
+# The lecturer's material is local only and must never be public.
+courses/mat221
+
+# On Cloud Run learners live in Firestore. Only the committed seed learners ship, so the
+# single-instance file-storage fallback still has the demo; local test learners never do.
+data/generated
+data/students/*
+!data/students/demo.json
+!data/students/fresh.json
+!data/students/003.json
+!data/students/student-001.json
+!data/students/student-002.json
+data/evidence/*
+!data/evidence/demo.json
+!data/evidence/fresh.json
+!data/evidence/003.json
+!data/evidence/student-001.json
+
+# Everything else under courses/ (course packs, knowledge/*.md, index.json) is the
+# knowledge engine's read-only data and must ship unchanged.

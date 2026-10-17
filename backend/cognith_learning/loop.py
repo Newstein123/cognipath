@@ -131,7 +131,7 @@ class AdaptiveLoop:
 
     @property
     def mastered(self) -> set[str]:
-        """Skills mastered under D62/D63 — the same rule the profile and its counts use,
+        """Skills mastered under D62/D64 — the same rule the profile and its counts use,
         so the plan never calls a skill mastered that the learner sees as Developing."""
         if self._mastered is None:
             from .mastery import mastered_skills
@@ -336,7 +336,7 @@ class AdaptiveLoop:
         # Gaps inside the current milestone come first — closing one moves the learner
         # toward their stated destination, and closing one outside it does not.
         ordered_gaps = sorted(gaps, key=lambda g: not self._in_milestone(g.capability_id))
-        # Evidence at the bar that the mastery rule (D62/D63) does not accept yet: neither
+        # Evidence at the bar that the mastery rule (D62/D64) does not accept yet: neither
         # the unit is covered nor the skill's own challenge passed. Such a skill is
         # Developing, so it still needs settling — even when no criterion was missed, which
         # is when GapResolver (a threshold on the number) does not list it.
@@ -363,7 +363,7 @@ class AdaptiveLoop:
                 why = (f"Your evidence on {cap.name} reaches {gap.mastery:.0%}, but a skill "
                        f"counts as mastered only once its unit is covered or its own challenge is passed.")
                 # Only the skill's own exercise decides it; one that merely touches it in a
-                # criterion is evidence, never its challenge (D63).
+                # criterion is evidence, never its challenge (D64).
                 own = [x for x in practice if x.capability_id == cap.id]
                 if own:
                     stalled = self.stalled()

@@ -3,7 +3,7 @@
 Regression for the seeded `demo` learner, whose stored scores predate D62: the header said
 "8 mastered", the skill list showed 2, and the plan said "You have mastered Scalability,
 Load Balancing, Caching" beside three Developing badges. cognith_learning.mastery is now
-the single rule (decisions.md D61–D63); no threshold or stored record changed.
+the single rule (decisions.md D61, D62 and D64); no threshold or stored record changed.
 
 No network: a fixed judge, and seed data copied into a temp dir.
 """

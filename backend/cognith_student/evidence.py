@@ -278,7 +278,9 @@ A strong answer to a different question is still unmet.
 
 4. Reasoning is the thing being assessed, not vocabulary. A response that names the right
 term without justifying it is `partial`. A response that reaches the right conclusion by
-sound reasoning in plain language is `met`.
+sound reasoning in plain language is `met`. Any technically correct explanation of the idea
+counts: do not require a particular analogy, metaphor or phrase unless the question itself
+asks for it.
 
 5. Justify every verdict in one sentence, quoting or paraphrasing the part of the response \
 that decided it. For `unmet`, say specifically what was missing.

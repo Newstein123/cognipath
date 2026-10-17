@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, param, pct, type EvidenceEntry } from "@/lib/api";
-import { ErrorBox, Loading, PageHead, StateBadge } from "@/components/ui";
+import { ErrorBox, Loading, PageHead } from "@/components/ui";
 
 
 export default function HistoryPage() {
@@ -43,8 +43,11 @@ export default function HistoryPage() {
               {e.changes.map((c) => (
                 <li key={c.capabilityId} className="spread" style={{ alignItems: "flex-start" }}>
                   <strong>{c.name}</strong>
-                  <span className="row" style={{ gap: 6 }}>
-                    <StateBadge state={c.stateBefore} /> {pct(c.masteryBefore)} → <StateBadge state={c.stateAfter} /> {pct(c.masteryAfter)}
+                  {/* The estimate as recorded at the time. No Mastered/Developing badge: that
+                      also depends on unit coverage and challenges at the time, which the log
+                      doesn't keep, so a badge here would be a guess. */}
+                  <span className="small muted">
+                    Recorded estimate {pct(c.masteryBefore)} → <strong>{pct(c.masteryAfter)}</strong>
                   </span>
                 </li>
               ))}
